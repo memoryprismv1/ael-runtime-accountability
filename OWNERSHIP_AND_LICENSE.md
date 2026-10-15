@@ -19,4 +19,4 @@ The repository license does not, merely by reference or association, license:
 
 Nothing here grants commercial permission to use the implementation. PolyForm Noncommercial 1.0.0 is source-available, not an OSI-approved open-source license.
 
-This file explains intended scope; it does not alter the terms of [LICENSE](LICENSE).
+This file explains intended scope; it does not alter the terms of [`LICENSE`](LICENSE).
