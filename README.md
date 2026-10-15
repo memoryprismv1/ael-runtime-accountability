@@ -6,7 +6,7 @@ AEL and its source framework remain the user's work. This package tests implemen
 
 ## Public-review staging and ownership
 
-This staging folder is prepared for a public repository, with a test workflow and contributor guidance. AEL belongs to its author. The original published source pages are linked in `SOURCES.md`; private supporting documents are not copied into this repository. No software license has been chosen yet: see `LICENSE_STATUS.md`. Public visibility does not by itself grant permission to reuse or redistribute the implementation.
+This repository is a public-review prototype. AEL belongs to its author; this implementation is an engineering experiment and does not replace or claim authorship of the original framework. The software implementation is offered under the [PolyForm Noncommercial License 1.0.0](LICENSE). This is source-available, not an OSI-approved open-source license. The license applies only to the implementation material the licensor is entitled to license; it does not grant rights to the original AEL essays, framework publications, or linked source pages. See [LICENSE_STATUS.md](LICENSE_STATUS.md) and [OWNERSHIP_AND_LICENSE.md](OWNERSHIP_AND_LICENSE.md) for the intended scope.
 
 ## V2.8.1 addition: interactive local Ollama chat
 
