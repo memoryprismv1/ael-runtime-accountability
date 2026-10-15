@@ -1,0 +1,13 @@
+# Author’s Note: Origin, Provenance, and Status
+
+AEL did not originate in artificial intelligence research or software engineering. It grew out of my work on biological and social systems, beginning with observations and questions prompted by Punch, an abandoned Japanese macaque infant attempting to find his place in a troop after a disrupted early social-learning history. I became interested in how social animals learn to anticipate consequences, how groups tolerate and correct developing members, and how anticipated enforcement shapes behaviour. AEL developed from that line of inquiry. Only later did I recognize that AI systems might need ideas from this work.
+
+The direction of origin matters: **AEL is my pre-existing work; AI is a later application, not its source.** The original AEL framework and its source publications remain distinct from the software in this repository.
+
+This repository records one implementation attempt. I supplied the AEL source materials and architectural ideas. ChatGPT read those materials and generated this prototype’s code, tests, and implementation documentation. The software design choices made during that process, and the claims describing what this particular code does, are part of ChatGPT’s implementation attempt. They should not be mistaken for code written or technically approved by me, or for an authoritative definition of AEL.
+
+I have not independently audited or validated the implementation. I do not know from personal testing whether it works as intended, whether it faithfully represents the biological reasoning behind AEL, or how it behaves in environments I have not tested. Test results reported with the prototype reflect checks ChatGPT ran in its development environment. Those checks reportedly passed, including tests against a mocked local Ollama endpoint; Ollama was not installed there, and no real model inference was tested. Passing software tests is not evidence that the underlying biological interpretation is correct or that the software is a faithful implementation of the framework.
+
+This is an experimental artefact published with **zero expectations of continued development**. I may update it, but I make no commitment to use it, validate it, maintain it, reproduce reported defects, respond to issues, or accept contributions. A bug report does not create an obligation for me to investigate or fix it. The repository may remain unchanged indefinitely.
+
+Please distinguish the original AEL work from this AI-generated implementation attempt. The former is the source framework; the latter is evidence of an attempt to translate parts of it into code, not proof that the translation succeeded.
