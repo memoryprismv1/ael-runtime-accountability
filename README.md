@@ -96,6 +96,7 @@ The original AEL writing remains the authoritative source and is linked, not rec
 - [`SOURCE_INVENTORY.md`](SOURCE_INVENTORY.md) — provenance and redistribution boundary for material used during development.
 - [`MODEL_INPUT_BOUNDARY.md`](MODEL_INPUT_BOUNDARY.md) and [`LOCAL_MODEL_BRIDGE.md`](LOCAL_MODEL_BRIDGE.md) — model-input controls and local adapter.
 - [`OWNERSHIP_AND_LICENSE.md`](OWNERSHIP_AND_LICENSE.md) — authorship and licensing boundary.
+- [`AUTHORS_NOTE.md`](AUTHORS_NOTE.md) — biological origin of AEL, implementation provenance, verification limits, and zero expectations of maintenance.
 
 ## Explicit non-goals
 
