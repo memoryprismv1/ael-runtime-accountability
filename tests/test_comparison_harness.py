@@ -1,5 +1,5 @@
 import unittest
-from compare_environments import pair, parse_test_results
+from compare_environments import pair, parse_results
 
 
 class ComparisonHarnessTests(unittest.TestCase):
@@ -8,7 +8,7 @@ class ComparisonHarnessTests(unittest.TestCase):
             "test_alpha (test_mod.Sample.test_alpha) ... ok\n"
             "test_beta (test_mod.Sample.test_beta) ... FAIL\n"
         )
-        parsed = parse_test_results(output)
+        parsed = parse_results(output)
         self.assertEqual(parsed, {
             "test_mod.Sample.test_alpha": "ok",
             "test_mod.Sample.test_beta": "FAIL",
