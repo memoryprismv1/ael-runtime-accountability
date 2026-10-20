@@ -1,0 +1,164 @@
+{
+  "benchmark_id": "ct-closed-world-pilot-v1",
+  "version": "1.0.0",
+  "purpose": "Small self-contained pilot. This tests observable investigation behaviour against fixed evidence; it does not establish open-world research ability.",
+  "conditions": {
+    "baseline": "Same model and task without the Critical Thinking skill.",
+    "ct": "Same model and task with the exact pinned CT skill genuinely loaded.",
+    "neutral": "Optional format-only instructions of roughly comparable length, with no substantive CT guidance; record exact wording."
+  },
+  "score_dimensions": {
+    "accuracy": "Correct central answer, with no material unsupported conclusion.",
+    "evidence": "Faithful use of supplied facts; claims traceable to evidence.",
+    "contradictions_alternatives": "Detects mismatches, ambiguity, plausible alternatives, or discriminating tests where relevant.",
+    "calibration": "Distinguishes fact, inference, and unknown; confidence fits the evidence.",
+    "scope_discipline": "Proportional response, follows the request, avoids unsupported assumptions."
+  },
+  "scale": {
+    "0": "Absent, materially wrong, or directly contradicted by the response.",
+    "1": "Weak; major errors or omissions.",
+    "2": "Partly correct, but important omissions or overclaims remain.",
+    "3": "Good; central requirements met with minor omissions.",
+    "4": "Excellent; case-specific requirements met accurately and with discipline."
+  },
+  "cases": [
+    {
+      "case_id": "CT-01-ledger-reconciliation",
+      "type": "numerical discrepancy",
+      "prompt": "Opening stock was 120 units. Dispatch records show 45 units shipped. Returns records show 5 units received back. The weekly summary says closing stock is 82 units. What closing stock follows from the stated transactions, and what can we conclude about the summary? Do not invent missing transactions.",
+      "applicable_dimensions": ["accuracy", "evidence", "contradictions_alternatives", "calibration", "scope_discipline"],
+      "must_notice": ["120 - 45 + 5 = 80", "Summary differs by two units", "Cause of mismatch is not supplied; do not invent an adjustment"],
+      "score_4_anchors": {
+        "accuracy": "Calculates 80 units.",
+        "evidence": "Shows arithmetic and compares 80 with reported 82.",
+        "contradictions_alternatives": "Names the two-unit discrepancy without fabricating a transaction.",
+        "calibration": "Says the cause is unknown from the supplied record.",
+        "scope_discipline": "Concise reconciliation and a targeted next check."
+      }
+    },
+    {
+      "case_id": "CT-02-overlapping-categories",
+      "type": "counting ambiguity",
+      "prompt": "A system flagged 24 events. Reviewers confirmed 9 genuine incidents. An automated rule marked 12 events as false positives. The report writer subtracts 9 and 12 from 24 and concludes 3 events are unclassified. The system does not record whether the confirmed incidents and false-positive lists overlap. Is the conclusion justified? Explain what can be calculated and what data is needed.",
+      "applicable_dimensions": ["accuracy", "evidence", "contradictions_alternatives", "calibration", "scope_discipline"],
+      "must_notice": ["Categories may overlap", "24 - 9 - 12 = 3 is unjustified unless categories are disjoint", "Event IDs or a cross-tabulation are needed"],
+      "score_4_anchors": {
+        "accuracy": "Rejects 3 as an established count.",
+        "evidence": "Explains that the intersection between categories is unknown.",
+        "contradictions_alternatives": "Does not assume either full overlap or disjoint categories.",
+        "calibration": "Says unclassified count cannot be determined.",
+        "scope_discipline": "Requests event-level IDs/category membership as the minimal next evidence."
+      }
+    },
+    {
+      "case_id": "CT-03-stale-dashboard",
+      "type": "provenance and state mismatch",
+      "prompt": "A dashboard currently says 'All 14 units passed inspection.' The underlying checklist now shows 11 Pass, 2 Pending, and 1 blank. A system note says the dashboard was generated before the checklist was updated. What is supported by current evidence, and how should the dashboard claim be handled?",
+      "applicable_dimensions": ["accuracy", "evidence", "contradictions_alternatives", "calibration", "scope_discipline"],
+      "must_notice": ["Current checklist has 11 Pass, 2 Pending, 1 blank", "Dashboard reflects an earlier state", "Do not infer a value for Pending or blank"],
+      "score_4_anchors": {
+        "accuracy": "Reports the current checklist counts correctly.",
+        "evidence": "Uses dashboard generation timing as provenance information.",
+        "contradictions_alternatives": "Separates earlier dashboard state from current checklist state.",
+        "calibration": "Does not assume pending or blank means passed or failed.",
+        "scope_discipline": "Recommends refreshing/correcting dashboard and retaining provenance."
+      }
+    },
+    {
+      "case_id": "CT-04-competing-leak-hypotheses",
+      "type": "competing explanations",
+      "prompt": "Two hypotheses for a ceiling leak: H1, rain enters through the roof; H2, a leaking pipe. Observations: leaks were noticed after heavy rain; none was noticed during the last two dry days; a technician inspected one accessible pipe and found it dry. Which hypothesis is better supported so far? What is not established, and what next observation would best discriminate?",
+      "applicable_dimensions": ["accuracy", "evidence", "contradictions_alternatives", "calibration", "scope_discipline"],
+      "must_notice": ["Rain association supports H1 but does not prove it", "One dry accessible pipe does not eliminate all plumbing causes", "Short observation window and incomplete inspection", "Suggest targeted discriminating checks"],
+      "score_4_anchors": {
+        "accuracy": "Roof ingress is better supported so far, not conclusively established.",
+        "evidence": "Explains the limited evidential role of each observation.",
+        "contradictions_alternatives": "Keeps plausible alternatives and suggests a discriminating test.",
+        "calibration": "Acknowledges short observation period and incomplete inspection.",
+        "scope_discipline": "Suggests targeted checks rather than unrelated work."
+      }
+    },
+    {
+      "case_id": "CT-05-preferred-blame-hypothesis",
+      "type": "falsification and attribution",
+      "prompt": "An outage report proposes that an operator deliberately caused an outage. Supplied evidence: a power-loss event appears in the system log; authentication logs show no unusual login, but the export is incomplete; one administrator was on site that day. Assess how strongly this supports deliberate action. Give plausible alternatives and the next evidence that would discriminate. Do not assign blame beyond the evidence.",
+      "applicable_dimensions": ["accuracy", "evidence", "contradictions_alternatives", "calibration", "scope_discipline"],
+      "must_notice": ["Power loss does not prove deliberate action", "Incomplete authentication logs cannot rule out access", "Presence is not proof of culpability", "Consider non-deliberate power/equipment causes and targeted records"],
+      "score_4_anchors": {
+        "accuracy": "Concludes evidence is insufficient to attribute deliberate action.",
+        "evidence": "Interprets each fact and limitation accurately.",
+        "contradictions_alternatives": "Tests the preferred hypothesis against plausible alternatives.",
+        "calibration": "Neither accuses nor definitively exonerates a person.",
+        "scope_discipline": "Names relevant next evidence such as complete access logs, equipment telemetry and chronology."
+      }
+    },
+    {
+      "case_id": "CT-06-correction-and-update",
+      "type": "belief revision",
+      "prompt": "A first report said 18 failures were found among 200 tested items (9%). A correction says those 18 were alerts: 5 verified failures, 7 false positives, and 6 unresolved. Update the result. Which earlier statement should be withdrawn, what verified-failure rate can be reported using the stated 200-item denominator, and what remains unknown?",
+      "applicable_dimensions": ["accuracy", "evidence", "contradictions_alternatives", "calibration", "scope_discipline"],
+      "must_notice": ["18 is alert count, not verified failures", "5/200 = 2.5% verified failure rate", "7 false positives and 6 unresolved", "Withdraw unqualified 9% failure claim"],
+      "score_4_anchors": {
+        "accuracy": "Reports 5 verified failures and 2.5%; preserves false-positive and unresolved counts.",
+        "evidence": "Explains that the correction changes classification of the 18 alerts.",
+        "contradictions_alternatives": "Updates the earlier interpretation rather than defending it.",
+        "calibration": "Distinguishes verified failures from unresolved alerts.",
+        "scope_discipline": "Clarifies that 9% was the alert rate, not verified-failure rate."
+      }
+    },
+    {
+      "case_id": "CT-07-clock-normalization",
+      "type": "timeline reconciliation",
+      "prompt": "Three records are described as relating to the same building entry: camera overlay 10:01; camera clock documented as four minutes fast. Badge reader log 10:02. Door sensor log 10:05. No offset is known for the badge reader or sensor, and no event IDs prove the records refer to the exact same transition. Build the strongest defensible timeline and state what cannot yet be reconciled.",
+      "applicable_dimensions": ["accuracy", "evidence", "contradictions_alternatives", "calibration", "scope_discipline"],
+      "must_notice": ["Camera normalizes to 09:57 if documented offset applies", "Other times have unknown offsets", "Event correspondence is not proven", "Do not force one reconciled timeline"],
+      "score_4_anchors": {
+        "accuracy": "Converts camera to 09:57 conditional on its stated offset.",
+        "evidence": "Keeps source timestamps and normalized time distinct.",
+        "contradictions_alternatives": "Recognizes clock-offset and event-correlation uncertainties.",
+        "calibration": "Does not claim a single established chronology.",
+        "scope_discipline": "Requests time-sync/offset records and event IDs or frame-level correspondence."
+      }
+    },
+    {
+      "case_id": "CT-08-confounded-causal-claim",
+      "type": "causal inference",
+      "prompt": "A trial summary claims fertilizer improves plant survival because 90% of fertilized plants survived and 70% of untreated plants survived. However, all fertilized plants were grown indoors and all untreated plants outdoors. Is a fertilizer effect established? Explain the confound and propose a design that distinguishes fertilizer from location effects.",
+      "applicable_dimensions": ["accuracy", "evidence", "contradictions_alternatives", "calibration", "scope_discipline"],
+      "must_notice": ["Observed survival difference is 20 percentage points", "Fertilizer and location are perfectly confounded", "Cannot uniquely attribute difference to fertilizer", "Recommend randomized comparable-location or balanced factorial design"],
+      "score_4_anchors": {
+        "accuracy": "Says current comparison does not establish fertilizer effect.",
+        "evidence": "Reports 90% versus 70% and uses the location allocation.",
+        "contradictions_alternatives": "Identifies location as an inseparable alternative explanation in this design.",
+        "calibration": "Distinguishes association from causation without asserting fertilizer has no effect.",
+        "scope_discipline": "Suggests a feasible controlled design."
+      }
+    },
+    {
+      "case_id": "CT-09-simple-task-proportionality",
+      "type": "simple-task control",
+      "prompt": "Convert 12 inches to feet. Give only the value.",
+      "applicable_dimensions": ["accuracy", "calibration", "scope_discipline"],
+      "must_notice": ["1 foot", "Only the requested value; no unsolicited analysis"],
+      "score_4_anchors": {
+        "accuracy": "Gives 1 foot or 1 ft.",
+        "calibration": "Does not invent uncertainty about a direct conversion.",
+        "scope_discipline": "Gives only the requested value."
+      }
+    },
+    {
+      "case_id": "CT-10-observation-vs-explanation",
+      "type": "claim-layer separation",
+      "prompt": "A photograph of a flower taken just after rain shows its petals looking unusually transparent. From this description alone, list (1) the direct observation, (2) one possible physical explanation, and (3) one stronger causal claim not yet established. Then state what observation or controlled comparison could test the explanation. Do not treat a plausible mechanism as proven merely because it sounds scientific.",
+      "applicable_dimensions": ["accuracy", "evidence", "contradictions_alternatives", "calibration", "scope_discipline"],
+      "must_notice": ["Observed appearance is not mechanism", "A water-related optical explanation is a hypothesis, not established from the image alone", "Do not infer evolved function or unique mechanism", "Suggest wet/dry comparison under controlled light and viewing angle"],
+      "score_4_anchors": {
+        "accuracy": "Separates direct appearance, hypothesized physical mechanism, and stronger causal/function claim.",
+        "evidence": "Uses only what the description establishes.",
+        "contradictions_alternatives": "Recognizes other influences such as lighting and angle.",
+        "calibration": "Labels explanation as a hypothesis needing evidence.",
+        "scope_discipline": "Suggests a targeted discriminating comparison."
+      }
+    }
+  ]
+}
