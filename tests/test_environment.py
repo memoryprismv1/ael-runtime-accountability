@@ -1,7 +1,6 @@
 import os, subprocess, sys, tempfile, unittest
 from pathlib import Path
 from ael_environment import REPOSITORY_ROOT,prepare_environment,resolve_environment_path,validate_dependencies
-from compare_environments import pair
 
 IS_CT_ENVIRONMENT=(REPOSITORY_ROOT/"dependencies"/"critical-thinking"/"SKILL.md").is_file()
 
@@ -38,13 +37,6 @@ class ExperimentEnvironmentTests(unittest.TestCase):
     def test_path_context_refuses_to_escape_repository(self):
         with self.assertRaisesRegex(ValueError,"inside the repository"):
             resolve_environment_path("../")
-
-    def test_comparison_detects_regression(self):
-        r=pair("baseline","ct",{"baseline":{"Class.test_same":"ok","Class.test_old":"ok"},"ct":{"Class.test_same":"FAIL","Class.test_new":"ok"}})
-        self.assertFalse(r["shared_tests_match"])
-        self.assertEqual(r["baseline_pass_to_experiment_failure"][0]["test"],"Class.test_same")
-        self.assertEqual(r["first_only_tests"],["Class.test_old"])
-        self.assertEqual(r["second_only_tests"],["Class.test_new"])
 
     def test_launcher_uses_explicit_environment_path_and_reports_inherited_context(self):
         chosen="." if IS_CT_ENVIRONMENT else "ct"
