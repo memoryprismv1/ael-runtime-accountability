@@ -1,6 +1,6 @@
 # AEL Runtime Prototype V2.8.1 — Local Chat + Conformance
 
-**Status:** Local implementation prototype. It tests selected AEL Runtime Accountability mechanisms; it is not the complete AEL runtime or a production specification.
+**Status:** V2.8.1 remains the main-branch baseline. The separate V2.9 task-precommitment feature branch is experimental and not a complete AEL runtime or production specification.
 
 AEL and its source framework remain the user's work. This package tests implementation correspondence to the user's source documents; it does not replace them or claim authorship of the framework.
 
@@ -17,6 +17,40 @@ Each call stores the user request and returned assistant response in the persist
 The bridge has been tested end-to-end against a local mock server that implements Ollama's documented non-streaming `/api/chat` response shape. **Ollama is not installed in this development environment, so no real model inference was run here.** The code is ready for a local Ollama installation and a model available on that machine; actual model latency, answer quality and model-specific token counting remain untested.
 
 See [`LOCAL_MODEL_BRIDGE.md`](LOCAL_MODEL_BRIDGE.md) for optional setup and the interactive launcher (`START_AEL_CHAT.bat` on Windows).
+
+## Candidate V2.9 extension: task-level critical-thinking precommitment
+
+**Status:** Experimental feature branch; not yet a released or validated autonomous executor.
+
+The candidate task workflow pins a snapshot of the Critical Thinking skill from the [cognitive-interface-ai-skills repository](https://github.com/memoryprismv1/cognitive-interface-ai-skills). Source commit, Git blob, source license, and the bundled skill's SHA-256 are recorded. The local copy is checked against its Git blob SHA at runtime; updates are explicit rather than silently tracking the upstream default branch.
+
+The task lifecycle stores immutable case-note and implementation-plan artifacts, records approval decisions against their exact SHA-256 hashes, requires the implementation plan to name the approved case hash, and refuses the execution-start transition unless both current artifacts are approved. Replacing case notes clears the current plan. Actions and verification checks are stored as records, and a standalone Markdown audit export includes the artifacts, decisions, actions, evidence references, and event chronology.
+
+The local Ollama commands can generate case notes and plans using the pinned skill. The human must inspect and approve the generated case and plan. The task lifecycle records execution authorisation and supplied action records; **it does not yet execute arbitrary external tasks or prevent an agent from acting outside the runtime**. The audit report is evidence of what the runtime recorded, not proof that model-generated claims are true.
+
+See [the precommitment development log](CRITICAL_THINKING_PRECOMMITMENT_LOG.md) and [the task workflow implementation](ael_task_precommitment.py).
+
+### Example CLI sequence
+
+Run from the repository folder. Use an installed local model name shown by \`python runtime.py ollama-status\`.
+
+\`\`\`bash
+python runtime.py task create --project demo --chat task-001 --id task-001 --request "Investigate X and carry out the approved work" --model LOCAL_MODEL
+python runtime.py task generate-case --project demo --chat task-001 --id task-001 --model LOCAL_MODEL --out handoffs/task-001-case.md
+# Inspect the case notes, then approve or reject them.
+python runtime.py task decide-case --project demo --chat task-001 --id task-001 --decision approve --note "Reviewed current case artifact"
+python runtime.py task generate-plan --project demo --chat task-001 --id task-001 --model LOCAL_MODEL --out handoffs/task-001-plan.md
+# Inspect the plan, then approve or reject it.
+python runtime.py task decide-plan --project demo --chat task-001 --id task-001 --decision approve --note "Reviewed current plan artifact"
+python runtime.py task begin --project demo --chat task-001 --id task-001
+# The executor/caller must log actual actions as they happen.
+python runtime.py task log-action --project demo --chat task-001 --id task-001 --description "Ran focused test suite" --status completed --evidence-ref handoffs/test-output.txt
+python runtime.py task complete --project demo --chat task-001 --id task-001 --summary "Implemented the approved change" --output-ref handoffs/result.md
+python runtime.py task verify --project demo --chat task-001 --id task-001 --overall-status partial --checks-file handoffs/checks.json --notes "See checks for tested and untested criteria."
+python runtime.py task export --project demo --chat task-001 --id task-001 --out handoffs/task-001-audit.md
+\`\`\`
+
+For each check in \`checks.json\`, provide a non-empty \`criterion\` and a \`status\` of \`pass\`, \`fail\`, \`partial\`, or \`not_tested\`. Passing checks require an \`evidence_refs\` list. Failed, partial, and untested checks require explanatory \`notes\`. A check's evidence reference must point to real material that a reviewer can inspect.
 
 ## V2.7 addition retained: Delta-First conformance
 
@@ -97,6 +131,8 @@ The original AEL writing remains the authoritative source and is linked, not rec
 - [`MODEL_INPUT_BOUNDARY.md`](MODEL_INPUT_BOUNDARY.md) and [`LOCAL_MODEL_BRIDGE.md`](LOCAL_MODEL_BRIDGE.md) — model-input controls and local adapter.
 - [`OWNERSHIP_AND_LICENSE.md`](OWNERSHIP_AND_LICENSE.md) — authorship and licensing boundary.
 - [`AUTHORS_NOTE.md`](AUTHORS_NOTE.md) — biological origin of AEL, implementation provenance, verification limits, and zero expectations of maintenance.
+- [`CRITICAL_THINKING_PRECOMMITMENT_LOG.md`](CRITICAL_THINKING_PRECOMMITMENT_LOG.md) — precommitted design and chronological implementation record.
+- [`dependencies/critical-thinking/DEPENDENCY.json`](dependencies/critical-thinking/DEPENDENCY.json) — pinned critical-thinking skill provenance and licensing.
 
 ## Explicit non-goals
 
