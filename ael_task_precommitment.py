@@ -76,7 +76,11 @@ def dependency():
     if not SKILL_PATH.is_file() or not DEPENDENCY_PATH.is_file():
         raise RuntimeError("Pinned critical-thinking dependency is missing.")
     body = SKILL_PATH.read_text(encoding="utf-8")
+    raw = body.encode("utf-8")
     manifest = json.loads(DEPENDENCY_PATH.read_text(encoding="utf-8"))
+    actual_git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw).hexdigest()
+    if actual_git_blob != manifest.get("source_blob_sha"):
+        raise RuntimeError("Vendored critical-thinking skill does not match its pinned Git blob SHA.")
     if manifest.get("source_commit") != "d1f23e2ad9dafd323940fc6b7a00f1700275d885":
         raise RuntimeError("Critical-thinking source commit does not match the expected pin.")
     if manifest.get("source_blob_sha") != "d7134969b124e39c04e343bed2ce2475f64b9a64":
@@ -114,7 +118,7 @@ def emit(con, runtime, t, event_type, actor, state, note="", artifact_id=None, a
             event_type=event_type,provenance=provenance,authority=authority,inference_kind="process_event",
             truth_status="not_applicable",source_ref=artifact_id,content=note or event_type,
             metadata={"task_id":t["task_id"],"from_state":before,"to_state":state,"artifact_sha256":artifact_hash,**(metadata or {})})
-    return {"event_id":eid,"event_type":event_type,"from_state":before,"to_state":state}
+    return {"event_id":eid,"event_type":event_type,"from_state":before,"to_state":state,"created_at":timestamp}
 
 
 def get_artifact(con,t,aid):
@@ -172,6 +176,7 @@ def put_artifact(con,runtime,t,kind,body,creator,based_case=None,metadata=None):
 
 def submit_case(con,runtime,task_id,account,project,chat,body,creator="assistant"):
     t=get_task(con,task_id,account,project,chat)
+    previous_state=t["state"]
     if t["state"] in {"execution_started","execution_completed","verification_recorded"}:
         raise ValueError("Cannot replace case notes after execution begins; create a new task.")
     a=put_artifact(con,runtime,t,"case_notes",body,creator)
@@ -180,7 +185,7 @@ def submit_case(con,runtime,task_id,account,project,chat,body,creator="assistant
        WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=?""",(a["artifact_id"],now(),task_id,account,project,chat))
     con.commit(); t=get_task(con,task_id,account,project,chat)
     ev=emit(con,runtime,t,"task.case_submitted",creator,"case_submitted","Case notes submitted; any earlier plan invalidated.",
-       a["artifact_id"],a["content_sha256"],{"version":a["version"],"previous_plan_invalidated":bool(old_plan)})
+       a["artifact_id"],a["content_sha256"],{"version":a["version"],"previous_plan_invalidated":bool(old_plan)},from_state=previous_state)
     return {k:v for k,v in {**a,"event":ev,"previous_plan_invalidated":bool(old_plan)}.items() if k!="content"}
 
 
