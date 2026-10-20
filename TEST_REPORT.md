@@ -26,3 +26,14 @@ Ollama was **not installed in the development environment**. No real inference, 
 ## Remaining limits
 
 The conformance checker verifies structural scope, not semantic intent. The offline context counter is approximate. The bridge is not connected to ChatGPT or Claude websites and this is not the complete AEL runtime.
+
+
+## V2.9 candidate branch — task-level critical-thinking precommitment
+
+**Status at documentation update:** implementation and new tests are on the candidate branch; CI verification is pending.
+
+The new task test module covers skill pin validation, approval gates, case-to-plan hash binding, invalidation of a plan when case notes change, append-only task records, task event mirroring, verification evidence requirements, standalone audit export, and CLI parser exposure. These tests are intended to establish runtime state-transition invariants; they cannot establish that generated reasoning is sound or that execution claims are truthful.
+
+The feature also provides local Ollama generation commands that include the pinned skill text in the model input. Actual generation with a real model has not been verified as part of this code change. There is no general external-action executor in this candidate.
+
+The confirmed test count and any failures must be updated from actual CI results; do not infer a pass from the existence of the tests.
