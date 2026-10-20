@@ -1,0 +1,12 @@
+{
+  "name": "AEL Runtime Critical-Thinking Dependency",
+  "source_repo": "https://github.com/memoryprismv1/cognitive-interface-ai-skills",
+  "source_path": "critical-thinking/SKILL.md",
+  "source_commit": "d1f23e2ad9dafd323940fc6b7a00f1700275d885",
+  "source_blob_sha": "d7134969b124e39c04e343bed2ce2475f64b9a64",
+  "source_url": "https://github.com/memoryprismv1/cognitive-interface-ai-skills/blob/d1f23e2ad9dafd323940fc6b7a00f1700275d885/critical-thinking/SKILL.md",
+  "upstream_license": "CC BY-NC 4.0",
+  "license": "https://creativecommons.org/licenses/by-nc/4.0/",
+  "attribution": "Critical Thinking — Basic Skill by memoryprismv1, copied verbatim from the pinned upstream source. See the source repository for authorship, history, and license details.",
+  "update_policy": "Explicit reviewed update only; do not fetch moving main automatically."
+}
