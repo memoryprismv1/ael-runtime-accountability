@@ -23,3 +23,8 @@ The development process used the author's AEL Runtime Accountability V1 document
 - `TEST_REPORT.md` — reproducible local test status.
 
 Historical internal audit files are retained when useful to understand implementation decisions. They do not supersede the original AEL source documents.
+
+
+## Pinned skill dependency (V2.9 candidate branch)
+
+The candidate feature vendors \`dependencies/critical-thinking/SKILL.md\` from the Critical Thinking skill in https://github.com/memoryprismv1/cognitive-interface-ai-skills at a pinned commit and Git blob SHA. The source is copied as a separate, attributed dependency under CC BY-NC 4.0; see \`dependencies/critical-thinking/DEPENDENCY.json\`. It is not part of, and does not redefine, the canonical AEL source framework. The runtime checks the copy against the pinned Git blob to detect local drift.
