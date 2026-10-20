@@ -20,3 +20,18 @@ To create another experiment, copy an environment, give it a unique experiment_i
 compare_environments.py runs the same standard-library test command separately inside each environment with distinct AEL_PATH and PYTHONPATH. It records per-test outcomes and compares shared tests pairwise across all specified environments, flags baseline-pass-to-experiment-failure regressions and reports tests unique to each tree. Repeat --environment NAME=PATH for more environments. CI tests Python 3.11, 3.12 and 3.13 and preserves a JSON report.
 
 Interpretation limit: the first harness tests deterministic software regressions. It does not prove CT improves reasoning. That requires a fixed evaluation set, controlled model/version/settings, isolated model state and explicit case-note/plan assessment criteria.
+
+## CT model-output evaluation pilot
+The efficacy question is a separate experiment. See [CT_EVALUATION_PLAN.md](CT_EVALUATION_PLAN.md) and the fixed [benchmark v1](ct-evaluation/benchmark-v1.json). The ten closed-world cases cover numerical reconciliation, category overlap, provenance/state mismatch, competing explanations, falsification of a preferred attribution, updating after correction, clock normalization, confounding, a simple-task control, and observation-versus-explanation.
+
+The conditions are baseline (no CT skill), CT (the exact pinned skill genuinely loaded), and optional neutral format-only control. Keep model/version/task/evidence/tools/settings controlled, use isolated sessions, capture raw responses, score visible answers against the same fixed rubric, and retain case-level results. A ten-task pilot is exploratory; it cannot establish general reasoning capability or prove transfer across models.
+
+The root-level script ct-evaluation.py creates a blank JSON scorecard, validates it, and summarizes manually entered scores. It does not call a model or automatically judge answers. Focused harness tests can be run without any model inference:
+
+- python ct-evaluation.py init --output ct-evaluation/run.json --model MODEL_NAME --model-version VERSION
+- Optional neutral control: add --include-neutral
+- python ct-evaluation.py validate ct-evaluation/run.json --require-complete
+- python ct-evaluation.py report ct-evaluation/run.json --out ct-evaluation/report.json
+- python ct-evaluation/test_harness.py
+
+Record the CT skill commit/blob from ct/experiment.json, exact model/provider/version/configuration, condition order, isolation method, deviations and assessor notes. Do not claim a CT result unless the condition actually loaded the pinned skill. Do not treat CI success as evidence of model quality. Actual inference requires an accessible model/runtime; the evaluation harness itself performs no inference.
