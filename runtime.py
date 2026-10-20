@@ -1790,6 +1790,8 @@ def main():
     rvo = rvs.add_parser('get-output'); rvo.add_argument('--id', required=True); rvo.add_argument('--out', required=True); rvo.add_argument('--allow-unverified', action='store_true', help='Explicitly export an output that has not passed conformance; not recommended')
     rvv = rvs.add_parser('verify-output'); rvv.add_argument('--id', required=True); rvv.add_argument('--base-file', required=True); rvv.add_argument('--report-out')
     rvvh = rvs.add_parser('verification-history'); rvvh.add_argument('--id', required=True)
+    import ael_task_precommitment as task_precommitment
+    task_precommitment.add_cli_parser(sub)
     a = p.parse_args()
     if a.cmd == 'ollama-status':
       status = ollama_status(a.endpoint, timeout=a.timeout)
@@ -1797,6 +1799,8 @@ def main():
       return 0 if status.get('available') else 2
     con = connect(a.db)
     try:
+      if a.cmd == 'task':
+        return task_precommitment.dispatch(con, sys.modules[__name__], a, account=a.account)
       if a.cmd == 'record':
         e=append_event(con, account=a.account, project=a.project, chat=a.chat, event_type=a.event_type, provenance=a.provenance, content=a.content,
           authority=a.authority, inference_kind=a.inference_kind, truth_status=a.truth_status, source_ref=a.source_ref,
