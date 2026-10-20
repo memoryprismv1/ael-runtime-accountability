@@ -51,7 +51,7 @@ class TaskPrecommitmentTests(unittest.TestCase):
 
     def test_execution_requires_both_current_approvals(self):
         task.submit_case(self.con, runtime, "task-1", self.account, self.project, self.chat, "Case notes")
-        with self.assertRaisesRegex(ValueError, "approved"):
+        with self.assertRaisesRegex(ValueError, "requires case notes and implementation plan"):
             task.begin(self.con, runtime, "task-1", self.account, self.project, self.chat)
         task.decide(self.con, runtime, "task-1", self.account, self.project, self.chat, "case_notes", "approve")
         task.submit_plan(self.con, runtime, "task-1", self.account, self.project, self.chat, "Plan")
