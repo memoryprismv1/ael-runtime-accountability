@@ -57,10 +57,9 @@ def init_run(args):
             "tool_access": args.tool_access or "Record available tools and whether used."
         },
         "skill": {
-            "ct_available": True,
             "commit": "",
             "blob_sha": "",
-            "notes": "Fill exact pin from ct/experiment.json; do not mark CT as loaded unless genuinely available."
+            "notes": "These identify the skill artifact intended for the CT condition; this metadata does not itself prove the skill was loaded."
         },
         "neutral_control": {"used": bool(args.include_neutral), "exact_instructions": ""},
         "execution": {
@@ -109,7 +108,7 @@ def validate(scorecard, benchmark, benchmark_path):
     if not model.get("name") or not model.get("version"):
         warnings.append("model name/version incomplete")
     skill = scorecard.get("skill", {})
-    if skill.get("ct_available") and (not skill.get("commit") or not skill.get("blob_sha")):
+    if scorecard.get("conditions", {}).get("ct", {}).get("used", True) and (not skill.get("commit") or not skill.get("blob_sha")):
         warnings.append("CT skill commit/blob pin missing")
     if scorecard.get("neutral_control", {}).get("used") and not scorecard.get("neutral_control", {}).get("exact_instructions"):
         warnings.append("neutral condition enabled but exact instructions missing")
