@@ -21,8 +21,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Compile both trees
-        run: python -m compileall -q ael_environment.py run_ael.py compare_environments.py runtime.py ael_chat.py tests ct/runtime.py ct/ael_chat.py ct/ael_environment.py ct/ael_task_precommitment.py ct/run_ael.py ct/tests
+      - name: Compile runtime and CT evaluation tool
+        run: python -m compileall -q ael_environment.py run_ael.py compare_environments.py runtime.py ael_chat.py ct-evaluation.py ct-evaluation/test_harness.py tests ct/runtime.py ct/ael_chat.py ct/ael_environment.py ct/ael_task_precommitment.py ct/run_ael.py ct/tests
+      - name: Test CT evaluation harness (synthetic fixtures only)
+        run: python ct-evaluation/test_harness.py
       - name: Run and compare baseline and CT test suites
         run: python compare_environments.py --out comparison-report-${{ matrix.python-version }}.json
       - name: Preserve comparison report
