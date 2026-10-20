@@ -6,7 +6,8 @@ from pathlib import Path
 from ael_environment import REPOSITORY_ROOT,prepare_environment
 LINE=re.compile(r"^(?P<test>test_[A-Za-z0-9_]+)\s+\((?P<class>[^)]+)\)\s+\.\.\.\s+(?P<status>ok|FAIL|ERROR|skipped.*)$",re.MULTILINE)
 def parse_results(output):
-    return {f"{m.group('class')}.{m.group('test')}":m.group("status").split()[0] for m in LINE.finditer(output)}
+    # unittest's parenthesized field is already the fully qualified test ID.
+    return {m.group("class"):m.group("status").split()[0] for m in LINE.finditer(output)}
 def pair(first,second,results):
     a,b=results[first],results[second]; common=sorted(set(a)&set(b))
     diffs=[{"test":t,first:a[t],second:b[t]} for t in common if a[t]!=b[t]]
