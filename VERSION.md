@@ -6,3 +6,8 @@
 **Not included:** Direct ChatGPT/Claude website connection, cloud/provider APIs, real Ollama inference in the development environment, automatic model-weight learning, semantic truth validation, or production concurrency guarantees.
 
 Read `README.md` first, then `SOURCES.md`, `DESIGN_ALIGNMENT.md`, `NEXT_STEPS.md`, `TEST_REPORT.md`, and `LOCAL_MODEL_BRIDGE.md`. Original AEL source documents are linked in `SOURCES.md`; internal source documents are not redistributed in this staging package.
+
+
+## Candidate branch notice
+
+The main branch remains V2.8.1. The feature branch \`feat/critical-thinking-task-precommitment-v2.9\` contains an experimental task-level precommitment workflow targeting V2.9.0. It must not be labelled a release until the full test suite, compatibility checks, and candidate limitations have been reviewed.
