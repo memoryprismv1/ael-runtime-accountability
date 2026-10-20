@@ -46,7 +46,10 @@ class ScorecardTests(unittest.TestCase):
                 "include_neutral": include_neutral,
             })()
             TOOL.init_run(args)
-            return json.loads(path.read_text(encoding="utf-8"))
+            card = json.loads(path.read_text(encoding="utf-8"))
+            card["skill"]["commit"] = "d1f23e2ad9dafd323940fc6b7a00f1700275d885"
+            card["skill"]["blob_sha"] = "d7134969b124e39c04e343bed2ce2475f64b9a64"
+            return card
 
     def fill_condition(self, card, condition, value):
         for case in card["cases"]:
