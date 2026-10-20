@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "experiment_id": "ct-task-precommitment-v1",
+  "description": "Isolated CT copy with task precommitment.",
+  "base_revision": "0df6000a96a4ee5f2b370b70cd1b27f4e9e55b40",
+  "integrated_task_source_revision": "eef81c3c083e163eaa8d9bbcfa4928f09ff05bec",
+  "requirements": {
+    "critical-thinking": {
+      "version": "git:d1f23e2ad9dafd323940fc6b7a00f1700275d885",
+      "path": "dependencies/critical-thinking/SKILL.md",
+      "required": true,
+      "source_repository": "https://github.com/memoryprismv1/cognitive-interface-ai-skills",
+      "source_path": "critical-thinking/SKILL.md",
+      "source_commit": "d1f23e2ad9dafd323940fc6b7a00f1700275d885",
+      "source_blob_sha": "d7134969b124e39c04e343bed2ce2475f64b9a64",
+      "license": "CC BY-NC 4.0"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible runtime or test failure
+title: "bug: "
+labels: [bug]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Keep the report focused on a single failure.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: Commands, minimal inputs, and setup needed to reproduce.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and test output
+    validations:
+      required: true
+  - type: checkboxes
+    id: private_data
+    attributes:
+      label: Data check
+      options:
+        - label: I removed personal conversation content, credentials, and private database files from this report.
+          required: true

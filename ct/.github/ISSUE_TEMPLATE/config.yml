@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: AEL source framework
+    url: https://www.memoryprism.com/readings/ael-runtime-accountability
+    about: Consult the author's source framework; this repository is an implementation prototype.
