@@ -32,9 +32,9 @@ See [the precommitment development log](CRITICAL_THINKING_PRECOMMITMENT_LOG.md) 
 
 ### Example CLI sequence
 
-Run from the repository folder. Use an installed local model name shown by \`python runtime.py ollama-status\`.
+Run from the repository folder. Use an installed local model name shown by `python runtime.py ollama-status`.
 
-\`\`\`bash
+```bash
 python runtime.py task create --project demo --chat task-001 --id task-001 --request "Investigate X and carry out the approved work" --model LOCAL_MODEL
 python runtime.py task generate-case --project demo --chat task-001 --id task-001 --model LOCAL_MODEL --out handoffs/task-001-case.md
 # Inspect the case notes, then approve or reject them.
@@ -48,9 +48,9 @@ python runtime.py task log-action --project demo --chat task-001 --id task-001 -
 python runtime.py task complete --project demo --chat task-001 --id task-001 --summary "Implemented the approved change" --output-ref handoffs/result.md
 python runtime.py task verify --project demo --chat task-001 --id task-001 --overall-status partial --checks-file handoffs/checks.json --notes "See checks for tested and untested criteria."
 python runtime.py task export --project demo --chat task-001 --id task-001 --out handoffs/task-001-audit.md
-\`\`\`
+```
 
-For each check in \`checks.json\`, provide a non-empty \`criterion\` and a \`status\` of \`pass\`, \`fail\`, \`partial\`, or \`not_tested\`. Passing checks require an \`evidence_refs\` list. Failed, partial, and untested checks require explanatory \`notes\`. A check's evidence reference must point to real material that a reviewer can inspect.
+For each check in `checks.json`, provide a non-empty `criterion` and a `status` of `pass`, `fail`, `partial`, or `not_tested`. Passing checks require an `evidence_refs` list. Failed, partial, and untested checks require explanatory `notes`. A check's evidence reference must point to real material that a reviewer can inspect.
 
 ## V2.7 addition retained: Delta-First conformance
 
