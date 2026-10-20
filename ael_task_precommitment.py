@@ -78,7 +78,7 @@ def dependency():
     body = SKILL_PATH.read_text(encoding="utf-8")
     raw = body.encode("utf-8")
     manifest = json.loads(DEPENDENCY_PATH.read_text(encoding="utf-8"))
-    actual_git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\\0" + raw).hexdigest()
+    actual_git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
     if actual_git_blob != manifest.get("source_blob_sha"):
         raise RuntimeError("Vendored critical-thinking skill does not match its pinned Git blob SHA.")
     if manifest.get("source_commit") != "d1f23e2ad9dafd323940fc6b7a00f1700275d885":
@@ -101,13 +101,14 @@ def get_task(con, task_id, account, project, chat):
     return dict(row)
 
 
-def emit(con, runtime, t, event_type, actor, state, note="", artifact_id=None, artifact_hash=None, metadata=None):
-    before = t["state"]
+def emit(con, runtime, t, event_type, actor, state, note="", artifact_id=None, artifact_hash=None, metadata=None, from_state=None):
+    before = t["state"] if from_state is None else from_state
     eid = "TE-" + os.urandom(8).hex()
+    timestamp = now()
     con.execute("""INSERT INTO task_events(event_id,task_id,account_id,project_id,chat_id,event_type,actor,
         from_state,to_state,artifact_id,artifact_sha256,note,metadata_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (eid,t["task_id"],t["account_id"],t["project_id"],t["chat_id"],event_type,actor,before,state,
-         artifact_id,artifact_hash,note,json.dumps(metadata or {},ensure_ascii=False),now()))
+         artifact_id,artifact_hash,note,json.dumps(metadata or {},ensure_ascii=False),timestamp))
     con.execute("UPDATE task_runs SET state=?,updated_at=? WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=?",
                 (state,now(),t["task_id"],t["account_id"],t["project_id"],t["chat_id"]))
     con.commit()
@@ -119,7 +120,6 @@ def emit(con, runtime, t, event_type, actor, state, note="", artifact_id=None, a
             truth_status="not_applicable",source_ref=artifact_id,content=note or event_type,
             metadata={"task_id":t["task_id"],"from_state":before,"to_state":state,"artifact_sha256":artifact_hash,**(metadata or {})})
     return {"event_id":eid,"event_type":event_type,"from_state":before,"to_state":state,"created_at":timestamp}
-
 
 def get_artifact(con,t,aid):
     row=con.execute("""SELECT * FROM task_artifacts WHERE artifact_id=? AND task_id=? AND account_id=? AND project_id=? AND chat_id=?""",
