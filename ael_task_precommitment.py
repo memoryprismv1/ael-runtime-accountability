@@ -174,12 +174,12 @@ def put_artifact(con,runtime,t,kind,body,creator,based_case=None,metadata=None):
             "based_on_case_sha256":based_case,"dependency_commit":m["source_commit"],"dependency_blob_sha":m["source_blob_sha"]}
 
 
-def submit_case(con,runtime,task_id,account,project,chat,body,creator="assistant"):
+def submit_case(con,runtime,task_id,account,project,chat,body,creator="assistant",artifact_metadata=None):
     t=get_task(con,task_id,account,project,chat)
     previous_state=t["state"]
-    if t["state"] in {"execution_started","execution_completed","verification_recorded"}:
+    if t["state"] in {"execution_started","execution_blocked","execution_completed","verification_recorded"}:
         raise ValueError("Cannot replace case notes after execution begins; create a new task.")
-    a=put_artifact(con,runtime,t,"case_notes",body,creator)
+    a=put_artifact(con,runtime,t,"case_notes",body,creator,metadata=artifact_metadata)
     old_plan=t["current_plan_artifact_id"]
     con.execute("""UPDATE task_runs SET current_case_artifact_id=?,current_plan_artifact_id=NULL,updated_at=?
        WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=?""",(a["artifact_id"],now(),task_id,account,project,chat))
@@ -189,7 +189,7 @@ def submit_case(con,runtime,task_id,account,project,chat,body,creator="assistant
     return {k:v for k,v in {**a,"event":ev,"previous_plan_invalidated":bool(old_plan)}.items() if k!="content"}
 
 
-def submit_plan(con,runtime,task_id,account,project,chat,body,creator="assistant"):
+def submit_plan(con,runtime,task_id,account,project,chat,body,creator="assistant",artifact_metadata=None):
     t=get_task(con,task_id,account,project,chat)
     if t["state"] in {"execution_started","execution_completed","verification_recorded"}:
         raise ValueError("Cannot replace plan after execution begins; create a new task.")
@@ -197,7 +197,7 @@ def submit_plan(con,runtime,task_id,account,project,chat,body,creator="assistant
     if not case: raise ValueError("Submit case notes first.")
     cd=latest_decision(con,t,"case_notes",case)
     if not cd or cd["decision"]!="approve": raise ValueError("Cannot submit plan until the current case is approved.")
-    a=put_artifact(con,runtime,t,"implementation_plan",body,creator,case["content_sha256"])
+    a=put_artifact(con,runtime,t,"implementation_plan",body,creator,case["content_sha256"],artifact_metadata)
     con.execute("""UPDATE task_runs SET current_plan_artifact_id=?,updated_at=? WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=?""",
        (a["artifact_id"],now(),task_id,account,project,chat))
     con.commit(); t=get_task(con,task_id,account,project,chat)
@@ -210,7 +210,7 @@ def decide(con,runtime,task_id,account,project,chat,kind,decision,note=""):
     t=get_task(con,task_id,account,project,chat)
     if kind not in {"case_notes","implementation_plan"} or decision not in {"approve","reject"}:
         raise ValueError("Invalid decision type or decision.")
-    if t["state"] in {"execution_started","execution_completed","verification_recorded"}: raise ValueError("Approvals are closed after execution begins.")
+    if t["state"] in {"execution_started","execution_blocked","execution_completed","verification_recorded"}: raise ValueError("Approvals are closed after execution begins.")
     a=current_artifact(con,t,kind)
     if not a: raise ValueError("No current artifact exists for this decision.")
     if kind=="implementation_plan":
@@ -241,6 +241,15 @@ def begin(con,runtime,task_id,account,project,chat):
        plan["artifact_id"],plan["content_sha256"],{"case_artifact_id":case["artifact_id"],"case_sha256":case["content_sha256"],
        "plan_artifact_id":plan["artifact_id"],"plan_sha256":plan["content_sha256"],"case_decision_id":cd["decision_id"],"plan_decision_id":pd["decision_id"]})
     return {"task_id":task_id,"state":"execution_started","authorized":True,"case_sha256":case["content_sha256"],"plan_sha256":plan["content_sha256"],"event":ev}
+
+
+def block(con,runtime,task_id,account,project,chat,reason):
+    t=get_task(con,task_id,account,project,chat)
+    if t["state"]!="execution_started":
+        raise ValueError("A task can only be blocked or stopped after execution has started.")
+    if not reason.strip(): raise ValueError("Provide a reason for the block or stop.")
+    ev=emit(con,runtime,t,"task.execution_blocked","assistant","execution_blocked",reason,metadata={"reason":reason})
+    return {"task_id":task_id,"state":"execution_blocked","reason":reason,"event":ev}
 
 
 def log_action(con,runtime,task_id,account,project,chat,description,status,evidence_ref=None,note=""):
@@ -278,6 +287,13 @@ def verify(con,runtime,task_id,account,project,chat,overall_status,checks,notes=
         if c.get("status") not in statuses: raise ValueError(f"Check {i} has invalid status.")
         if c["status"]=="pass" and not c.get("evidence_refs"): raise ValueError(f"Passing check {i} requires evidence_refs.")
         if c["status"] in {"fail","partial","not_tested"} and not c.get("notes"): raise ValueError(f"Check {i} requires notes.")
+        if c.get("evidence_refs") is not None and (not isinstance(c["evidence_refs"],list) or not all(isinstance(ref,str) and ref.strip() for ref in c["evidence_refs"])):
+            raise ValueError(f"Check {i} evidence_refs must be a list of non-empty strings.")
+    statuses_seen={c["status"] for c in checks}
+    if overall_status=="pass" and statuses_seen!={"pass"}:
+        raise ValueError("Overall pass requires every listed check to pass.")
+    if overall_status=="fail" and "fail" not in statuses_seen:
+        raise ValueError("Overall fail requires at least one failed check.")
     plan=current_artifact(con,t,"implementation_plan")
     payload={"task_id":task_id,"overall_status":overall_status,"plan_artifact_id":plan["artifact_id"],"plan_sha256":plan["content_sha256"],
        "checks":checks,"notes":notes,"warning":"A stored verification claim is not independent proof; inspect cited evidence and methods."}
@@ -322,7 +338,7 @@ def export_markdown(s):
       "**License:** "+d["license"]+" ("+d["license_url"]+")","","## Original request","",t["request"],"","## Artifacts",""]
     for a in s["artifacts"]:
         lines += ["### "+a["kind"]+" v"+str(a["version"]),"Artifact ID: "+a["artifact_id"],"SHA-256: "+a["content_sha256"],
-          "Creator: "+a["creator"],"Based on case SHA-256: "+str(a["based_on_case_sha256"] or "not applicable"),"",a["content"],""]
+          "Creator: "+a["creator"],"Based on case SHA-256: "+str(a["based_on_case_sha256"] or "not applicable"),"Metadata: "+json.dumps(a["metadata"],ensure_ascii=False),"",a["content"],""]
     lines += ["## Decisions",""]
     for x in s["decisions"]: lines.append("- "+x["created_at"]+": "+x["decision"]+" "+x["decision_type"]+" by "+x["actor"]+" on artifact "+x["artifact_id"]+" hash "+x["artifact_sha256"]+". Note: "+(x["note"] or "(none)"))
     if not s["decisions"]: lines.append("No decisions recorded.")
@@ -369,6 +385,8 @@ def add_cli_parser(sub):
     x=s.add_parser("submit-plan"); x.add_argument("--project",required=True); x.add_argument("--chat",required=True); x.add_argument("--id",required=True); x.add_argument("--content-file",required=True); x.add_argument("--creator",choices=["assistant","user"],default="assistant")
     x=s.add_parser("decide-plan"); x.add_argument("--project",required=True); x.add_argument("--chat",required=True); x.add_argument("--id",required=True); x.add_argument("--decision",choices=["approve","reject"],required=True); x.add_argument("--note",default="")
     x=s.add_parser("begin"); x.add_argument("--project",required=True); x.add_argument("--chat",required=True); x.add_argument("--id",required=True)
+    x=s.add_parser("block",help="Record that approved execution is blocked or stopped")
+    x.add_argument("--project",required=True); x.add_argument("--chat",required=True); x.add_argument("--id",required=True); x.add_argument("--reason",required=True)
     x=s.add_parser("log-action"); x.add_argument("--project",required=True); x.add_argument("--chat",required=True); x.add_argument("--id",required=True); x.add_argument("--description",required=True); x.add_argument("--status",choices=["started","completed","failed","skipped"],required=True); x.add_argument("--evidence-ref"); x.add_argument("--note",default="")
     x=s.add_parser("complete"); x.add_argument("--project",required=True); x.add_argument("--chat",required=True); x.add_argument("--id",required=True); x.add_argument("--summary",required=True); x.add_argument("--output-ref",nargs="*",default=[])
     x=s.add_parser("verify"); x.add_argument("--project",required=True); x.add_argument("--chat",required=True); x.add_argument("--id",required=True); x.add_argument("--overall-status",choices=["pass","partial","fail","unverified"],required=True); x.add_argument("--checks-file",required=True); x.add_argument("--notes",default="")
@@ -386,7 +404,9 @@ def dispatch(con,runtime,a,account):
         if not a.model.strip(): raise ValueError("Model name must be non-empty.")
         response=runtime.ollama_chat({"working_context":context,"current_user_message":message},model=a.model,base_url=a.endpoint,timeout=a.timeout)
         out=Path(a.out).expanduser().resolve(); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(response["content"],encoding="utf-8")
-        result=submit_case(con,runtime,task_id,account,project,chat,response["content"]) if kind=="case_notes" else submit_plan(con,runtime,task_id,account,project,chat,response["content"])
+        generation_metadata={"provider":"ollama-local","model":response["model"],"endpoint_host":response.get("endpoint_host"),
+            "generated_by_model":True,"skill_content_sha256":skill_hash,"output_path":str(out)}
+        result=submit_case(con,runtime,task_id,account,project,chat,response["content"],artifact_metadata=generation_metadata) if kind=="case_notes" else submit_plan(con,runtime,task_id,account,project,chat,response["content"],artifact_metadata=generation_metadata)
         result.update({"out":str(out),"model":response["model"],"provider":"ollama-local","skill_content_sha256":skill_hash,"generated_by_model":True})
         result.pop("content",None)
     elif a.task_cmd=="submit-case":
@@ -396,6 +416,7 @@ def dispatch(con,runtime,a,account):
         result=submit_plan(con,runtime,task_id,account,project,chat,Path(a.content_file).expanduser().read_text(encoding="utf-8"),a.creator)
     elif a.task_cmd=="decide-plan": result=decide(con,runtime,task_id,account,project,chat,"implementation_plan",a.decision,a.note)
     elif a.task_cmd=="begin": result=begin(con,runtime,task_id,account,project,chat)
+    elif a.task_cmd=="block": result=block(con,runtime,task_id,account,project,chat,a.reason)
     elif a.task_cmd=="log-action": result=log_action(con,runtime,task_id,account,project,chat,a.description,a.status,a.evidence_ref,a.note)
     elif a.task_cmd=="complete": result=complete(con,runtime,task_id,account,project,chat,a.summary,a.output_ref)
     elif a.task_cmd=="verify":
