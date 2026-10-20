@@ -14,12 +14,14 @@
 
 ## What remains most valuable
 
-1. **Real model run:** the package needs Ollama and a suitable locally downloaded model on the target machine. This environment has no Ollama executable, so only the API contract and shell loop were tested against a mock.
-2. **Real artifact integration:** have the runtime load and hash source artifacts itself at proposal time and re-read them at expansion/verification, rather than trusting caller-provided content/hash pairs.
-3. **Semantic conformance check:** structural scope verification catches out-of-scope edits, but a domain test or independent check is needed to verify that output fulfills the approved delta.
-4. **Automatic lesson extraction:** turn recorded corrections/outcomes into sourced candidate lessons and regression cases. Retain data, separate retention from use, and require explicit review/promotion.
-5. **Memory walk-back automation:** define and test time-based decay/reactivation when useful; keep it small and avoid forced maintenance forms.
-6. **UI/runtime bridge:** improve the local shell into a UI only if a real use case warrants it; it should not expose audit-only data to the model.
+1. **Validate V2.9 candidate task workflow:** run compilation and the full existing plus new task-precommitment tests in CI; fix regressions before calling the candidate ready.
+2. **Execution adapter:** connect an actual bounded tool executor to approved plan steps, with all consequential operations routed through the AEL gate and task-action records. The current task commands do not themselves execute arbitrary tasks.
+3. **Independent verification:** add reproducible checks that inspect outputs and compare them against the plan, rather than relying solely on model-authored verification notes.
+4. **Real local-model run:** use Ollama and a local model on target hardware. This environment's prior bridge validation was against a mock.
+5. **Real artifact integration:** have the runtime load and hash source artifacts itself at proposal time and re-read them at expansion/verification, rather than trusting caller-provided content/hash pairs.
+6. **Automatic lesson extraction:** turn recorded corrections/outcomes into sourced candidate lessons and regression cases. Retain data, separate retention from use, and require explicit review/promotion.
+7. **Memory walk-back automation:** define and test time-based decay/reactivation when useful; keep it small and avoid forced maintenance forms.
+8. **Threat-model and data-handling review** before recommending use with sensitive content.
 
 ## Do not do
 
