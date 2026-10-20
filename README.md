@@ -2,6 +2,9 @@
 
 **Status:** Local implementation prototype. It tests selected AEL Runtime Accountability mechanisms; it is not the complete AEL runtime or a production specification.
 
+> **Experimental branch handoff:** This branch contains an isolated path-rooted Critical Thinking (CT) task-precommitment experiment plus a separate CT evaluation pilot. For the full architectural and implementation map—including what is implemented, what's inherited from baseline, verification status, exact limitations, test commands and next steps—start with [BRANCH_STATE_AND_ARCHITECTURE.md](BRANCH_STATE_AND_ARCHITECTURE.md). The experiment is not merged into `main`; software regression tests and evidence of CT reasoning improvement are separate questions.
+
+
 AEL and its source framework remain the user's work. This package tests implementation correspondence to the user's source documents; it does not replace them or claim authorship of the framework.
 
 ## Public-review staging and ownership
