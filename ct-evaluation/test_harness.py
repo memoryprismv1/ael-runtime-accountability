@@ -104,7 +104,7 @@ class ScorecardTests(unittest.TestCase):
         changed = copy.deepcopy(BENCHMARK)
         changed["cases"][0]["prompt"] += " modified"
         errors, _ = TOOL.validate(card, changed, BENCHMARK_PATH)
-        self.assertTrue(any("benchmark_id" not in err and "benchmark_version" not in err for err in errors))
+        self.assertTrue(any("prompt hash mismatch" in err for err in errors))
 
 
 if __name__ == "__main__":
