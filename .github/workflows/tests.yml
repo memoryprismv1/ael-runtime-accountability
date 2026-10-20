@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Compile both trees
-        run: python -m compileall -q ael_environment.py run_ael.py compare_environments.py runtime.py ael_chat.py tests ct/runtime.py ct/ael_chat.py ct/ael_task_precommitment.py ct/tests
+        run: python -m compileall -q ael_environment.py run_ael.py compare_environments.py runtime.py ael_chat.py tests ct/runtime.py ct/ael_chat.py ct/ael_environment.py ct/ael_task_precommitment.py ct/tests
       - name: Run and compare baseline and CT test suites
         run: python compare_environments.py --out comparison-report-${{ matrix.python-version }}.json
       - name: Preserve comparison report
