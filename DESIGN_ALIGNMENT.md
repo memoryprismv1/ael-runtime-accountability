@@ -42,6 +42,22 @@
 | Context budget | Protected user content is verbatim; protected overflow fails closed; optional events are whole-record inclusion/omission. | Exact model tokenizer and context-window setting for each chosen model. |
 | Model connection | Loopback-only Ollama adapter plus interactive multi-turn shell; model-status check; uses allowlisted input, records request/response, excludes `:cloud` models, refuses remote hosts, no API token. | Ollama and a local model were not installed here, so actual inference/performance remains untested. No ChatGPT/Claude web integration. |
 
+## Candidate extension — Task-level Critical Thinking + AEL precommitment
+
+**Status:** Implemented on the V2.9 candidate feature branch; test validation is tracked separately in \`TEST_REPORT.md\`.
+
+The candidate task lifecycle is implemented in \`ael_task_precommitment.py\` and uses separate task tables in the existing SQLite database, while mirroring task lifecycle events into the existing append-only event ledger. It does not overload the document-revision state machine.
+
+- Case notes and implementation plans are immutable, versioned artifacts with SHA-256 hashes.
+- User decisions are append-only records bound to the exact artifact ID and hash.
+- An implementation plan is bound to the exact approved case-note hash.
+- Replacing case notes clears the current plan; old artifacts and decisions remain historical.
+- Execution start fails closed unless the current case and current plan both have approved decisions and the plan's case hash matches.
+- Each task stores a dependency identity for the pinned critical-thinking skill; generation uses that bundled source as guidance.
+- The export packages the task request, skill provenance, artifacts and hashes, approvals/rejections, action records, verification checks, and chronology.
+
+**Boundary:** this task protocol enforces state and records inside the runtime. The initial local Ollama integration generates case notes and plans but does not provide a general tool/action executor. Action records supplied by a caller are not independent proof that the described action occurred. The final report explicitly distinguishes auditability from semantic truth.
+
 ## Mechanism 10: verification boundary
 
 After expansion, `revision verify-output` loads the immutable candidate, checks that its content hash is intact, verifies the supplied base file against the accepted proposal's pinned SHA-256, then compares actual changed Markdown blocks against the declared section scope.
