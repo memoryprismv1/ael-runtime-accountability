@@ -36,7 +36,13 @@ Score the visible answer, not hidden chain-of-thought and not the model's self-a
 
 The benchmark's applicable_dimensions field defines which dimensions count for each case. Use null for a genuinely non-applicable dimension, not zero. Do not reward eloquence, length, or confidence by themselves. Use the same case-specific must_notice and score_4_anchors for every condition.
 
-Where practical, replace condition labels with random response IDs before scoring. Have the same assessor(s) score all conditions; if multiple assessors are available, retain their independent ratings before adjudication. Keep raw responses and evidence-based notes in the scorecard. Resolve rubric ambiguities before unblinding condition labels where feasible.
+Where practical, replace condition labels with random response IDs before scoring. Keep raw responses and evidence-based notes in the scorecard. Resolve rubric ambiguities before unblinding condition labels where feasible.
+
+### Independent assessor records
+
+New scorecards use schema `1.1`. Each response stores its raw answer once and contains an `assessments` array. Each assessment has a unique `assessor_id`, an independent `scores` object and `rationale_notes`. Do not average or reconcile ratings before recording them. Use stable pseudonymous assessor IDs if names should not appear in the scorecard; keep their mapping separately where needed. Assessor identity should not reveal which model condition produced a response before blinded scoring is complete.
+
+The report includes pooled descriptive scores plus per-case/per-dimension rating ranges, the number of multi-rater cases, and the number where ratings differ. These summaries make disagreement visible; they do not decide which assessor is correct. Preserve each assessment's individual scores and notes in the scorecard. Existing schema `1.0` scorecards with response-level `assessor`, `scores`, and `rationale_notes` remain readable and are treated as one-assessor records.
 
 ## First-run procedure
 
@@ -49,7 +55,7 @@ Where practical, replace condition labels with random response IDs before scorin
 
 ## Required reporting
 
-Report response/score completeness; per-condition means by dimension and case; denominators; paired CT-minus-baseline deltas; optional CT-minus-neutral deltas; case-level wins, ties and losses; simple-task control performance; assessor disagreement; missing data; deviations; and technical failures. Do not make broad claims from one average or cherry-picked success. With only ten tasks, emphasize individual cases and uncertainty rather than significance claims.
+Report response/score completeness; per-condition means by dimension and case; denominators; paired CT-minus-baseline deltas; optional CT-minus-neutral deltas; case-level wins, ties and losses; simple-task control performance; assessor counts and disagreement ranges; missing data; deviations; and technical failures. Do not make broad claims from one average or cherry-picked success. With only ten tasks, emphasize individual cases and uncertainty rather than significance claims.
 
 A later **open-world** stage should separately test source discovery, provenance, conflicting external evidence, and evidence-backed synthesis with tools held constant and source snapshots archived. Keep that separate because live sources and retrieval results change.
 
@@ -62,7 +68,7 @@ A later **open-world** stage should separately test source discovery, provenance
 
 ## Tooling
 
-ct-evaluation.py creates a blank scorecard, validates response/score completeness, and calculates transparent descriptive summaries. It does not call a model or automatically judge answer quality.
+ct-evaluation.py creates a blank scorecard, validates independent ratings and completeness, and calculates descriptive summaries, paired deltas, and assessor-disagreement summaries. It does not call a model or automatically judge answer quality.
 
 Initialize:
 python ct-evaluation.py init --output ct-evaluation/run.json --model MODEL_NAME --model-version VERSION

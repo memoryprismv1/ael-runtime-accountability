@@ -94,7 +94,7 @@ The exact skill pin is meant to make runs reproducible. It does not validate the
 | `CT_EVALUATION_PLAN.md` | Protocol for testing CT's effect on visible investigation outputs. |
 | `ct-evaluation/benchmark-v1.json` | Fixed set of ten self-contained cases and case-specific scoring anchors. |
 | `ct-evaluation.py` | Initializes a JSON scorecard, validates scorecards, and computes descriptive summaries and paired deltas. It does not call a model or auto-score answers. |
-| `ct-evaluation/test_harness.py` | Seven deterministic sanity tests using synthetic fixtures, not real model outputs. |
+| `ct-evaluation/test_harness.py` | Eleven deterministic sanity tests using synthetic fixtures, not real model outputs. |
 
 The `ct/` tree includes a number of copied AEL documents (context budget, memory workflow, usage disposition, delta-first delivery, source inventory, licensing and other baseline materials). Their presence preserves an independent, readable copy of the experimental environment; it does not mean every such subsystem was newly rewritten for CT. The primary new task-level subsystem is `ct/ael_task_precommitment.py`, supported by the environment guard/pinning and experiment harness.
 
