@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Focused, deterministic sanity tests for ct-evaluation.py and its benchmark."""
+"""Focused, deterministic tests for ct-evaluation.py and its benchmark."""
+import copy
 import importlib.util
 import json
 import tempfile
@@ -33,40 +34,46 @@ class ScorecardTests(unittest.TestCase):
     def make_scorecard(self, include_neutral=False):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "run.json"
-            args = type("Args", (), {
-                "benchmark": str(BENCHMARK_PATH),
-                "output": str(path),
-                "model": "synthetic-test-model",
-                "model_version": "test-0",
-                "provider": "test",
-                "settings": "deterministic synthetic data",
-                "tool_access": "none",
-                "run_id": "synthetic-test",
-                "seed": 42,
-                "include_neutral": include_neutral,
-            })()
+            args = type("Args", (), {"benchmark": str(BENCHMARK_PATH), "output": str(path),
+                "model": "synthetic-test-model", "model_version": "test-0", "provider": "test",
+                "settings": "deterministic synthetic data", "tool_access": "none", "run_id": "synthetic-test",
+                "seed": 42, "include_neutral": include_neutral})()
             TOOL.init_run(args)
             card = json.loads(path.read_text(encoding="utf-8"))
             card["skill"]["commit"] = "d1f23e2ad9dafd323940fc6b7a00f1700275d885"
             card["skill"]["blob_sha"] = "d7134969b124e39c04e343bed2ce2475f64b9a64"
+            card["conditions"]["ct"]["instruction_or_skill_setup"] = "Pinned skill fixture"
             return card
 
-    def fill_condition(self, card, condition, value):
+    def fill_condition(self, card, condition, value, assessor_id="assessor-A"):
         for case in card["cases"]:
             response = case["responses"][condition]
             response["blind_response_id"] = f'{case["case_id"]}-{condition}'
             response["raw_response"] = f"Synthetic fixture response for {condition}; not a real model result."
-            response["assessor"] = "automated-fixture"
-            response["scores"] = {
-                dim: (value if dim in case["applicable_dimensions"] else None)
-                for dim in TOOL.DIMENSIONS
-            }
+            response["assessments"] = [{"assessor_id": assessor_id,
+                "scores": {dim: (value if dim in case["applicable_dimensions"] else None) for dim in TOOL.DIMENSIONS},
+                "rationale_notes": "Synthetic test fixture; not a real assessment."}]
+
+    def make_legacy_scorecard(self):
+        card = self.make_scorecard()
+        self.fill_condition(card, "baseline", 2)
+        self.fill_condition(card, "ct", 3)
+        card["schema_version"] = "1.0"
+        for case in card["cases"]:
+            for response in case["responses"].values():
+                values = response.pop("assessments")
+                if values:
+                    rating = values[0]
+                    response["assessor"] = rating["assessor_id"]
+                    response["scores"] = rating["scores"]
+                    response["rationale_notes"] = rating["rationale_notes"]
+        return card
 
     def test_blank_scorecard_is_structurally_valid_but_incomplete(self):
         card = self.make_scorecard()
         errors, warnings = TOOL.validate(card, BENCHMARK, BENCHMARK_PATH)
         self.assertEqual(errors, [])
-        self.assertTrue(warnings)
+        self.assertTrue(any("no assessor ratings" in warning for warning in warnings))
 
     def test_valid_paired_scores_produce_expected_descriptive_delta(self):
         card = self.make_scorecard()
@@ -80,13 +87,13 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(report["conditions"]["ct"]["mean_case_score_0_to_4"], 3)
         self.assertEqual(report["paired_comparisons"]["ct_minus_baseline_mean_case_delta"], 1)
         self.assertEqual(report["paired_comparisons"]["ct_minus_baseline_n_paired_complete_cases"], 10)
+        self.assertEqual(report["scorecard_schema_version"], "1.1")
 
-    def test_incomplete_case_is_excluded_from_paired_delta(self):
+    def test_incomplete_assessment_is_excluded_from_paired_delta(self):
         card = self.make_scorecard()
         self.fill_condition(card, "baseline", 2)
         self.fill_condition(card, "ct", 3)
-        first = card["cases"][0]
-        first["responses"]["ct"]["scores"]["accuracy"] = None
+        card["cases"][0]["responses"]["ct"]["assessments"][0]["scores"]["accuracy"] = None
         report = TOOL.make_report(card, BENCHMARK)
         self.assertEqual(report["paired_comparisons"]["ct_minus_baseline_n_paired_complete_cases"], 9)
 
@@ -94,17 +101,68 @@ class ScorecardTests(unittest.TestCase):
         card = self.make_scorecard()
         self.fill_condition(card, "baseline", 2)
         self.fill_condition(card, "ct", 3)
-        card["cases"][0]["responses"]["ct"]["scores"]["accuracy"] = 7
+        card["cases"][0]["responses"]["ct"]["assessments"][0]["scores"]["accuracy"] = 7
         errors, _ = TOOL.validate(card, BENCHMARK, BENCHMARK_PATH)
         self.assertTrue(any("score must be integer 0-4" in err for err in errors))
 
     def test_benchmark_content_change_is_detected(self):
         card = self.make_scorecard()
-        import copy
         changed = copy.deepcopy(BENCHMARK)
         changed["cases"][0]["prompt"] += " modified"
         errors, _ = TOOL.validate(card, changed, BENCHMARK_PATH)
         self.assertTrue(any("prompt hash mismatch" in err for err in errors))
+
+    def test_independent_assessments_are_preserved_and_disagreement_reported(self):
+        card = self.make_scorecard()
+        self.fill_condition(card, "baseline", 2, "assessor-A")
+        self.fill_condition(card, "ct", 3, "assessor-A")
+        first = card["cases"][0]
+        extra = copy.deepcopy(first["responses"]["baseline"]["assessments"][0])
+        extra["assessor_id"] = "assessor-B"
+        extra["scores"] = {dim: (4 if dim in first["applicable_dimensions"] else None) for dim in TOOL.DIMENSIONS}
+        extra["rationale_notes"] = "Independent synthetic rating differs intentionally."
+        first["responses"]["baseline"]["assessments"].append(extra)
+        errors, warnings = TOOL.validate(card, BENCHMARK, BENCHMARK_PATH)
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        report = TOOL.make_report(card, BENCHMARK)
+        detail = report["case_results"][0]["assessor_disagreement"]["baseline"]["dimensions"]["accuracy"]
+        self.assertEqual(detail["n_assessors"], 2)
+        self.assertEqual(detail["min"], 2)
+        self.assertEqual(detail["max"], 4)
+        self.assertEqual(detail["range"], 2)
+        self.assertTrue(detail["disagreement"])
+        summary = report["assessor_agreement"]["baseline"]["dimensions"]["accuracy"]
+        self.assertEqual(summary["n_case_dimensions_with_multiple_ratings"], 1)
+        self.assertEqual(summary["n_case_dimensions_with_disagreement"], 1)
+        self.assertEqual(summary["mean_range_when_multiple_raters"], 2)
+
+    def test_duplicate_assessor_ids_are_rejected_per_response(self):
+        card = self.make_scorecard()
+        self.fill_condition(card, "baseline", 2)
+        response = card["cases"][0]["responses"]["baseline"]
+        response["assessments"].append(copy.deepcopy(response["assessments"][0]))
+        errors, _ = TOOL.validate(card, BENCHMARK, BENCHMARK_PATH)
+        self.assertTrue(any("assessor_id values must be unique" in err for err in errors))
+
+    def test_legacy_v1_scorecards_remain_readable(self):
+        card = self.make_legacy_scorecard()
+        errors, warnings = TOOL.validate(card, BENCHMARK, BENCHMARK_PATH)
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        report = TOOL.make_report(card, BENCHMARK)
+        self.assertEqual(report["conditions"]["baseline"]["mean_case_score_0_to_4"], 2)
+        self.assertEqual(report["conditions"]["ct"]["mean_case_score_0_to_4"], 3)
+        self.assertEqual(report["scorecard_schema_version"], "1.0")
+
+    def test_non_applicable_dimension_must_remain_null_for_each_assessor(self):
+        card = self.make_scorecard()
+        self.fill_condition(card, "baseline", 2)
+        self.fill_condition(card, "ct", 3)
+        simple = next(c for c in card["cases"] if c["case_id"] == "CT-09-simple-task-proportionality")
+        simple["responses"]["ct"]["assessments"][0]["scores"]["evidence"] = 1
+        errors, _ = TOOL.validate(card, BENCHMARK, BENCHMARK_PATH)
+        self.assertTrue(any("evidence: must be null" in err for err in errors))
 
 
 if __name__ == "__main__":
