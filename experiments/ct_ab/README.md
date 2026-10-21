@@ -47,3 +47,30 @@ A successful preflight establishes only that instrumentation functions as intend
 ## Known limits
 
 Hash chains detect accidental edits and unsynchronised tampering; they are not a cryptographic guarantee against an administrator who can rewrite the entire log and recompute all hashes. Keep the runner and run output under a separate owner/process where possible, preserve a final signed/remote checksum in a controller-owned location, and record instrumentation failures. A process log cannot infer hidden internal cognition and deliberately does not attempt to do so. A full future runner must be the enforcement point for shell/editor/file access; the command helper is a capture implementation, not a sandbox by itself.
+
+
+## Client-task runner and paired skill comparison
+
+The instrumentation gate is now paired with a fixed, Trello-inspired Kanban client task and an independent post-run acceptance suite. The agent workspace receives the client brief and API contract through its prompt; it does not receive the acceptance test source.
+
+### Local model inventory
+
+    python -m experiments.ct_ab.paired_runner doctor
+
+This contacts only a local loopback Ollama service, lists exact installed model names, and does not prompt a model.
+
+### Before a scored pair
+
+The exact Critical Thinking skill file must be supplied from its real source. The runner hashes it, injects its bytes into only the enabled condition, and keeps the condition key outside the blinded output bundle. It does not invent or substitute a skill file.
+
+    python -m experiments.ct_ab.paired_runner run-pair --output /path/to/new-pair-output --model EXACT_NAME_FROM_OLLAMA_LIST --ct-skill /path/to/the/actual/Critical-Thinking-SKILL.md --allow-host-execution
+
+Use a new, empty output directory. Both blind runs use the same model, options, brief, workspace starter, tool definitions and resource limits. The run order and mapping of A/B to skill-off/skill-on are randomized; the controller key is written to a separate sibling location by default. Do not provide that key to blind scorers until their scores are frozen.
+
+The output has two source bundles, two structured event streams, raw request/response evidence, independent acceptance reports, a blinded pair report, checksums, and a task manifest that hashes the brief, API contract, starter and acceptance suite.
+
+### Execution safety and interpretation
+
+**Host execution requires explicit opt-in.** The acceptance runner starts model-generated app.py as the current OS user. It is not an OS sandbox. Run this only in a disposable VM/container with no secrets, personal data or valuable files accessible. The tool interface prevents arbitrary shell calls from the agent, but that alone does not make its code safe to execute.
+
+The --allow-host-execution option acknowledges this limitation; it does not create a sandbox. An installed local model and the exact real skill file are prerequisites for scored runs. Mock-model CI exercises the harness only; it is not the real experiment and cannot show the skill improves reasoning.

@@ -1,0 +1,193 @@
+{
+  "contract_version": "1.0",
+  "server": {
+    "startup_command": [
+      "python",
+      "app.py",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "<PORT>"
+    ],
+    "host": "127.0.0.1",
+    "data_file_environment_variable": "BOARD_DATA_FILE",
+    "persistence": "The application must read and write all board state in the exact file designated by BOARD_DATA_FILE and preserve cards across process restarts."
+  },
+  "columns": [
+    {
+      "id": "todo",
+      "title": "To Do"
+    },
+    {
+      "id": "in_progress",
+      "title": "In Progress"
+    },
+    {
+      "id": "done",
+      "title": "Done"
+    }
+  ],
+  "card": {
+    "fields": {
+      "id": "non-empty string",
+      "title": "non-empty string, max 160 chars",
+      "description": "string, max 1000 chars",
+      "column_id": "todo|in_progress|done"
+    },
+    "response_envelope": "A card mutation returns JSON with a 'card' property containing the card object."
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/",
+      "success_status": 200,
+      "body": "HTML text",
+      "requirements": [
+        "content-type includes text/html",
+        "includes #board",
+        "#create-card-form",
+        "#card-title",
+        "#card-description",
+        "#card-column",
+        "data-action=create",
+        "data-action=edit",
+        "data-action=move",
+        "data-action=delete"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/board",
+      "success_status": 200,
+      "body": {
+        "columns": [
+          {
+            "id": "todo",
+            "title": "To Do",
+            "cards": []
+          },
+          {
+            "id": "in_progress",
+            "title": "In Progress",
+            "cards": []
+          },
+          {
+            "id": "done",
+            "title": "Done",
+            "cards": []
+          }
+        ]
+      },
+      "requirements": [
+        "columns appear in exact order",
+        "each column has a cards array",
+        "all cards have id,title,description,column_id"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards",
+      "body": {
+        "title": "Design the board",
+        "description": "optional description",
+        "column_id": "todo"
+      },
+      "success_status": 201,
+      "response": {
+        "card": {
+          "id": "string",
+          "title": "Design the board",
+          "description": "optional description",
+          "column_id": "todo"
+        }
+      },
+      "requirements": [
+        "title is required and trimmed",
+        "description defaults to empty string",
+        "column_id defaults to todo",
+        "unknown column returns 400",
+        "empty title returns 400"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/cards/{id}",
+      "body": {
+        "title": "Revised title",
+        "description": "Revised description"
+      },
+      "success_status": 200,
+      "response": {
+        "card": {
+          "id": "string",
+          "title": "Revised title",
+          "description": "Revised description",
+          "column_id": "todo"
+        }
+      },
+      "requirements": [
+        "title/description may be edited",
+        "omitted fields are unchanged",
+        "unknown ID returns 404"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/{id}/move",
+      "body": {
+        "column_id": "done"
+      },
+      "success_status": 200,
+      "response": {
+        "card": {
+          "id": "string",
+          "title": "Revised title",
+          "description": "Revised description",
+          "column_id": "done"
+        }
+      },
+      "requirements": [
+        "only allowed column IDs accepted",
+        "unknown ID returns 404"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/cards/{id}",
+      "success_status": 204,
+      "body": "empty",
+      "requirements": [
+        "card is removed from subsequent board reads",
+        "unknown ID returns 404"
+      ]
+    }
+  ],
+  "interface": {
+    "required_ids": [
+      "board",
+      "create-card-form",
+      "card-title",
+      "card-description",
+      "card-column"
+    ],
+    "required_action_attributes": [
+      "create",
+      "edit",
+      "move",
+      "delete"
+    ],
+    "behavior": [
+      "Form creates a card and updates the visible board without requiring a page reload.",
+      "Each card visibly exposes edit, move, and delete controls.",
+      "Move control supports all three columns.",
+      "Input and API errors are presented to the user.",
+      "UI reads current state from the server API."
+    ]
+  },
+  "constraints": {
+    "dependencies": "Python standard library only",
+    "external_services": false,
+    "multi_user": false,
+    "source_assets": "original code and original styling only"
+  }
+}
