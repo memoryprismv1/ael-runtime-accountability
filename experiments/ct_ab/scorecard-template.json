@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "pair_id": "<pair_id>",
+  "assessor_id": "<your assessor ID>",
+  "blind_label": "A",
+  "submitted_at_utc": "<ISO 8601 timestamp>",
+  "dimensions": {
+    "requirements_fidelity": {
+      "score": 3,
+      "rationale": "Replace with evidence-based assessment.",
+      "evidence": [
+        "path, acceptance check, or event sequence"
+      ]
+    },
+    "functional_robustness": {
+      "score": 3,
+      "rationale": "Replace with evidence-based assessment.",
+      "evidence": [
+        "path, acceptance check, or event sequence"
+      ]
+    },
+    "interface_usability": {
+      "score": 3,
+      "rationale": "Replace with evidence-based assessment.",
+      "evidence": [
+        "path, acceptance check, or event sequence"
+      ]
+    },
+    "maintainability_simplicity": {
+      "score": 3,
+      "rationale": "Replace with evidence-based assessment.",
+      "evidence": [
+        "path, acceptance check, or event sequence"
+      ]
+    },
+    "testing_documentation": {
+      "score": 3,
+      "rationale": "Replace with evidence-based assessment.",
+      "evidence": [
+        "path, acceptance check, or event sequence"
+      ]
+    },
+    "process_discipline": {
+      "score": 3,
+      "rationale": "Replace with evidence-based assessment.",
+      "evidence": [
+        "path, acceptance check, or event sequence"
+      ]
+    }
+  },
+  "overall_preference": "unable_to_judge",
+  "confidence": 1,
+  "notes": "Submit one scorecard for each blind packet. Preserve initial ratings unchanged."
+}

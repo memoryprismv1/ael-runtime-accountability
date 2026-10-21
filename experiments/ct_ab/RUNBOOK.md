@@ -35,3 +35,12 @@ The independent acceptance suite checks the home-page automation hooks, three-co
 A passing CI run proves only that the harness functions in its mock rehearsal. A completed local pair proves the same model completed two runs and leaves inspectable evidence. A difference in acceptance score on one pair is exploratory, not a general causal finding. Stronger claims require repeated pairs, independent scoring, preserved disagreement, and analysis of differences in implementation quality and resources.
 
 Never claim a real-model experiment ran unless the model requests/responses, skill file hash, both completed logs, acceptance reports and final pair validation exist.
+
+
+## 6. Blind human scoring
+
+The paired runner makes score-packets/score-A.zip and score-packets/score-B.zip. Send the two packets to assessors without the private condition key. Each packet includes SCORING_RUBRIC.md, scorecard.schema.json, scorecard-template.json, source code, acceptance report, submitted plan, final summary and a redacted observable timeline. Raw model requests/responses and the condition-configuration hash are deliberately omitted from the packet; preserve the original events.jsonl files separately for audit.
+
+Each assessor should fill a separate scorecard for each blind label and submit both independently. Preserve original ratings and reasons before comparing them. Record disagreement; do not silently average away differences. Freeze the scorecards before using the private condition key to identify skill-on/off.
+
+Use packet SHA-256 values in blinded-pair-report.json to verify you are scoring the produced packets. Human ratings should cite files, acceptance checks, or event sequence IDs. Do not rate hidden reasoning. One pair remains exploratory evidence.

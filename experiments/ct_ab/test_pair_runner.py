@@ -3,6 +3,7 @@ import json
 import tempfile
 import threading
 import unittest
+import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -91,6 +92,25 @@ class AcceptanceSuiteTests(unittest.TestCase):
             self.assertNotIn("skill_disabled",blinded)
             all_artifacts="".join(p.read_text(encoding="utf-8",errors="replace") for p in output.rglob("*") if p.is_file() and p.suffix not in {".zip"})
             self.assertNotIn("MOCK_INTERNAL_THOUGHT_SENTINEL",all_artifacts)
+            for label in ("A","B"):
+                packet=output/"score-packets"/f"score-{label}.zip"
+                self.assertTrue(packet.is_file(),f"blind score packet missing: {packet}")
+                with zipfile.ZipFile(packet) as archive:
+                    names=set(archive.namelist())
+                    self.assertTrue({"source/app.py","SCORING_RUBRIC.md","scorecard.schema.json","scorecard-template.json","observed-timeline.jsonl","acceptance-report.json"}.issubset(names))
+                    contents="".join(archive.read(name).decode("utf-8",errors="replace") for name in names if not name.endswith(".zip"))
+                    self.assertNotIn("TEST SKILL SENTINEL",contents)
+                    self.assertNotIn("MOCK_INTERNAL_THOUGHT_SENTINEL",contents)
+                    self.assertNotIn("skill_enabled",contents)
+                    self.assertNotIn("skill_disabled",contents)
+                    self.assertNotIn("condition_config_sha256",contents)
+                    timeline=[json.loads(line) for line in archive.read("observed-timeline.jsonl").decode("utf-8").splitlines() if line.strip()]
+                    self.assertFalse(any(e["event_type"] in {"model_request","model_response"} for e in timeline))
+            blinded_report=json.loads((output/"blinded-pair-report.json").read_text(encoding="utf-8"))
+            self.assertEqual(blinded_report["instrumentation_gate"],"PASS")
+            self.assertEqual(set(blinded_report["blind_score_packets"]),{"A","B"})
+            for packet in blinded_report["blind_score_packets"].values():
+                self.assertEqual(len(packet["sha256"]),64)
 
     def test_remote_or_non_http_ollama_endpoint_is_refused(self):
         for value in ["https://example.com:11434","http://192.168.1.10:11434","file:///tmp/test","http://127.0.0.1"]:

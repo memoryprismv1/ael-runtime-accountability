@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memoryprism.com/schemas/ct-ab-scorecard-1.0.json",
+  "title": "Blind CT A/B software-task assessor scorecard",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "pair_id",
+    "assessor_id",
+    "blind_label",
+    "submitted_at_utc",
+    "dimensions",
+    "overall_preference",
+    "confidence",
+    "notes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "pair_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assessor_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "blind_label": {
+      "enum": [
+        "A",
+        "B"
+      ]
+    },
+    "submitted_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirements_fidelity",
+        "functional_robustness",
+        "interface_usability",
+        "maintainability_simplicity",
+        "testing_documentation",
+        "process_discipline"
+      ],
+      "properties": {
+        "requirements_fidelity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "score",
+            "rationale",
+            "evidence"
+          ],
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "functional_robustness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "score",
+            "rationale",
+            "evidence"
+          ],
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "interface_usability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "score",
+            "rationale",
+            "evidence"
+          ],
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "maintainability_simplicity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "score",
+            "rationale",
+            "evidence"
+          ],
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "testing_documentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "score",
+            "rationale",
+            "evidence"
+          ],
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "process_discipline": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "score",
+            "rationale",
+            "evidence"
+          ],
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        }
+      }
+    },
+    "overall_preference": {
+      "enum": [
+        "A",
+        "B",
+        "tie",
+        "unable_to_judge"
+      ]
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

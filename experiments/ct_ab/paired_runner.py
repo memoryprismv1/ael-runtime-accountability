@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 from .acceptance import run_acceptance
 from .agent_loop import AgentLoop, OllamaClient, RunnerError
-from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, sha256_bytes, utc_now
+from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, sha256_bytes, sha256_file, utc_now
 from .validate_log import LogValidationError, validate_pair, validate_run
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -80,6 +80,92 @@ def _zip_workspace(workspace: Path) -> bytes:
                 continue
             archive.write(path, path.relative_to(workspace).as_posix())
     return buffer.getvalue()
+
+
+def _build_blind_score_packet(label: str, run_dir: Path, workspace: Path, acceptance_dir: Path,
+                              result: Mapping[str, Any], target: Path) -> None:
+    """Bundle application and redacted event trace without model prompts or condition key."""
+    import zipfile
+    manifest=json.loads((run_dir/"manifest.json").read_text(encoding="utf-8"))
+    raw_events=[json.loads(line) for line in (run_dir/"events.jsonl").read_text(encoding="utf-8").splitlines()]
+    plan_text=""
+    for event in raw_events:
+        if event.get("event_type")=="plan_submitted":
+            for ref in event.get("evidence_refs",[]):
+                path=(run_dir/ref["path"]).resolve()
+                if path.is_file():
+                    plan_text=path.read_text(encoding="utf-8",errors="replace")
+                    break
+            if not plan_text:
+                # The plan reference is attached to the following tool-call artifact event.
+                pass
+            if plan_text: break
+    if not plan_text:
+        for path in sorted((run_dir/"artifacts").glob("*submitted-plan.md")):
+            plan_text=path.read_text(encoding="utf-8",errors="replace")
+            break
+    summary_paths=sorted((run_dir/"artifacts").glob("*agent-final-summary.json"))
+    summary=json.loads(summary_paths[-1].read_text(encoding="utf-8")) if summary_paths else {"summary":"No final summary captured","known_issues":["No final summary artifact"],"checks_claimed":[]}
+    acceptance_path=acceptance_dir/"acceptance-report.json"
+    acceptance=json.loads(acceptance_path.read_text(encoding="utf-8")) if acceptance_path.is_file() else {"status":"NOT_RUN","passed":0,"failed":0,"total":0,"checks":[]}
+    packet_meta={
+        "blind_label":label,
+        "run_id":manifest["run_id"],
+        "model":manifest["model"],
+        "environment":manifest["environment"],
+        "resource_limits":manifest["resource_limits"],
+        "task_bundle_sha256":manifest["task_brief_sha256"],
+        "client_brief_sha256":manifest.get("client_brief_sha256"),
+        "api_contract_sha256":manifest.get("api_contract_sha256"),
+        "acceptance_suite_sha256":manifest.get("acceptance_suite_sha256"),
+        "acceptance_contract_version":manifest.get("acceptance_contract_version"),
+        "agent_status":result.get("agent_status"),
+        "acceptance_status":result.get("acceptance_status"),
+        "acceptance_score":result.get("acceptance_score"),
+        "source_tree_sha256":result.get("source_tree_sha256"),
+        "source_file_count":result.get("source_file_count")
+    }
+    # Keep the event sequence and observed outcomes, but exclude exact prompts,
+    # raw model responses, evidence paths to prompt files and condition-specific
+    # configuration hashes. This is intended for blind scoring, not audit.
+    omitted={"model_request","model_response","artifact_captured"}
+    timeline=[]
+    for event in raw_events:
+        if event.get("event_type") in omitted:
+            continue
+        payload=dict(event.get("payload",{}))
+        for private_key in ("message","prompt","system","thinking","reasoning","analysis","condition_config_sha256"):
+            payload.pop(private_key,None)
+        timeline.append({
+            "seq":event.get("seq"),
+            "timestamp_utc":event.get("timestamp_utc"),
+            "phase":event.get("phase"),
+            "actor":event.get("actor"),
+            "event_type":event.get("event_type"),
+            "status":event.get("status"),
+            "payload":payload
+        })
+    target.parent.mkdir(parents=True,exist_ok=True)
+    rubric_path=PACKAGE_DIR/"SCORING_RUBRIC.md"
+    schema_path=PACKAGE_DIR/"scorecard.schema.json"
+    template_path=PACKAGE_DIR/"scorecard-template.json"
+    with zipfile.ZipFile(target,"w",compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("blind-label.txt",f"Blind condition {label}\nDo not open the separate controller key. Score this artifact independently before comparing A/B.\n")
+        archive.writestr("run-metadata.json",json.dumps(packet_meta,indent=2,sort_keys=True)+"\n")
+        archive.writestr("agent-plan.md",plan_text or "No plan artifact captured.\n")
+        archive.writestr("agent-final-summary.json",json.dumps(summary,indent=2,sort_keys=True)+"\n")
+        archive.writestr("acceptance-report.json",json.dumps(acceptance,indent=2,sort_keys=True)+"\n")
+        archive.writestr("observed-timeline.jsonl","".join(json.dumps(event,sort_keys=True,ensure_ascii=False)+"\n" for event in timeline))
+        if rubric_path.is_file():
+            archive.write(rubric_path,"SCORING_RUBRIC.md")
+        if schema_path.is_file():
+            archive.write(schema_path,"scorecard.schema.json")
+        if template_path.is_file():
+            archive.write(template_path,"scorecard-template.json")
+        for path in sorted(p for p in workspace.rglob("*") if p.is_file()):
+            if any(part in {".git","__pycache__",".venv","venv","node_modules"} for part in path.relative_to(workspace).parts):
+                continue
+            archive.write(path,"source/"+path.relative_to(workspace).as_posix())
 
 
 def _safe_key_path(output: Path, key_path: str | Path | None) -> Path:
@@ -273,7 +359,8 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
     runs_dir=output/"runs"
     workspaces_dir=output/"workspaces"
     acceptance_dir=output/"acceptance"
-    for p in (runs_dir,workspaces_dir,acceptance_dir):
+    score_packets_dir=output/"score-packets"
+    for p in (runs_dir,workspaces_dir,acceptance_dir,score_packets_dir):
         p.mkdir()
     labels=["A","B"]
     labels.reverse() if secrets.randbelow(2) else None
@@ -306,6 +393,7 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
         accepted_dir=acceptance_dir/label
         result=_run_one(label,enabled,workspace,run_dir,accepted_dir,model,model_info,ollama,brief,contract,skill_text,skill_hash,task_hash,starter_hash,opts,limits,max_turns,max_tool_calls,pair_id)
         results[label]=result
+        _build_blind_score_packet(label,run_dir,workspace,accepted_dir,result,score_packets_dir/f"score-{label}.zip")
     pair_validation: dict[str,Any]
     try:
         pair_validation=validate_pair(runs_dir/"run-a",runs_dir/"run-b")
@@ -313,6 +401,13 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
     except Exception as exc:
         pair_validation={"status":"FAIL","error":f"{type(exc).__name__}: {exc}"}
     all_ok=pair_validation["status"]=="PASS" and all(r["agent_status"]=="finished" and r["acceptance_status"]!="ERROR" and r["log_validation"].get("status")!="FAIL" for r in results.values())
+    score_packet_inventory = {
+        label: {
+            "file": f"score-packets/score-{label}.zip",
+            "sha256": sha256_file(score_packets_dir/f"score-{label}.zip"),
+            "size_bytes": (score_packets_dir/f"score-{label}.zip").stat().st_size
+        } for label in ("A","B")
+    }
     blinded_report={
         "report_version":"1.0",
         "pair_id":pair_id,
@@ -321,6 +416,8 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
         "acceptance_results":{label:{"status":r["acceptance_status"],"score":r["acceptance_score"],"checks":r.get("acceptance_checks",[])} for label,r in sorted(results.items())},
         "per_run":{"A":{k:v for k,v in results["A"].items() if k not in {"known_issues"}}, "B":{k:v for k,v in results["B"].items() if k not in {"known_issues"}}},
         "pair_log_validation":pair_validation,
+        "instrumentation_gate":"PASS" if all_ok else "FAIL",
+        "blind_score_packets":score_packet_inventory,
         "interpretation":"One paired pilot is descriptive. Acceptance scores test this implementation against the frozen client contract; they do not independently establish general reasoning improvement. Score application artifacts blind to A/B condition; open the private condition key only after scores are frozen."
     }
     (output/"blinded-pair-report.json").write_text(json.dumps(blinded_report,indent=2,sort_keys=True)+"\n",encoding="utf-8")
@@ -360,7 +457,7 @@ def main() -> int:
         else:
             result=run_pair(args.output,args.model,args.ct_skill,args.base_url,args.temperature,args.num_ctx,args.num_predict,args.timeout,args.max_turns,args.max_tool_calls,args.key_file,allow_host_execution=args.allow_host_execution)
         print(json.dumps(result,indent=2,sort_keys=True))
-        return 0 if result.get("status")=="PASS" or result.get("status")=="RUNS_COMPLETE" else 1
+        return 0 if result.get("status")=="PASS" or (result.get("status")=="RUNS_COMPLETE" and result.get("instrumentation_gate")=="PASS") else 1
     except Exception as exc:
         print(json.dumps({"status":"FAIL","error":f"{type(exc).__name__}: {exc}"},indent=2))
         return 1
