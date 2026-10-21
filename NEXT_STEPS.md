@@ -12,14 +12,17 @@
 - Added tests for model inventory, unsafe-host refusal, cloud-model refusal, interactive persistence, local audit sidecars, and new-chat isolation.
 - Cleaned conflicting older descriptions about the model adapter's status.
 
+## Completed in the current experiment branch
+
+- **Path-rooted artifact integration:** file-backed delta-first commands load UTF-8 source artifacts beneath an explicit workspace root, compute the base SHA-256 at proposal time, re-read the same source before expansion and verification, reject changed bases and path escapes, and record source/output provenance in immutable events and conformance reports. This closes the caller-supplied-content/hash gap for the file-backed workflow; lower-level APIs remain for compatibility.
+
 ## What remains most valuable
 
 1. **Real model run:** the package needs Ollama and a suitable locally downloaded model on the target machine. This environment has no Ollama executable, so only the API contract and shell loop were tested against a mock.
-2. **Real artifact integration:** have the runtime load and hash source artifacts itself at proposal time and re-read them at expansion/verification, rather than trusting caller-provided content/hash pairs.
-3. **Semantic conformance check:** structural scope verification catches out-of-scope edits, but a domain test or independent check is needed to verify that output fulfills the approved delta.
-4. **Automatic lesson extraction:** turn recorded corrections/outcomes into sourced candidate lessons and regression cases. Retain data, separate retention from use, and require explicit review/promotion.
-5. **Memory walk-back automation:** define and test time-based decay/reactivation when useful; keep it small and avoid forced maintenance forms.
-6. **UI/runtime bridge:** improve the local shell into a UI only if a real use case warrants it; it should not expose audit-only data to the model.
+2. **Semantic conformance check:** structural scope verification catches out-of-scope edits, but a domain test or independent check is needed to verify that output fulfills the approved delta.
+3. **Automatic lesson extraction:** turn recorded corrections/outcomes into sourced candidate lessons and regression cases. Retain data, separate retention from use, and require explicit review/promotion.
+4. **Memory walk-back automation:** define and test time-based decay/reactivation when useful; keep it small and avoid forced maintenance forms.
+5. **UI/runtime bridge:** improve the local shell into a UI only if a real use case warrants it; it should not expose audit-only data to the model.
 
 ## Do not do
 
