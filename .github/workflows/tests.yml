@@ -24,6 +24,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Compile runtime and tests
-        run: python -m compileall -q runtime.py ael_chat.py tests
-      - name: Run unit and mock integration tests
+        run: python -m compileall -q runtime.py ael_chat.py tests experiments
+      - name: Run existing unit and mock integration tests
         run: python -m unittest discover -s tests -v
+      - name: Run experiment logging contract tests
+        run: python -m unittest experiments.ct_ab.test_logging -v
+      - name: Run synthetic pair preflight
+        run: python -m experiments.ct_ab.preflight --output "$RUNNER_TEMP/ct-ab-preflight"
+      - name: Upload synthetic preflight logs and report
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ct-ab-instrumentation-preflight
+          path: ${{ runner.temp }}/ct-ab-preflight/
+          if-no-files-found: warn
+          retention-days: 30
