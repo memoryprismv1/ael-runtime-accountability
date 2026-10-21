@@ -851,4 +851,111 @@ class RuntimeV2Tests(unittest.TestCase):
             runtime.ensure_distinct_output_paths(self.root / 'same.json', self.root / '.' / 'same.json')
 
 
+    def test_file_backed_revision_pins_exact_source_bytes_and_reloads_files(self):
+        import hashlib, json
+        workspace = self.root / "revision-workspace"
+        workspace.mkdir()
+        base_bytes = b"# Report\r\nOriginal.\r\n"
+        output_bytes = b"# Report\r\nRevised.\r\n"
+        (workspace / "report.md").write_bytes(base_bytes)
+        (workspace / "expanded.md").write_bytes(output_bytes)
+        preview = runtime.propose_revision_from_file(
+            self.con, workspace_root=workspace, artifact_file="report.md",
+            account=self.account, project=self.project, chat=self.chat, proposal_id="rev-file-backed",
+            base_version="v1", original_request="Revise this report.",
+            delta_summary="Update the report text.", impact_summary="The report section changes.",
+            changed_sections=["heading:Report"])
+        self.assertEqual(preview["base_sha256"], hashlib.sha256(base_bytes).hexdigest())
+        self.assertEqual(preview["source_ref"], "report.md")
+        self.assertTrue(preview["source_artifact"]["loaded_by_runtime"])
+        runtime.decide_revision(self.con, "rev-file-backed", "accept", account=self.account,
+            project=self.project, chat=self.chat)
+        expanded = runtime.expand_revision_from_file(
+            self.con, "rev-file-backed", workspace_root=workspace, artifact_version="v2",
+            content_file="expanded.md", account=self.account, project=self.project, chat=self.chat)
+        self.assertEqual(expanded["expanded_content_file_sha256"], hashlib.sha256(output_bytes).hexdigest())
+        history = runtime.revision_history(self.con, "rev-file-backed", account=self.account,
+            project=self.project, chat=self.chat)
+        expand_event = next(e for e in history if e["event_type"] == "revision.expanded")
+        self.assertEqual(json.loads(expand_event["metadata_json"])["content_source_ref"], "expanded.md")
+        report = runtime.verify_revision_output_from_file(
+            self.con, "rev-file-backed", workspace_root=workspace,
+            account=self.account, project=self.project, chat=self.chat)
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["base_source_ref"], "report.md")
+        self.assertTrue(report["base_source_loaded_by_runtime"])
+
+
+    def test_file_backed_expansion_refuses_source_changed_after_proposal(self):
+        workspace = self.root / "revision-workspace"
+        workspace.mkdir()
+        (workspace / "report.md").write_text("# Report\nOriginal.\n", encoding="utf-8")
+        (workspace / "expanded.md").write_text("# Report\nRevised.\n", encoding="utf-8")
+        runtime.propose_revision_from_file(
+            self.con, workspace_root=workspace, artifact_file="report.md",
+            account=self.account, project=self.project, chat=self.chat, proposal_id="rev-file-stale",
+            base_version="v1", original_request="Revise this report.",
+            delta_summary="Update the report text.", impact_summary="The report section changes.",
+            changed_sections=["heading:Report"])
+        runtime.decide_revision(self.con, "rev-file-stale", "accept", account=self.account,
+            project=self.project, chat=self.chat)
+        (workspace / "report.md").write_text("# Report\nChanged out of band.\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "changed after delta review"):
+            runtime.expand_revision_from_file(
+                self.con, "rev-file-stale", workspace_root=workspace, artifact_version="v2",
+                content_file="expanded.md", account=self.account, project=self.project, chat=self.chat)
+        self.assertEqual(self.con.execute("SELECT COUNT(*) FROM revision_outputs WHERE proposal_id='rev-file-stale'").fetchone()[0], 0)
+
+
+    def test_file_loader_rejects_parent_and_symlink_escapes(self):
+        workspace = self.root / "revision-workspace"
+        workspace.mkdir()
+        outside = self.root / "outside.md"
+        outside.write_text("# Outside", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "absolute paths and '..'"):
+            runtime.read_workspace_artifact(workspace, "../outside.md")
+        escape = workspace / "escape.md"
+        try:
+            escape.symlink_to(outside)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest(f"Symlink creation is unavailable in this environment: {exc}")
+        with self.assertRaisesRegex(ValueError, "outside or not relative"):
+            runtime.read_workspace_artifact(workspace, "escape.md")
+
+
+    def test_file_backed_verification_reloads_changed_source_and_fails_closed(self):
+        workspace = self.root / "revision-workspace"
+        workspace.mkdir()
+        (workspace / "report.md").write_text("# Report\nOriginal.\n", encoding="utf-8")
+        (workspace / "expanded.md").write_text("# Report\nRevised.\n", encoding="utf-8")
+        runtime.propose_revision_from_file(
+            self.con, workspace_root=workspace, artifact_file="report.md",
+            account=self.account, project=self.project, chat=self.chat, proposal_id="rev-verify-file-stale",
+            base_version="v1", original_request="Revise this report.",
+            delta_summary="Update the report text.", impact_summary="The report section changes.",
+            changed_sections=["heading:Report"])
+        runtime.decide_revision(self.con, "rev-verify-file-stale", "accept", account=self.account,
+            project=self.project, chat=self.chat)
+        runtime.expand_revision_from_file(
+            self.con, "rev-verify-file-stale", workspace_root=workspace, artifact_version="v2",
+            content_file="expanded.md", account=self.account, project=self.project, chat=self.chat)
+        (workspace / "report.md").write_text("# Report\nExternally changed after expansion.\n", encoding="utf-8")
+        report = runtime.verify_revision_output_from_file(
+            self.con, "rev-verify-file-stale", workspace_root=workspace,
+            account=self.account, project=self.project, chat=self.chat)
+        self.assertEqual(report["status"], "fail")
+        self.assertFalse(report["ready_for_release"])
+        self.assertEqual(report["base_source_ref"], "report.md")
+        self.assertEqual(runtime._revision_state(self.con, "rev-verify-file-stale"), "rejected_reset")
+
+
+    def test_revision_cli_advertises_path_rooted_commands(self):
+        result = subprocess.run([sys.executable, str(RUNTIME_PATH), "revision", "--help"],
+            capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("propose-file", result.stdout)
+        self.assertIn("expand-file", result.stdout)
+        self.assertIn("verify-file", result.stdout)
+
+
 if __name__ == '__main__': unittest.main()
