@@ -2017,7 +2017,7 @@ def main():
             original_request=a.original_request, delta_summary=a.delta_summary, impact_summary=a.impact_summary,
             changed_sections=a.changed_section, parent_revision_id=a.from_id)
           print(json.dumps(result, ensure_ascii=False, indent=2))
-      elif a.revision_cmd == 'show':
+        elif a.revision_cmd == 'show':
           print(json.dumps(revision_preview(con, a.id, account=a.account), ensure_ascii=False, indent=2))
         elif a.revision_cmd == 'history':
           print(json.dumps(revision_history(con, a.id, account=a.account), ensure_ascii=False, indent=2))
@@ -2036,7 +2036,7 @@ def main():
         elif a.revision_cmd == 'expand':
           content = Path(a.content_file).read_text(encoding='utf-8')
           print(json.dumps(expand_revision(con, a.id, artifact_version=a.artifact_version, content=content, account=a.account, current_base_sha256=a.current_base_sha256), ensure_ascii=False, indent=2))
-      elif a.revision_cmd == 'expand-file':
+        elif a.revision_cmd == 'expand-file':
           result = expand_revision_from_file(con, a.id, workspace_root=a.workspace_root,
               artifact_version=a.artifact_version, content_file=a.content_file,
               account=a.account, project=a.project, chat=a.chat)
@@ -2047,7 +2047,7 @@ def main():
           if a.report_out:
             report_path=Path(a.report_out); report_path.parent.mkdir(parents=True,exist_ok=True); report_path.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
           print(json.dumps(report,ensure_ascii=False,indent=2))
-      elif a.revision_cmd == 'verify-file':
+        elif a.revision_cmd == 'verify-file':
           report = verify_revision_output_from_file(con, a.id, workspace_root=a.workspace_root,
               account=a.account, project=a.project, chat=a.chat)
           if a.report_out:
