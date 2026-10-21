@@ -57,3 +57,12 @@ Merging PR #6 automatically triggers the real pilot because the workflow watches
 Download the ct-ab-blind-score-packets artifact for assessors. Do not share the ct-ab-audit-evidence artifact with them before they freeze their scores; it contains the actual requests, including the skill text on the enabled condition. After scoring, inspect that audit evidence and the manifests to unblind the A/B conditions. The private key is not part of the uploaded artifacts.
 
 This hosted pilot executes generated app code on an ephemeral VM, not a hardened sandbox. The checkout action does not persist credentials and the acceptance subprocess receives a restricted environment, but this is not a guarantee against arbitrary code. The real run is triggered only when the pilot workflow file itself is pushed to main, or manually via workflow_dispatch. It is separate from routine regression CI.
+
+
+## First real pilot: failed tool-protocol handshake
+
+The first real-model workflow (run 39592787189) produced complete, hash-chained request/response records but did not execute any model-proposed tool calls. The model placed a single JSON object in message content, sometimes in a JSON Markdown fence, rather than Ollama's native tool_calls property. Both conditions repeated plan/list/read text responses until they exhausted the turn budget. No application was built and acceptance was not run, so this run cannot be scored as skill-on versus skill-off.
+
+Ticket #7 fixes this by normalizing only an exact, allowlisted tool-call JSON object in content into the runner's normal tool-call path. It refuses prose extraction and unknown tool names. After the fix is merged, the real-model workflow will rerun automatically because its push trigger includes changes to experiments/ct_ab/agent_loop.py.
+
+Do not pass the failed run's A/B score packets to assessors as application results; they contain only the starter scaffold and blank acceptance results. Keep the audit archive for diagnosing the protocol failure.

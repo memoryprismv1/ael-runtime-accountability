@@ -7,6 +7,11 @@ on:
       - main
     paths:
       - ".github/workflows/ct-ab-real-model-pilot.yml"
+      - "experiments/ct_ab/agent_loop.py"
+      - "experiments/ct_ab/paired_runner.py"
+      - "experiments/ct_ab/acceptance.py"
+      - "experiments/ct_ab/skill_source.json"
+      - "experiments/ct_ab/client_task/**"
 
 permissions:
   contents: read

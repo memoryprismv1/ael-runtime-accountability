@@ -7,7 +7,7 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from .agent_loop import OllamaClient
+from .agent_loop import OllamaClient, _parse_text_encoded_tool_call
 from .acceptance import run_acceptance
 from .paired_runner import run_pair
 
@@ -15,6 +15,7 @@ MOCK_APP_SOURCE = "import argparse\nimport json\nimport os\nimport re\nimport uu
 
 class MockOllamaHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.0"
+    tool_response_style = "native"
     def _json(self, doc):
         raw=json.dumps(doc).encode("utf-8")
         self.send_response(200);self.send_header("Content-Type","application/json");self.send_header("Content-Length",str(len(raw)));self.end_headers();self.wfile.write(raw)
@@ -41,7 +42,15 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
             name="finish";args={"summary":"Created a synthetic test fixture with the required JSON API and page hooks.","known_issues":["This is a mock-model fixture, not a scored agent result."],"checks_claimed":["compile"]}
         else:
             name="finish";args={"summary":"Synthetic pair fixture complete.","known_issues":[],"checks_claimed":[]}
-        self._json({"model":"mock:latest","created_at":"2026-01-01T00:00:00Z","message":{"role":"assistant","content":"","thinking":"MOCK_INTERNAL_THOUGHT_SENTINEL","tool_calls":[{"function":{"name":name,"arguments":args}}]},"done":True,"done_reason":"stop","prompt_eval_count":10,"eval_count":3})
+        if self.tool_response_style == "fenced_json":
+            fence = chr(96) * 3
+            content = " " + fence + "json\n" + json.dumps({"name":name,"arguments":args}) + "\n" + fence + " "
+            message = {"role":"assistant","content":content,"thinking":"MOCK_INTERNAL_THOUGHT_SENTINEL"}
+        elif self.tool_response_style == "raw_json":
+            message = {"role":"assistant","content":json.dumps({"name":name,"arguments":args}),"thinking":"MOCK_INTERNAL_THOUGHT_SENTINEL"}
+        else:
+            message = {"role":"assistant","content":"","thinking":"MOCK_INTERNAL_THOUGHT_SENTINEL","tool_calls":[{"function":{"name":name,"arguments":args}}]}
+        self._json({"model":"mock:latest","created_at":"2026-01-01T00:00:00Z","message":message,"done":True,"done_reason":"stop","prompt_eval_count":10,"eval_count":3})
     def log_message(self,*args):
         pass
 
@@ -117,6 +126,62 @@ class AcceptanceSuiteTests(unittest.TestCase):
             for packet in blinded_report["blind_score_packets"].values():
                 self.assertEqual(len(packet["sha256"]),64)
 
+
+    def test_text_encoded_tool_call_parser_is_strict_and_allowlisted(self):
+        call={"name":"submit_plan","arguments":{"plan":"inspect, implement, test"}}
+        raw=json.dumps(call)
+        fence=chr(96)*3
+        fenced=fence+"json\n"+raw+"\n"+fence
+        self.assertEqual(_parse_text_encoded_tool_call(raw),call)
+        self.assertEqual(_parse_text_encoded_tool_call(fenced),call)
+        self.assertEqual(_parse_text_encoded_tool_call(fence+"\n"+raw+"\n"+fence),call)
+        invalid=[
+            "The tool call is "+raw,
+            raw+" I will now continue.",
+            fence+"python\n"+raw+"\n"+fence,
+            "{not valid JSON}",
+            json.dumps({"name":"os.system","arguments":{"cmd":"anything"}}),
+            json.dumps({"name":"write_file","arguments":["not","an","object"]}),
+            json.dumps({"name":"write_file","arguments":{},"extra":"not allowed"}),
+            None,
+            42,
+        ]
+        for item in invalid:
+            with self.subTest(item=item):
+                self.assertIsNone(_parse_text_encoded_tool_call(item))
+
+    def test_pair_runner_handles_fenced_content_tool_calls_end_to_end(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            skill=root/"critical-thinking.md"
+            skill.write_text("TEST SKILL SENTINEL: pause, inspect requirements, check edge cases, verify results.\n",encoding="utf-8")
+            server=HTTPServer(("127.0.0.1",0),MockOllamaHandler)
+            previous_style=MockOllamaHandler.tool_response_style
+            MockOllamaHandler.tool_response_style="fenced_json"
+            thread=threading.Thread(target=server.serve_forever,daemon=True)
+            thread.start()
+            try:
+                report=run_pair(root/"pair-output","mock:latest",skill,base_url=f"http://127.0.0.1:{server.server_port}",timeout=10,max_turns=10,max_tool_calls=20,key_file=root/"controller-key.json",allow_host_execution=True,allow_unpinned_skill=True)
+            finally:
+                MockOllamaHandler.tool_response_style=previous_style
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+            self.assertEqual(report["status"],"RUNS_COMPLETE",json.dumps(report,indent=2))
+            self.assertEqual(report["instrumentation_gate"],"PASS",json.dumps(report,indent=2))
+            self.assertEqual(report["pair_log_validation"]["status"],"PASS")
+            for label in ("A","B"):
+                self.assertEqual(report["per_run"][label]["agent_status"],"finished")
+                self.assertEqual(report["per_run"][label]["acceptance_status"],"PASS")
+                run_dir=root/"pair-output"/"runs"/f"run-{label.lower()}"
+                events=[json.loads(line) for line in (run_dir/"events.jsonl").read_text(encoding="utf-8").splitlines()]
+                self.assertTrue(any(e["event_type"]=="plan_submitted" for e in events))
+                self.assertTrue(any(e["event_type"]=="tool_call" for e in events))
+                self.assertTrue(any(e["event_type"]=="file_changed" for e in events))
+                responses=list((run_dir/"artifacts").glob("*model-response*.txt"))
+                fence=chr(96)*3
+                self.assertTrue(any(fence+"json" in p.read_text(encoding="utf-8") for p in responses))
+                self.assertTrue((root/"pair-output"/"score-packets"/f"score-{label}.zip").is_file())
 
     def test_pinned_critical_thinking_skill_source_rejects_substitution(self):
         with tempfile.TemporaryDirectory() as tmp:
