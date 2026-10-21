@@ -39,6 +39,7 @@ def _folder_sha(root: Path) -> str:
     h = hashlib.sha256()
     ignored = {".git", "__pycache__", ".venv", "venv", "node_modules"}
     for path in sorted(p for p in root.rglob("*") if p.is_file() and not any(part in ignored for part in p.relative_to(root).parts)):
+        rel = path.relative_to(root).as_posix().encode("utf-8")
         h.update(len(rel).to_bytes(4, "big"))
         h.update(rel)
         content = path.read_bytes()
