@@ -32,11 +32,42 @@ Each proposal stores:
 
 An expanded output is separately stored with a content SHA-256 and a link to the exact approved proposal hash. Proposal, revision-event, and output history is protected against SQL updates/deletes by triggers.
 
+## Path-rooted file integration (preferred)
+
+The \`revision propose-file\`, \`revision expand-file\`, and \`revision verify-file\` commands make the runtime load the source itself instead of trusting a caller-supplied hash or base text.
+
+- \`propose-file\` resolves \`--artifact-file\` beneath \`--workspace-root\`, reads the original UTF-8 bytes, computes SHA-256, and records the resolved workspace-relative source path and hash with the immutable proposal.
+- \`expand-file\` reloads that same source path and refuses expansion if the bytes no longer match the approved base. It also loads generated content from a separate file beneath the same root and records that path/hash in the append-only expansion event.
+- \`verify-file\` reloads the pinned source again and records the path and observed base hash in the conformance report. If the bytes changed, verification fails and output is not release-ready.
+- Absolute artifact paths, parent-directory traversal, non-UTF-8 files, and symlinks resolving outside the workspace root are rejected.
+
+Use workspace-relative paths. The older low-level commands remain available for compatibility, but caller-supplied hash/content pairs do not provide the same source-provenance guarantee. This file boundary is not a sandbox against another process with filesystem access and does not establish semantic correctness.
+
+### File-backed CLI walkthrough
+
+\`\`\`bash
+python runtime.py --db data/ael.sqlite3 revision propose-file \\
+  --project memory-prism --chat essay-edit-001 --id intro-change-01 \\
+  --workspace-root ./workspace --artifact-file essays/essay.md --base-version v1 \\
+  --original-request "Revise the introduction while preserving the central thesis." \\
+  --delta-summary "Clarify the opening and foreground the thesis." \\
+  --impact-summary "Opening changes; body sections and references should remain stable." \\
+  --changed-section "heading:Essay / Introduction"
+\`\`\`
+
+After reviewing and accepting the delta, save the proposed expansion to a separate file inside the workspace and run:
+
+\`\`\`bash
+python runtime.py --db data/ael.sqlite3 revision expand-file \\
+  --id intro-change-01 --workspace-root ./workspace --content-file drafts/essay-v2.md --artifact-version v2
+
+python runtime.py --db data/ael.sqlite3 revision verify-file \\
+  --id intro-change-01 --workspace-root ./workspace
+\`\`\`
+
+The source path is taken from the proposal record; expansion and verification re-read it rather than accepting a replacement path from the caller.
+
 ## Base-artifact protection
-
-If a proposal records `base_sha256`, the expansion operation requires the caller to supply the current base SHA-256 and checks it matches. If it differs, expansion fails closed; create a fresh proposal against the changed artifact. This prevents an old approval from being applied to a different base version.
-
-If no base hash was recorded, the runtime can verify approval of the exact delta proposal but cannot independently establish that the external artifact remained unchanged. A production integration should always calculate and pass the base hash for file-backed revisions.
 
 ## CLI walkthrough
 

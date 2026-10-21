@@ -1357,6 +1357,115 @@ def propose_revision(con, *, account='default', project: str, chat: str, proposa
     return revision_preview(con, proposal_id, account=account, project=project, chat=chat)
 
 
+def read_workspace_artifact(workspace_root: str | Path, artifact_ref: str) -> dict:
+    """Load a UTF-8 source file under workspace_root and hash its exact bytes."""
+    if not isinstance(artifact_ref, str) or not artifact_ref.strip() or "\x00" in artifact_ref:
+        raise ValueError("artifact_ref must be a non-empty relative path")
+    ref_path = Path(artifact_ref)
+    if ref_path.is_absolute() or ".." in ref_path.parts:
+        raise ValueError("artifact_ref must stay inside workspace_root; absolute paths and '..' are not allowed")
+    try:
+        root = Path(workspace_root).expanduser().resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(f"Cannot resolve workspace_root: {exc}") from exc
+    if not root.is_dir():
+        raise ValueError("workspace_root must be an existing directory")
+    try:
+        resolved = (root / ref_path).resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(f"Cannot resolve workspace artifact {artifact_ref!r}: {exc}") from exc
+    try:
+        relative = resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("Resolved artifact path is outside or not relative to workspace_root.") from exc
+    if not resolved.is_file():
+        raise ValueError(f"Workspace artifact is not a regular file: {artifact_ref!r}")
+    try:
+        raw = resolved.read_bytes()
+        content = raw.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ValueError(f"Cannot read UTF-8 workspace artifact {artifact_ref!r}: {exc}") from exc
+    return {"path": relative.as_posix(), "content": content,
+            "sha256": hashlib.sha256(raw).hexdigest(), "size_bytes": len(raw)}
+
+
+def _load_pinned_revision_source(con, proposal_id: str, workspace_root: str | Path, *,
+                                 account: str | None = None, project: str | None = None,
+                                 chat: str | None = None) -> tuple[dict, dict]:
+    proposal = _get_revision(con, proposal_id, account=account, project=project, chat=chat)
+    source_ref = proposal.get("source_ref")
+    if not isinstance(source_ref, str) or not source_ref.strip():
+        raise ValueError("This proposal has no rooted source_ref; use the original low-level revision API.")
+    source = read_workspace_artifact(workspace_root, source_ref)
+    if source["path"] != source_ref:
+        raise ValueError("Stored source_ref is not canonical within workspace_root; re-create the proposal from the resolved file.")
+    return proposal, source
+
+
+def propose_revision_from_file(con, *, workspace_root: str | Path, artifact_file: str,
+                               account: str = "default", project: str, chat: str,
+                               proposal_id: str, base_version: str | None = None,
+                               original_request: str | None = None, delta_summary: str,
+                               impact_summary: str, changed_sections: list[str],
+                               parent_revision_id: str | None = None) -> dict:
+    """Create a delta proposal from a source file hashed by the runtime itself."""
+    source = read_workspace_artifact(workspace_root, artifact_file)
+    artifact_id = source["path"]
+    if parent_revision_id:
+        parent = _get_revision(con, parent_revision_id, account=account, project=project, chat=chat)
+        if parent.get("source_ref") != source["path"]:
+            raise ValueError("File-backed re-plan must retain the parent's source artifact path.")
+        artifact_id = parent["artifact_id"]
+        base_version = base_version or parent["base_version"]
+        original_request = original_request or parent["original_request"]
+    preview = propose_revision(
+        con, account=account, project=project, chat=chat, proposal_id=proposal_id,
+        artifact_id=artifact_id, base_version=base_version or "", original_request=original_request,
+        delta_summary=delta_summary, impact_summary=impact_summary, changed_sections=changed_sections,
+        base_sha256=source["sha256"], source_ref=source["path"], parent_revision_id=parent_revision_id)
+    preview["source_artifact"] = {"path": source["path"], "sha256": source["sha256"],
+                                  "size_bytes": source["size_bytes"], "loaded_by_runtime": True}
+    return preview
+
+
+def expand_revision_from_file(con, proposal_id: str, *, workspace_root: str | Path,
+                              artifact_version: str, content_file: str,
+                              account: str | None = None, project: str | None = None,
+                              chat: str | None = None) -> dict:
+    """Reload the approved base and generated content from the bounded workspace."""
+    proposal, source = _load_pinned_revision_source(
+        con, proposal_id, workspace_root, account=account, project=project, chat=chat)
+    if not proposal.get("base_sha256"):
+        raise ValueError("File-backed expansion requires a base SHA-256 pinned at proposal time.")
+    if source["sha256"] != proposal["base_sha256"]:
+        raise ValueError("Source artifact changed after delta review; re-create the proposal against the current file.")
+    output = read_workspace_artifact(workspace_root, content_file)
+    if output["path"] == source["path"]:
+        raise ValueError("Expanded content must be a separate file from the pinned source artifact.")
+    result = expand_revision(
+        con, proposal_id, artifact_version=artifact_version, content=output["content"],
+        account=account, project=project, chat=chat,
+        current_base_sha256=source["sha256"], content_source_ref=output["path"])
+    result.update({"source_artifact_path": source["path"],
+                   "source_artifact_sha256": source["sha256"],
+                   "source_artifact_read_by_runtime": True,
+                   "expanded_content_path": output["path"],
+                   "expanded_content_file_sha256": output["sha256"]})
+    return result
+
+
+def verify_revision_output_from_file(con, proposal_id: str, *, workspace_root: str | Path,
+                                     account: str | None = None, project: str | None = None,
+                                     chat: str | None = None) -> dict:
+    """Reload the pinned source before verification and retain source provenance."""
+    proposal, source = _load_pinned_revision_source(
+        con, proposal_id, workspace_root, account=account, project=project, chat=chat)
+    report = verify_revision_output(
+        con, proposal_id, base_content=source["content"], account=account,
+        project=project, chat=chat, base_source_ref=source["path"])
+    report["base_source_loaded_by_runtime"] = True
+    return report
+
 def revision_preview(con, proposal_id: str, *, account: str | None = None,
                      project: str | None = None, chat: str | None = None) -> dict:
     """Return the approval-sized structural delta, never a replacement artifact."""
@@ -1459,7 +1568,8 @@ def revision_replan_context(con, proposal_id: str, *, account: str | None = None
 
 def expand_revision(con, proposal_id: str, *, artifact_version: str, content: str,
                     account: str | None = None, project: str | None = None,
-                    chat: str | None = None, current_base_sha256: str | None = None) -> dict:
+                    chat: str | None = None, current_base_sha256: str | None = None,
+                    content_source_ref: str | None = None) -> dict:
     """Persist the full artifact only after explicit approval of this exact proposal version.
 
     If the proposal recorded a base-artifact SHA-256, expansion fails closed unless the
@@ -1492,7 +1602,9 @@ def expand_revision(con, proposal_id: str, *, artifact_version: str, content: st
                            note='Expanded artifact stored after approval of this exact delta.',
                            metadata={'output_id': out_id, 'artifact_version': artifact_version, 'content_sha256': content_hash,
                                      'base_sha256': proposal['base_sha256'],
-                                     'base_hash_checked': proposal['base_sha256'] is not None})
+                                     'base_hash_checked': proposal['base_sha256'] is not None,
+                                     'content_source_ref': content_source_ref,
+                                     'content_source_sha256': content_hash if content_source_ref else None})
     append_event(con, account=proposal['account_id'], project=proposal['project_id'], chat=proposal['chat_id'],
                  event_type='revision.expanded', provenance='assistant', authority='delegated_execution',
                  inference_kind='generated_artifact', truth_status='not_applicable',
@@ -1649,7 +1761,7 @@ def check_artifact_conformance(base_content: str, candidate_content: str,
 
 def verify_revision_output(con, proposal_id: str, *, base_content: str,
                            account: str | None = None, project: str | None = None,
-                           chat: str | None = None) -> dict:
+                           chat: str | None = None, base_source_ref: str | None = None) -> dict:
     '''Verify latest expanded output against pinned base and approved changed-section scope.
 
     A failed conformance check transitions the proposal to rejected_reset so it can only
@@ -1657,6 +1769,8 @@ def verify_revision_output(con, proposal_id: str, *, base_content: str,
     reported as ready for release.
     '''
     proposal = _get_revision(con, proposal_id, account=account, project=project, chat=chat)
+    if base_source_ref is not None and proposal.get('source_ref') != base_source_ref:
+        raise ValueError('Verification source path does not match the source pinned in the proposal.')
     state = _revision_state(con, proposal_id)
     if state != 'expanded':
         raise ValueError(f'Conformance verification requires an expanded output; current state is {state!r}')
@@ -1696,6 +1810,9 @@ def verify_revision_output(con, proposal_id: str, *, base_content: str,
         report['proposal_id'] = proposal_id
         report['output_id'] = output['output_id']
 
+    if base_source_ref is not None:
+        report['base_source_ref'] = base_source_ref
+        report['base_source_loaded_by_runtime'] = True
     status = report['status'] if report['status'] in {'pass','fail','unverifiable'} else 'fail'
     check_id = new_id('CONF')
     con.execute('''INSERT INTO revision_conformance_checks(check_id,proposal_id,proposal_hash,base_sha256,output_sha256,status,report_json,created_at)
@@ -1781,6 +1898,11 @@ def main():
     ml = ms.add_parser('list'); ml.add_argument('--project'); ml.add_argument('--tag'); ml.add_argument('--include-local', action='store_true'); ml.add_argument('--include-discarded', action='store_true')
     rv = sub.add_parser('revision'); rvs = rv.add_subparsers(dest='revision_cmd', required=True)
     rvp = rvs.add_parser('propose'); rvp.add_argument('--project', required=True); rvp.add_argument('--chat', required=True); rvp.add_argument('--id', required=True); rvp.add_argument('--artifact-id', required=True); rvp.add_argument('--base-version', required=True); rvp.add_argument('--original-request', required=True); rvp.add_argument('--delta-summary', required=True); rvp.add_argument('--impact-summary', required=True); rvp.add_argument('--changed-section', nargs='+', required=True); rvp.add_argument('--base-sha256'); rvp.add_argument('--source-ref')
+    rvpf = rvs.add_parser('propose-file', help='Propose a delta against a source file loaded and hashed by the runtime under a workspace root')
+    rvpf.add_argument('--project', required=True); rvpf.add_argument('--chat', required=True); rvpf.add_argument('--id', required=True)
+    rvpf.add_argument('--workspace-root', required=True); rvpf.add_argument('--artifact-file', required=True)
+    rvpf.add_argument('--base-version'); rvpf.add_argument('--original-request'); rvpf.add_argument('--from-id')
+    rvpf.add_argument('--delta-summary', required=True); rvpf.add_argument('--impact-summary', required=True); rvpf.add_argument('--changed-section', nargs='+', required=True)
     rvsw = rvs.add_parser('show'); rvsw.add_argument('--id', required=True)
     rvh = rvs.add_parser('history'); rvh.add_argument('--id', required=True)
     rvd = rvs.add_parser('decide'); rvd.add_argument('--id', required=True); rvd.add_argument('--decision', choices=['accept','reject'], required=True); rvd.add_argument('--note', default='')
@@ -1789,6 +1911,12 @@ def main():
     rve = rvs.add_parser('expand'); rve.add_argument('--id', required=True); rve.add_argument('--artifact-version', required=True); rve.add_argument('--content-file', required=True); rve.add_argument('--current-base-sha256', help='Required at expansion if the proposal pinned --base-sha256')
     rvo = rvs.add_parser('get-output'); rvo.add_argument('--id', required=True); rvo.add_argument('--out', required=True); rvo.add_argument('--allow-unverified', action='store_true', help='Explicitly export an output that has not passed conformance; not recommended')
     rvv = rvs.add_parser('verify-output'); rvv.add_argument('--id', required=True); rvv.add_argument('--base-file', required=True); rvv.add_argument('--report-out')
+    rvex = rvs.add_parser('expand-file', help='Reload the pinned source file and load expanded content from the workspace before expansion')
+    rvex.add_argument('--id', required=True); rvex.add_argument('--workspace-root', required=True); rvex.add_argument('--artifact-version', required=True); rvex.add_argument('--content-file', required=True)
+    rvex.add_argument('--project'); rvex.add_argument('--chat')
+    rvvf = rvs.add_parser('verify-file', help='Reload the pinned source from workspace_root before conformance verification')
+    rvvf.add_argument('--id', required=True); rvvf.add_argument('--workspace-root', required=True); rvvf.add_argument('--report-out')
+    rvvf.add_argument('--project'); rvvf.add_argument('--chat')
     rvvh = rvs.add_parser('verification-history'); rvvh.add_argument('--id', required=True)
     a = p.parse_args()
     if a.cmd == 'ollama-status':
@@ -1883,6 +2011,12 @@ def main():
             delta_summary=a.delta_summary, impact_summary=a.impact_summary, changed_sections=a.changed_section,
             base_sha256=a.base_sha256, source_ref=a.source_ref)
           print(json.dumps(result, ensure_ascii=False, indent=2))
+        elif a.revision_cmd == 'propose-file':
+          result = propose_revision_from_file(con, workspace_root=a.workspace_root, artifact_file=a.artifact_file,
+            account=a.account, project=a.project, chat=a.chat, proposal_id=a.id, base_version=a.base_version,
+            original_request=a.original_request, delta_summary=a.delta_summary, impact_summary=a.impact_summary,
+            changed_sections=a.changed_section, parent_revision_id=a.from_id)
+          print(json.dumps(result, ensure_ascii=False, indent=2))
         elif a.revision_cmd == 'show':
           print(json.dumps(revision_preview(con, a.id, account=a.account), ensure_ascii=False, indent=2))
         elif a.revision_cmd == 'history':
@@ -1902,9 +2036,20 @@ def main():
         elif a.revision_cmd == 'expand':
           content = Path(a.content_file).read_text(encoding='utf-8')
           print(json.dumps(expand_revision(con, a.id, artifact_version=a.artifact_version, content=content, account=a.account, current_base_sha256=a.current_base_sha256), ensure_ascii=False, indent=2))
+        elif a.revision_cmd == 'expand-file':
+          result = expand_revision_from_file(con, a.id, workspace_root=a.workspace_root,
+              artifact_version=a.artifact_version, content_file=a.content_file,
+              account=a.account, project=a.project, chat=a.chat)
+          print(json.dumps(result, ensure_ascii=False, indent=2))
         elif a.revision_cmd == 'verify-output':
           base = Path(a.base_file).read_text(encoding='utf-8')
           report = verify_revision_output(con,a.id,base_content=base,account=a.account)
+          if a.report_out:
+            report_path=Path(a.report_out); report_path.parent.mkdir(parents=True,exist_ok=True); report_path.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+        elif a.revision_cmd == 'verify-file':
+          report = verify_revision_output_from_file(con, a.id, workspace_root=a.workspace_root,
+              account=a.account, project=a.project, chat=a.chat)
           if a.report_out:
             report_path=Path(a.report_out); report_path.parent.mkdir(parents=True,exist_ok=True); report_path.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
           print(json.dumps(report,ensure_ascii=False,indent=2))
