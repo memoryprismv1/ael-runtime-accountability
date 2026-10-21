@@ -150,7 +150,7 @@ def run_acceptance(workspace: str | Path, output_dir: str | Path, startup_timeou
         def homepage() -> dict[str, Any]:
             status, ctype, raw = client.request("GET", "/")
             html = raw.decode("utf-8", "replace")
-            required = ["id=\\"board\\"", "id=\\"create-card-form\\"", "id=\\"card-title\\"", "id=\\"card-description\\"", "id=\\"card-column\\"", 'data-action="create"', 'data-action="edit"', 'data-action="move"', 'data-action="delete"']
+            required = ['id="board"', 'id="create-card-form"', 'id="card-title"', 'id="card-description"', 'id="card-column"', 'data-action="create"', 'data-action="edit"', 'data-action="move"', 'data-action="delete"']
             missing = [item for item in required if item not in html]
             wiring = {
                 "board_refresh": "fetch('/api/board')" in html or 'fetch("/api/board")' in html,
