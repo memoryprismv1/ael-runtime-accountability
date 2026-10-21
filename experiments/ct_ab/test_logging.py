@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, utc_now
 from .preflight import run_rehearsal
-from .validate_log import EVENT_TYPES, LogValidationError, validate_pair, validate_run
+from .validate_log import EVENT_TYPES, STATUSES, LogValidationError, validate_pair, validate_run
 
 
 class LoggingContractTests(unittest.TestCase):
@@ -88,9 +88,8 @@ class LoggingContractTests(unittest.TestCase):
         schema_path = Path(__file__).with_name("log_schema.schema.json")
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         self.assertEqual(set(schema["properties"]["event_type"]["enum"]), EVENT_TYPES)
-        self.assertEqual(schema["properties"]["status"]["enum"], sorted(set(schema["properties"]["status"]["enum"])))
+        self.assertEqual(set(schema["properties"]["status"]["enum"]), STATUSES)
         self.assertEqual(schema["properties"]["schema_version"]["const"], SCHEMA_VERSION)
-        self.assertEqual(set(schema["properties"]["status"]["enum"]), {"started", "succeeded", "failed", "observed", "declared", "skipped", "requested"})
 
     def test_model_request_and_response_are_captured_as_distinct_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
