@@ -2,6 +2,11 @@ name: CT A-B real local-model pilot
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ct-ab-real-model-pilot.yml"
 
 permissions:
   contents: read
@@ -90,10 +95,10 @@ jobs:
             --ct-skill "$GITHUB_WORKSPACE/skill-source/critical-thinking/SKILL.md" \
             --temperature 0 \
             --num-ctx 16384 \
-            --num-predict 2048 \
-            --timeout 240 \
-            --max-turns 28 \
-            --max-tool-calls 70 \
+            --num-predict 1200 \
+            --timeout 180 \
+            --max-turns 24 \
+            --max-tool-calls 60 \
             --allow-host-execution
 
       - name: Upload blind scoring packets
