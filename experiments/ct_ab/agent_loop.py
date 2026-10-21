@@ -31,6 +31,37 @@ Available tools are the only way to inspect/edit the workspace or run checks. Th
 The application must be built from scratch; do not copy Trello code, brand assets or distinctive styling. Keep work limited to the small local application in the brief.
 """
 
+def _parse_text_encoded_tool_call(content: Any) -> dict[str, Any] | None:
+    """Parse only a single allowlisted tool-call JSON object from message.content.
+
+    Some Ollama-served models describe calls as JSON in the content field
+    instead of using the native tool_calls field. Accept only an exact JSON
+    object, either raw or enclosed in one optional JSON code fence. Do not
+    scrape JSON out of prose or execute arbitrary model-provided text.
+    """
+    if not isinstance(content, str):
+        return None
+    candidate = content.strip()
+    fenced = re.fullmatch(r"```(?:json)?[ \t]*\r?\n(.*?)\r?\n?```[ \t]*", candidate, flags=re.IGNORECASE | re.DOTALL)
+    if fenced:
+        candidate = fenced.group(1).strip()
+    # Reject any prose/fences around a JSON object; json.loads must consume all.
+    try:
+        parsed = json.loads(candidate)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(parsed, dict) or set(parsed) != {"name", "arguments"}:
+        return None
+    name = parsed.get("name")
+    arguments = parsed.get("arguments")
+    allowlist = {item["function"]["name"] for item in TOOLS}
+    if not isinstance(name, str) or name not in allowlist:
+        return None
+    if not isinstance(arguments, dict):
+        return None
+    return {"name": name, "arguments": arguments}
+
+
 TOOLS = [
     {"type":"function","function":{"name":"submit_plan","description":"Submit a brief implementation plan before editing files. Use once near the start.","parameters":{"type":"object","properties":{"plan":{"type":"string","minLength":1}},"required":["plan"]}}},
     {"type":"function","function":{"name":"list_files","description":"List relative file paths under the project workspace.","parameters":{"type":"object","properties":{"path":{"type":"string","default":"."}}}}},
@@ -274,11 +305,24 @@ class AgentLoop:
                 phase="implementation"
             )
             tool_calls=safe_message.get("tool_calls",[])
-            self.messages.append({"role":"assistant","content":safe_message.get("content","") or "",**({"tool_calls":tool_calls} if tool_calls else {})})
-            if not isinstance(tool_calls,list) or not tool_calls:
-                self.logger.emit("error","runtime","implementation","observed",{"kind":"model_response_without_tool_call","turn":turn})
-                self.messages.append({"role":"user","content":"You must call an available tool. Continue implementation or call finish; do not stop with plain text."})
-                continue
+            # Prefer Ollama's native structured tool calls. A narrow fallback
+            # handles models that encode one call as raw/fenced JSON content.
+            assistant_entry={"role":"assistant","content":safe_message.get("content","") or ""}
+            if isinstance(tool_calls,list) and tool_calls:
+                assistant_entry["tool_calls"]=tool_calls
+            else:
+                text_call=_parse_text_encoded_tool_call(safe_message.get("content",""))
+                if text_call is not None:
+                    tool_calls=[{"function":{"name":text_call["name"],"arguments":text_call["arguments"]}}]
+                    # Keep the normalized call in dialogue history; the original
+                    # response text remains unchanged in the audit artifact.
+                    assistant_entry={"role":"assistant","content":"","tool_calls":tool_calls}
+                else:
+                    self.messages.append(assistant_entry)
+                    self.logger.emit("error","runtime","implementation","observed",{"kind":"model_response_without_tool_call","turn":turn})
+                    self.messages.append({"role":"user","content":"You must call an available tool. Continue implementation or call finish; do not stop with plain text."})
+                    continue
+            self.messages.append(assistant_entry)
             for call in tool_calls:
                 self.tool_calls += 1
                 if self.tool_calls > self.max_tool_calls:

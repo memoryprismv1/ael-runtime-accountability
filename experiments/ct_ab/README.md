@@ -94,3 +94,12 @@ Download **ct-ab-blind-score-packets** for blind assessment only. Keep **ct-ab-a
 The CI model run executes generated application code on a disposable hosted VM, not inside a hardened sandbox. Credentials are not persisted by checkout, the acceptance subprocess receives a restricted environment, and the source app has no project secrets. This limits exposure but is not a security guarantee against arbitrary code. The workflow is isolated from routine regression CI, so ordinary test changes do not unexpectedly download a multi-gigabyte model or consume a long CPU run.
 
 The model-run artifact is a real local-inference pilot, not the mock-model test. One pair remains exploratory and does not establish general CT efficacy.
+
+
+### First real-pilot result and recovery
+
+The first real-model attempt (run 39592787189) did not produce a valid comparison. Both Qwen2.5-Coder conditions emitted calls as JSON in the response content, sometimes inside a JSON code fence, instead of Ollama's structured tool_calls field. The runner never dispatched tools, each condition exhausted its 24-turn budget, and the independent acceptance suite was correctly not run. This is a tool-protocol compatibility failure, not evidence for or against the Critical Thinking skill.
+
+Ticket #7 adds a deliberately narrow fallback: it accepts only one complete allowlisted {"name":...,"arguments":{...}} object, either raw or inside a single JSON code fence. It refuses arbitrary prose, unknown tool names, malformed JSON, non-object arguments, and extra fields. The raw response remains in audit evidence while the normalized call is what enters subsequent conversation history.
+
+Merging the parser fix automatically retriggers the real-model pilot. A valid attempt needs both runs to finish, produce observed tool/file/test events, pass the log validator, and generate independent acceptance reports. Until then, no skill-effectiveness claim is warranted.
