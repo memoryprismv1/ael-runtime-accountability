@@ -355,7 +355,7 @@ class AcceptanceSuiteTests(unittest.TestCase):
                 run_dir = root/"pair-output"/"runs"/f"run-{label.lower()}"
                 events = [json.loads(line) for line in (run_dir/"events.jsonl").read_text(encoding="utf-8").splitlines()]
                 self.assertTrue(any(event["event_type"]=="agent_loop_detected" for event in events))
-                self.assertEqual(len(list((run_dir/"artifacts").glob("*model-response*.txt")),2))
+                self.assertEqual(len(list((run_dir/"artifacts").glob("*model-response*.txt"))),2))
             self.assertNotEqual(report["instrumentation_gate"],"PASS")
 
     def test_pinned_critical_thinking_skill_source_rejects_substitution(self):
