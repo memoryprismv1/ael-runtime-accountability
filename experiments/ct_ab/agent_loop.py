@@ -24,12 +24,39 @@ MAX_READ_BYTES = 160_000
 MAX_WRITE_BYTES = 220_000
 MAX_FILES = 100
 MAX_TURNS = 36
+MAX_CONSECUTIVE_NO_TOOL_RESPONSES = 4
+MAX_IDENTICAL_NO_TOOL_RESPONSES = 2
 
 BASE_SYSTEM = """You are implementing a small single-user local Kanban web application for a client.
 Follow the supplied client brief and API contract exactly. Start by calling submit_plan with a short actionable implementation plan. Then inspect the starter workspace; write original code; run the available controlled checks; fix failures; and call finish with a factual summary and known limitations.
 Available tools are the only way to inspect/edit the workspace or run checks. There is no arbitrary shell command tool. Do not ask for or reveal hidden chain-of-thought. submit_plan and the concise finish summary are task artifacts, not internal reasoning. Never claim a check passed unless its captured result shows it passed.
 The application must be built from scratch; do not copy Trello code, brand assets or distinctive styling. Keep work limited to the small local application in the brief.
 """
+
+
+def _no_tool_recovery_instruction(plan_submitted: bool) -> str:
+    """Ask for one concrete tool action after an assistant response without a tool call."""
+    plan_note = (
+        "The implementation plan has already been accepted; do not submit it again. "
+        if plan_submitted
+        else "Submit a brief plan first if you have not done so yet. "
+    )
+    return (
+        "Your previous message did not invoke an available tool. "
+        "Do not repeat explanations, quote previous tool output, or restate your plan. "
+        "Make one tool call now. "
+        + plan_note
+        + "Allowed tools and argument shapes: "
+        'submit_plan({"plan":"..."}); '
+        'list_files({"path":"."}); '
+        'read_file({"path":"STARTER.md"}); '
+        'write_file({"path":"app.py","content":"complete source code"}); '
+        'run_check({"check":"compile"}) or run_check({"check":"unit_tests"}); '
+        'finish({"summary":"...","known_issues":[],"checks_claimed":[]}). '
+        'Use a native tool call or put exactly one JSON object in message content with only the keys '
+        '"name" and "arguments" and no surrounding prose or code fence. '
+        "Prefer the next concrete inspection or implementation action; call finish only when the work is complete."
+    )
 
 def _parse_text_encoded_tool_call(content: Any) -> dict[str, Any] | None:
     """Parse only a single allowlisted tool-call JSON object from message.content.
@@ -168,6 +195,9 @@ class AgentLoop:
         self.finished = False
         self.finish_args: dict[str, Any] | None = None
         self.request_counter = 0
+        self.consecutive_no_tool_responses = 0
+        self.last_no_tool_fingerprint: str | None = None
+        self.identical_no_tool_responses = 0
         system = BASE_SYSTEM
         if skill_text is not None:
             system += "\n\n=== CRITICAL THINKING SKILL (verbatim supplied file) ===\n" + skill_text + "\n=== END CRITICAL THINKING SKILL ===\n"
@@ -320,8 +350,54 @@ class AgentLoop:
                 else:
                     self.messages.append(assistant_entry)
                     self.logger.emit("error","runtime","implementation","observed",{"kind":"model_response_without_tool_call","turn":turn})
-                    self.messages.append({"role":"user","content":"You must call an available tool. Continue implementation or call finish; do not stop with plain text."})
+                    content = safe_message.get("content","") or ""
+                    fingerprint = hashlib.sha256(" ".join(content.split()).encode("utf-8")).hexdigest()
+                    if fingerprint == self.last_no_tool_fingerprint:
+                        self.identical_no_tool_responses += 1
+                    else:
+                        self.identical_no_tool_responses = 1
+                    self.last_no_tool_fingerprint = fingerprint
+                    self.consecutive_no_tool_responses += 1
+
+                    loop_reason = None
+                    if self.identical_no_tool_responses >= MAX_IDENTICAL_NO_TOOL_RESPONSES:
+                        loop_reason = "repeated_identical_no_tool_response"
+                    elif self.consecutive_no_tool_responses >= MAX_CONSECUTIVE_NO_TOOL_RESPONSES:
+                        loop_reason = "consecutive_no_tool_response_limit"
+
+                    if loop_reason:
+                        self.logger.emit(
+                            "agent_loop_detected","runner","implementation","failed",
+                            {
+                                "reason":loop_reason,
+                                "turn":turn,
+                                "consecutive_no_tool_responses":self.consecutive_no_tool_responses,
+                                "identical_response_count":self.identical_no_tool_responses,
+                                "response_sha256":fingerprint,
+                                "tool_call_observed":False,
+                            },
+                        )
+                        raise RunnerError(
+                            f"agent no-tool loop detected: {loop_reason}; stopped at turn {turn} "
+                            f"(consecutive_no_tool_responses={self.consecutive_no_tool_responses}, "
+                            f"identical_response_count={self.identical_no_tool_responses})"
+                        )
+
+                    self.logger.emit(
+                        "agent_recovery_attempt","runner","implementation","requested",
+                        {
+                            "turn":turn,
+                            "attempt":self.consecutive_no_tool_responses,
+                            "reason":"model_response_without_tool_call",
+                            "response_sha256":fingerprint,
+                            "next_action":"send_explicit_tool-call recovery instruction",
+                        },
+                    )
+                    self.messages.append({"role":"user","content":_no_tool_recovery_instruction(self.plan_submitted)})
                     continue
+            self.consecutive_no_tool_responses = 0
+            self.last_no_tool_fingerprint = None
+            self.identical_no_tool_responses = 0
             self.messages.append(assistant_entry)
             for call in tool_calls:
                 self.tool_calls += 1
