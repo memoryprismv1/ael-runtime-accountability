@@ -66,3 +66,10 @@ The first real-model workflow (run 39592787189) produced complete, hash-chained 
 Ticket #7 fixes this by normalizing only an exact, allowlisted tool-call JSON object in content into the runner's normal tool-call path. It refuses prose extraction and unknown tool names. After the fix is merged, the real-model workflow will rerun automatically because its push trigger includes changes to experiments/ct_ab/agent_loop.py.
 
 Do not pass the failed run's A/B score packets to assessors as application results; they contain only the starter scaffold and blank acceptance results. Keep the audit archive for diagnosing the protocol failure.
+
+
+## Second real pilot: repeated no-tool loop
+
+The follow-up real-model workflow (run 39597455540) still failed as an experiment. After some initial protocol calls, each model condition emitted repeated ordinary prose or echoed tool output without an executable call. Both agents exhausted the 24-turn budget, built no app source, and never reached independent acceptance. This is a harness/model-interface failure, not evidence about Critical Thinking efficacy.
+
+Issue #8 adds a constrained recovery instruction and early termination when the same normalized no-tool response repeats or a bounded number of consecutive no-tool responses is reached. The log records only the normalized response hash in loop events; original model exchanges remain captured as artifacts. Do not send either failed run's blind packets for quality scoring.
