@@ -143,7 +143,7 @@ def validate_pair(run_a: str | Path, run_b: str | Path, required_event_types: se
         _fail("paired runs must have distinct run IDs")
     ma = json.loads((Path(run_a) / "manifest.json").read_text(encoding="utf-8"))
     mb = json.loads((Path(run_b) / "manifest.json").read_text(encoding="utf-8"))
-    shared = ["task_brief_sha256", "logger_version", "schema_version", "model", "environment", "resource_limits", "base_commit"]
+    shared = ["task_brief_sha256", "logger_version", "schema_version", "model", "environment", "resource_limits", "base_commit", "client_brief_sha256", "api_contract_sha256", "starter_sha256", "acceptance_suite_sha256", "acceptance_contract_version"]
     mismatches = [field for field in shared if ma.get(field) != mb.get(field)]
     if mismatches:
         _fail(f"paired run manifests differ on controlled fields: {mismatches}")

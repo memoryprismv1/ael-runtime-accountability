@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Pinned input for the Critical Thinking skill-on condition in the software-build A/B pilot.",
+  "repository": "memoryprismv1/cognitive-interface-ai-skills",
+  "path": "critical-thinking/SKILL.md",
+  "commit": "d1f23e2ad9dafd323940fc6b7a00f1700275d885",
+  "git_blob_sha1": "d7134969b124e39c04e343bed2ce2475f64b9a64",
+  "source_url": "https://github.com/memoryprismv1/cognitive-interface-ai-skills/blob/d1f23e2ad9dafd323940fc6b7a00f1700275d885/critical-thinking/SKILL.md",
+  "live_path": "https://raw.githubusercontent.com/memoryprismv1/cognitive-interface-ai-skills/d1f23e2ad9dafd323940fc6b7a00f1700275d885/critical-thinking/SKILL.md",
+  "validation": "At runtime, Git's blob SHA-1 is calculated over the exact file bytes and must equal git_blob_sha1. The experiment manifest also records SHA-256 over the exact same bytes."
+}

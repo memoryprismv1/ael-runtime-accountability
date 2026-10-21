@@ -47,3 +47,50 @@ A successful preflight establishes only that instrumentation functions as intend
 ## Known limits
 
 Hash chains detect accidental edits and unsynchronised tampering; they are not a cryptographic guarantee against an administrator who can rewrite the entire log and recompute all hashes. Keep the runner and run output under a separate owner/process where possible, preserve a final signed/remote checksum in a controller-owned location, and record instrumentation failures. A process log cannot infer hidden internal cognition and deliberately does not attempt to do so. A full future runner must be the enforcement point for shell/editor/file access; the command helper is a capture implementation, not a sandbox by itself.
+
+
+## Client-task runner and paired skill comparison
+
+The instrumentation gate is now paired with a fixed, Trello-inspired Kanban client task and an independent post-run acceptance suite. The agent workspace receives the client brief and API contract through its prompt; it does not receive the acceptance test source.
+
+### Local model inventory
+
+    python -m experiments.ct_ab.paired_runner doctor
+
+This contacts only a local loopback Ollama service, lists exact installed model names, and does not prompt a model.
+
+### Before a scored pair
+
+The exact Critical Thinking skill file must be supplied from its real source. The runner hashes it, injects its bytes into only the enabled condition, and keeps the condition key outside the blinded output bundle. It does not invent or substitute a skill file.
+
+    python -m experiments.ct_ab.paired_runner run-pair --output /path/to/new-pair-output --model EXACT_NAME_FROM_OLLAMA_LIST --ct-skill /path/to/the/actual/Critical-Thinking-SKILL.md --allow-host-execution
+
+Use a new, empty output directory. Both blind runs use the same model, options, brief, workspace starter, tool definitions and resource limits. The run order and mapping of A/B to skill-off/skill-on are randomized; the controller key is written to a separate sibling location by default. Do not provide that key to blind scorers until their scores are frozen.
+
+The output has two source bundles, two structured event streams, raw request/response evidence, independent acceptance reports, a blinded pair report, checksums, and a task manifest that hashes the brief, API contract, starter and acceptance suite.
+
+### Execution safety and interpretation
+
+**Host execution requires explicit opt-in.** The acceptance runner starts model-generated app.py as the current OS user. It is not an OS sandbox. Run this only in a disposable VM/container with no secrets, personal data or valuable files accessible. The tool interface prevents arbitrary shell calls from the agent, but that alone does not make its code safe to execute.
+
+The --allow-host-execution option acknowledges this limitation; it does not create a sandbox. An installed local model and the exact real skill file are prerequisites for scored runs. Mock-model CI exercises the harness only; it is not the real experiment and cannot show the skill improves reasoning.
+
+
+### Blind assessor packets
+
+After each run, the controller produces score-packets/score-A.zip and score-packets/score-B.zip. Each packet includes the source code, client task hashes, fixed acceptance report, plan, final summary, a redacted timeline of observable work, the same scoring rubric, a JSON scorecard schema, and a blank scorecard template. Raw model prompts/responses, condition configuration hashes and the separate condition key are omitted from the scoring packet.
+
+Have assessors score A and B independently before comparing or opening the key. Preserve original scorecards and disagreements. The runner records each score-packet SHA-256 in the blinded pair report so reviewers can confirm the packet has not changed. The acceptance score remains a separate, objective task result; human ratings add qualitative assessment but do not replace it.
+
+
+### Pinned real skill and one-click local-model pilot
+
+The A/B runner pins the input skill to commit d1f23e2ad9dafd323940fc6b7a00f1700275d885 in memoryprismv1/cognitive-interface-ai-skills, file critical-thinking/SKILL.md. It verifies the Git blob SHA-1 for exact bytes and records the file's SHA-256. A different revision is refused, not silently accepted. The pin lives in skill_source.json.
+
+A GitHub Actions workflow is provided at .github/workflows/ct-ab-real-model-pilot.yml. **Merging this PR automatically starts the pilot**: the workflow is triggered by a push to main that changes the workflow file itself. It installs Ollama on an ephemeral GitHub-hosted Linux VM, downloads the fixed local model qwen2.5-coder:7b, verifies the exact skill revision, then runs both conditions with the same settings. The model page describes Qwen2.5-Coder as a code-focused family and lists its 7B variant as 4.7 GB. See the [official Ollama model page](https://ollama.com/library/qwen2.5-coder). The same workflow can be rerun manually from Actions → CT A-B real local-model pilot → Run workflow.
+
+Download **ct-ab-blind-score-packets** for blind assessment only. Keep **ct-ab-audit-evidence** away from assessors until their scorecards are frozen; those logs contain the actual model requests and so can reveal the condition. The controller key remains outside uploaded artifact paths. The skill/condition can be recovered from the enabled run's manifest and request trace only after scoring has been frozen.
+
+The CI model run executes generated application code on a disposable hosted VM, not inside a hardened sandbox. Credentials are not persisted by checkout, the acceptance subprocess receives a restricted environment, and the source app has no project secrets. This limits exposure but is not a security guarantee against arbitrary code. The workflow is isolated from routine regression CI, so ordinary test changes do not unexpectedly download a multi-gigabyte model or consume a long CPU run.
+
+The model-run artifact is a real local-inference pilot, not the mock-model test. One pair remains exploratory and does not establish general CT efficacy.

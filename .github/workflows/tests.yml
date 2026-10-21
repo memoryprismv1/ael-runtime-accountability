@@ -27,8 +27,8 @@ jobs:
         run: python -m compileall -q runtime.py ael_chat.py tests experiments
       - name: Run existing unit and mock integration tests
         run: python -m unittest discover -s tests -v
-      - name: Run experiment logging contract tests
-        run: python -m unittest experiments.ct_ab.test_logging -v
+      - name: Run experiment logging and paired-run contract tests
+        run: python -m unittest experiments.ct_ab.test_logging experiments.ct_ab.test_pair_runner -v
       - name: Run synthetic pair preflight
         run: python -m experiments.ct_ab.preflight --output "$RUNNER_TEMP/ct-ab-preflight"
       - name: Upload synthetic preflight logs and report
