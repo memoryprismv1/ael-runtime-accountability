@@ -88,7 +88,9 @@ class LoggingContractTests(unittest.TestCase):
         schema_path = Path(__file__).with_name("log_schema.schema.json")
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         self.assertEqual(set(schema["properties"]["event_type"]["enum"]), EVENT_TYPES)
+        self.assertEqual(schema["properties"]["status"]["enum"], sorted(set(schema["properties"]["status"]["enum"])))
         self.assertEqual(schema["properties"]["schema_version"]["const"], SCHEMA_VERSION)
+        self.assertEqual(set(schema["properties"]["status"]["enum"]), {"started", "succeeded", "failed", "observed", "declared", "skipped", "requested"})
 
     def test_model_request_and_response_are_captured_as_distinct_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
