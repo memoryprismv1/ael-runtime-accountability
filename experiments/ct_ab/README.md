@@ -1,0 +1,49 @@
+# CT A/B Experiment Logging Gate
+
+This package must be implemented and rehearsed before the scored Critical Thinking skill-on/skill-off software task begins. It provides one shared JSONL logger, one versioned event contract, artifact integrity checks, and paired-run validation. Both conditions use this same code and schema; the model does not supply or modify the logger.
+
+## Layout
+
+- experiments/ct_ab/log_schema.schema.json — versioned JSON Schema for a single event.
+- logger.py — runner-owned JSONL logger, command and tool-call capture, raw model request/response capture, file snapshots, artifacts, checksums, and hash chaining.
+- validate_log.py — validates manifest, event fields and order, per-event hash chain, checksum, and referenced artifacts; the pair validator compares controlled manifest fields and required event types.
+- preflight.py — creates two synthetic, unscored rehearsal runs and emits preflight-report.json.
+- test_logging.py — positive and negative tests, including tampered events/artifacts, control mismatches, and workspace/log path separation.
+
+Use from the repository root:
+
+    python -m unittest experiments.ct_ab.test_logging -v
+    python -m experiments.ct_ab.preflight --output /path/outside/workspaces/ct-ab-rehearsal
+    python -m experiments.ct_ab.validate_log /path/to/run-a
+
+The output directory must be new or empty. Each RunLogger writes to a run directory disjoint from the agent workspace and refuses to overwrite a non-empty run. It opens events.jsonl exclusively, appends one event per line, flushes/fsyncs every event and chains event hashes. Captured artifacts are stored by the runner beside the log, referenced by relative path, byte size and SHA-256. checksums.sha256 records the final event-stream hash.
+
+## Event distinction
+
+- Observed: runner/runtime events such as command exit codes, workspace snapshots, test results, and captured tool/model transport events.
+- Declared: an agent-submitted plan or concise note. Those are preserved as statements, not treated as proof that an action occurred.
+- Captured command stdout/stderr are artifacts; the log never treats a model saying “tests passed” as the test result.
+- No hidden chain-of-thought is requested or stored. Only submitted plans and short declared explanations of decisions are captured.
+
+## Run manifest and blinding
+
+Each manifest contains the blind condition label (A or B), task brief hash, a hash of the complete condition configuration (without exposing the skill mapping), schema/logger versions, model identity/version, environment, resource limits and starting commit. The skill-on/off mapping must remain in a separate controller-owned file not available in either workspace or to blind assessors until scoring is frozen. The rehearsal uses explicit REHEARSAL-A/B labels and a synthetic model identity.
+
+For scored runs, both conditions must start from clean copies of the same baseline, use the same client brief and tool/resource policy, and send all runner-observable commands and file changes through the shared runner. The controller must route tool dispatch through record_tool_call and use record_model_exchange at the actual model transport boundary to preserve the prompt/response and provider-reported usage metadata. If the chosen runtime cannot expose raw requests, responses, or token usage, record that as unavailable rather than infer it. A condition that bypasses instrumentation is not valid.
+
+## Preflight gate
+
+Do not begin scored runs until all are true:
+
+1. Unit tests pass.
+2. The rehearsal produces two valid completed logs and the machine-readable preflight report says PASS.
+3. Both logs include planning, synthetic-model request/response capture, tool-call capture, command start/finish, file changes, test result, captured artifacts, failure and recovery events.
+4. The pair validator confirms controlled manifest fields match and verifies all evidence hashes.
+5. Tampering with an event, referenced artifact, or controlled manifest field causes validation failure.
+6. Logger output is outside and disjoint from the agent workspace.
+
+A successful preflight establishes only that instrumentation functions as intended. It does not establish that a model or the Critical Thinking skill improves software or reasoning. Synthetic rehearsal events are never scored.
+
+## Known limits
+
+Hash chains detect accidental edits and unsynchronised tampering; they are not a cryptographic guarantee against an administrator who can rewrite the entire log and recompute all hashes. Keep the runner and run output under a separate owner/process where possible, preserve a final signed/remote checksum in a controller-owned location, and record instrumentation failures. A process log cannot infer hidden internal cognition and deliberately does not attempt to do so. A full future runner must be the enforcement point for shell/editor/file access; the command helper is a capture implementation, not a sandbox by itself.
