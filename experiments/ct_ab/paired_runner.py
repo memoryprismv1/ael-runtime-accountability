@@ -178,7 +178,7 @@ def _build_blind_score_packet(label: str, run_dir: Path, workspace: Path, accept
         if schema_path.is_file():
             archive.write(schema_path,"scorecard.schema.json")
         if isinstance(template_doc,dict):
-            archive.writestr("scorecard-template.json",json.dumps(template_doc,indent=2,sort_keys=True)+"\\n")
+            archive.writestr("scorecard-template.json",json.dumps(template_doc,indent=2,sort_keys=True)+"\n")
         for path in sorted(p for p in workspace.rglob("*") if p.is_file()):
             if any(part in {".git","__pycache__",".venv","venv","node_modules"} for part in path.relative_to(workspace).parts):
                 continue
