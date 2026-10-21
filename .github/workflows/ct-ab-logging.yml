@@ -1,0 +1,38 @@
+name: CT A-B instrumentation gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  logging-contract:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile instrumentation package
+        run: python -m compileall -q experiments/ct_ab
+      - name: Run logging contract tests
+        run: python -m unittest experiments.ct_ab.test_logging -v
+      - name: Run paired synthetic preflight
+        run: python -m experiments.ct_ab.preflight --output "$RUNNER_TEMP/ct-ab-preflight"
+      - name: Upload synthetic logs and preflight report
+        if: matrix.python-version == "3.11" && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ct-ab-instrumentation-preflight
+          path: ${{ runner.temp }}/ct-ab-preflight/
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memoryprism.com/schemas/ct-ab-event-1.0.json",
+  "title": "CT A/B experiment event",
+  "description": "An observable experiment event. Agent-declared content is not machine-observed evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "seq", "timestamp_utc", "phase", "actor", "event_type", "status", "payload", "evidence_refs", "prev_event_sha256", "event_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "seq": {"type": "integer", "minimum": 1},
+    "timestamp_utc": {"type": "string", "format": "date-time"},
+    "phase": {"enum": ["setup", "planning", "implementation", "debugging", "verification", "delivery", "preflight"]},
+    "actor": {"enum": ["runner", "agent", "tool", "runtime", "reviewer", "logger"]},
+    "event_type": {"enum": ["run_started", "run_finished", "plan_submitted", "phase_started", "agent_note", "tool_call", "model_request", "model_response", "command_started", "command_finished", "test_result", "requirement_check", "commit_created", "file_changed", "artifact_captured", "preflight_check", "error", "retry"]},
+    "status": {"enum": ["started", "succeeded", "failed", "observed", "declared", "skipped"]},
+    "payload": {"type": "object"},
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "size_bytes"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "size_bytes": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "prev_event_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "event_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}
