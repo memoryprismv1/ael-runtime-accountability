@@ -950,7 +950,7 @@ class RuntimeV2Tests(unittest.TestCase):
 
 
     def test_revision_cli_advertises_path_rooted_commands(self):
-        result = subprocess.run([sys.executable, str(RUNTIME_PATH), "revision", "--help"],
+        result = subprocess.run([sys.executable, str(MODULE_PATH), "revision", "--help"],
             capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("propose-file", result.stdout)
