@@ -81,3 +81,16 @@ The --allow-host-execution option acknowledges this limitation; it does not crea
 After each run, the controller produces score-packets/score-A.zip and score-packets/score-B.zip. Each packet includes the source code, client task hashes, fixed acceptance report, plan, final summary, a redacted timeline of observable work, the same scoring rubric, a JSON scorecard schema, and a blank scorecard template. Raw model prompts/responses, condition configuration hashes and the separate condition key are omitted from the scoring packet.
 
 Have assessors score A and B independently before comparing or opening the key. Preserve original scorecards and disagreements. The runner records each score-packet SHA-256 in the blinded pair report so reviewers can confirm the packet has not changed. The acceptance score remains a separate, objective task result; human ratings add qualitative assessment but do not replace it.
+
+
+### Pinned real skill and one-click local-model pilot
+
+The A/B runner pins the input skill to commit d1f23e2ad9dafd323940fc6b7a00f1700275d885 in memoryprismv1/cognitive-interface-ai-skills, file critical-thinking/SKILL.md. It verifies the Git blob SHA-1 for exact bytes and records the file's SHA-256. A different revision is refused, not silently accepted. The pin lives in skill_source.json.
+
+A manual GitHub Actions workflow is provided at .github/workflows/ct-ab-real-model-pilot.yml. After this PR is merged, open **Actions → CT A-B real local-model pilot → Run workflow**. It installs Ollama on an ephemeral GitHub-hosted Linux VM, downloads the fixed local model qwen2.5-coder:7b, verifies the exact skill revision, then runs both conditions with the same settings. The model page describes Qwen2.5-Coder as a code-focused family and lists its 7B variant as 4.7 GB. See the [official Ollama model page](https://ollama.com/library/qwen2.5-coder).
+
+Download **ct-ab-blind-score-packets** for blind assessment only. Keep **ct-ab-audit-evidence** away from assessors until their scorecards are frozen; those logs contain the actual model requests and so can reveal the condition. The controller key remains outside uploaded artifact paths. The skill/condition can be recovered from the enabled run's manifest and request trace only after scoring has been frozen.
+
+The CI model run executes generated application code on a disposable hosted VM, not inside a hardened sandbox. Credentials are not persisted by checkout, the acceptance subprocess receives a restricted environment, and the source app has no project secrets. This limits exposure but is not a security guarantee against arbitrary code. The workflow is manual so ordinary test CI does not unexpectedly download a multi-gigabyte model or consume a long CPU run.
+
+The model-run artifact is a real local-inference pilot, not the mock-model test. One pair remains exploratory and does not establish general CT efficacy.

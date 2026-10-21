@@ -20,7 +20,7 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
         self.send_response(200);self.send_header("Content-Type","application/json");self.send_header("Content-Length",str(len(raw)));self.end_headers();self.wfile.write(raw)
     def do_GET(self):
         if self.path=="/api/version":return self._json({"version":"test-mock-1"})
-        if self.path=="/api/tags":return self._json({"models":[{"name":"mock:latest"}]})
+        if self.path=="/api/tags":return self._json({"models":[{"name":"mock:latest","digest":"sha256:mock-model-fixture","details":{"family":"mock","parameter_size":"0","quantization_level":"none"}}]})
         self.send_error(404)
     def do_POST(self):
         if self.path!="/api/chat":return self.send_error(404)
@@ -63,7 +63,7 @@ class AcceptanceSuiteTests(unittest.TestCase):
             try:
                 base_url=f"http://127.0.0.1:{server.server_port}"
                 output=root/"pair-output";key=root/"controller-key.json"
-                report=run_pair(output,"mock:latest",skill,base_url=base_url,timeout=10,max_turns=10,max_tool_calls=20,key_file=key,allow_host_execution=True)
+                report=run_pair(output,"mock:latest",skill,base_url=base_url,timeout=10,max_turns=10,max_tool_calls=20,key_file=key,allow_host_execution=True,allow_unpinned_skill=True)
             finally:
                 server.shutdown();server.server_close();thread.join(timeout=2)
             self.assertEqual(report["status"],"RUNS_COMPLETE",json.dumps(report,indent=2))
@@ -77,6 +77,8 @@ class AcceptanceSuiteTests(unittest.TestCase):
                 run=output/"runs"/f"run-{label.lower()}"
                 self.assertEqual(report["per_run"][label]["agent_status"],"finished")
                 self.assertEqual(report["per_run"][label]["acceptance_status"],"PASS")
+                run_manifest=json.loads((run/"manifest.json").read_text(encoding="utf-8"))
+                self.assertEqual(run_manifest["model"]["model_digest"],"sha256:mock-model-fixture")
                 rows=[json.loads(line) for line in (run/"events.jsonl").read_text(encoding="utf-8").splitlines()]
                 self.assertTrue(any(e["event_type"]=="model_request" for e in rows))
                 self.assertTrue(any(e["event_type"]=="model_response" for e in rows))
@@ -104,6 +106,9 @@ class AcceptanceSuiteTests(unittest.TestCase):
                     self.assertNotIn("skill_enabled",contents)
                     self.assertNotIn("skill_disabled",contents)
                     self.assertNotIn("condition_config_sha256",contents)
+                    template=json.loads(archive.read("scorecard-template.json").decode("utf-8"))
+                    self.assertEqual(template["blind_label"],label)
+                    self.assertTrue(template["pair_id"].startswith("ctab-"))
                     timeline=[json.loads(line) for line in archive.read("observed-timeline.jsonl").decode("utf-8").splitlines() if line.strip()]
                     self.assertFalse(any(e["event_type"] in {"model_request","model_response"} for e in timeline))
             blinded_report=json.loads((output/"blinded-pair-report.json").read_text(encoding="utf-8"))
@@ -111,6 +116,20 @@ class AcceptanceSuiteTests(unittest.TestCase):
             self.assertEqual(set(blinded_report["blind_score_packets"]),{"A","B"})
             for packet in blinded_report["blind_score_packets"].values():
                 self.assertEqual(len(packet["sha256"]),64)
+
+
+    def test_pinned_critical_thinking_skill_source_rejects_substitution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            skill=root/"different-skill.md"
+            skill.write_text("not the pinned Critical Thinking skill",encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"pinned source"):
+                run_pair(root/"output","no-model-needed:latest",skill,allow_host_execution=True)
+            spec=json.loads((Path(__file__).with_name("skill_source.json")).read_text(encoding="utf-8"))
+            self.assertEqual(spec["repository"],"memoryprismv1/cognitive-interface-ai-skills")
+            self.assertEqual(spec["path"],"critical-thinking/SKILL.md")
+            self.assertEqual(spec["commit"],"d1f23e2ad9dafd323940fc6b7a00f1700275d885")
+            self.assertEqual(spec["git_blob_sha1"],"d7134969b124e39c04e343bed2ce2475f64b9a64")
 
     def test_remote_or_non_http_ollama_endpoint_is_refused(self):
         for value in ["https://example.com:11434","http://192.168.1.10:11434","file:///tmp/test","http://127.0.0.1"]:

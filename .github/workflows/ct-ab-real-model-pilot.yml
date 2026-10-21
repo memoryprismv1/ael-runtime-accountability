@@ -1,0 +1,131 @@
+name: CT A-B real local-model pilot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-model-pair:
+    name: Qwen2.5-Coder local A/B pair
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      OLLAMA_HOST: 127.0.0.1:11434
+      CT_AB_MODEL: qwen2.5-coder:7b
+      SKILL_REPO: memoryprismv1/cognitive-interface-ai-skills
+      SKILL_COMMIT: d1f23e2ad9dafd323940fc6b7a00f1700275d885
+      SKILL_GIT_BLOB_SHA1: d7134969b124e39c04e343bed2ce2475f64b9a64
+    steps:
+      - name: Checkout experiment harness without persisting credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout exact Critical Thinking skill revision
+        uses: actions/checkout@v4
+        with:
+          repository: memoryprismv1/cognitive-interface-ai-skills
+          ref: d1f23e2ad9dafd323940fc6b7a00f1700275d885
+          path: skill-source
+          persist-credentials: false
+
+      - name: Verify pinned skill source
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_commit="$(git -C skill-source rev-parse HEAD)"
+          actual_blob="$(git -C skill-source rev-parse "$SKILL_COMMIT:critical-thinking/SKILL.md")"
+          test "$actual_commit" = "$SKILL_COMMIT"
+          test "$actual_blob" = "$SKILL_GIT_BLOB_SHA1"
+          echo "Pinned skill commit: $actual_commit"
+          echo "Pinned skill Git blob: $actual_blob"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ollama
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://ollama.com/install.sh -o "$RUNNER_TEMP/ollama-install.sh"
+          sh "$RUNNER_TEMP/ollama-install.sh"
+
+      - name: Start local Ollama and download fixed model
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! curl --silent --fail http://127.0.0.1:11434/api/version >/dev/null; then
+            nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+          fi
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:11434/api/version >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat "$RUNNER_TEMP/ollama.log" || true
+            echo "Local Ollama did not start" >&2
+            exit 1
+          fi
+          ollama pull "$CT_AB_MODEL"
+          ollama list
+
+      - name: Validate runner and model availability
+        run: python -m experiments.ct_ab.paired_runner doctor
+
+      - name: Run the two controlled local-model conditions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m experiments.ct_ab.paired_runner run-pair \
+            --output "$RUNNER_TEMP/ct-ab-pair-output" \
+            --model "$CT_AB_MODEL" \
+            --ct-skill "$GITHUB_WORKSPACE/skill-source/critical-thinking/SKILL.md" \
+            --temperature 0 \
+            --num-ctx 16384 \
+            --num-predict 2048 \
+            --timeout 240 \
+            --max-turns 28 \
+            --max-tool-calls 70 \
+            --allow-host-execution
+
+      - name: Upload blind scoring packets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ct-ab-blind-score-packets
+          path: |
+            ${{ runner.temp }}/ct-ab-pair-output/score-packets/
+            ${{ runner.temp }}/ct-ab-pair-output/blinded-pair-report.json
+            ${{ runner.temp }}/ct-ab-pair-output/task-manifest.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload full audit evidence (do not share with assessors before scoring)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ct-ab-audit-evidence
+          path: |
+            ${{ runner.temp }}/ct-ab-pair-output/runs/
+            ${{ runner.temp }}/ct-ab-pair-output/acceptance/
+            ${{ runner.temp }}/ct-ab-pair-output/blinded-pair-report.json
+            ${{ runner.temp }}/ct-ab-pair-output/task-manifest.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Ollama startup diagnostics if present
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ct-ab-ollama-startup-log
+          path: ${{ runner.temp }}/ollama.log
+          if-no-files-found: ignore
+          retention-days: 7

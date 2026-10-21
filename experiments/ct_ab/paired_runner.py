@@ -35,6 +35,19 @@ def _sha_text(text: str) -> str:
     return _sha_bytes(text.encode("utf-8"))
 
 
+def _git_blob_sha1(content: bytes) -> str:
+    # Git blob identity: SHA-1("blob " + byte length + NUL + exact bytes).
+    return hashlib.sha1(b"blob " + str(len(content)).encode("ascii") + b"\0" + content).hexdigest()
+
+
+def _skill_source_spec() -> dict[str, Any]:
+    spec = json.loads((PACKAGE_DIR / "skill_source.json").read_text(encoding="utf-8"))
+    required = {"repository", "path", "commit", "git_blob_sha1", "source_url"}
+    if not isinstance(spec, dict) or required - set(spec):
+        raise ValueError("skill_source.json is missing pinned source identity fields")
+    return spec
+
+
 def _folder_sha(root: Path) -> str:
     h = hashlib.sha256()
     ignored = {".git", "__pycache__", ".venv", "venv", "node_modules"}
@@ -149,6 +162,10 @@ def _build_blind_score_packet(label: str, run_dir: Path, workspace: Path, accept
     rubric_path=PACKAGE_DIR/"SCORING_RUBRIC.md"
     schema_path=PACKAGE_DIR/"scorecard.schema.json"
     template_path=PACKAGE_DIR/"scorecard-template.json"
+    template_doc=json.loads(template_path.read_text(encoding="utf-8")) if template_path.is_file() else None
+    if isinstance(template_doc,dict):
+        template_doc["blind_label"]=label
+        template_doc["pair_id"]=manifest["run_id"].rsplit("-",1)[0]
     with zipfile.ZipFile(target,"w",compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("blind-label.txt",f"Blind condition {label}\nDo not open the separate controller key. Score this artifact independently before comparing A/B.\n")
         archive.writestr("run-metadata.json",json.dumps(packet_meta,indent=2,sort_keys=True)+"\n")
@@ -160,8 +177,8 @@ def _build_blind_score_packet(label: str, run_dir: Path, workspace: Path, accept
             archive.write(rubric_path,"SCORING_RUBRIC.md")
         if schema_path.is_file():
             archive.write(schema_path,"scorecard.schema.json")
-        if template_path.is_file():
-            archive.write(template_path,"scorecard-template.json")
+        if isinstance(template_doc,dict):
+            archive.writestr("scorecard-template.json",json.dumps(template_doc,indent=2,sort_keys=True)+"\\n")
         for path in sorted(p for p in workspace.rglob("*") if p.is_file()):
             if any(part in {".git","__pycache__",".venv","venv","node_modules"} for part in path.relative_to(workspace).parts):
                 continue
@@ -214,18 +231,19 @@ def _new_manifest(run_id: str, label: str, task_hash: str, config_hash: str, mod
         "logger_version":LOGGER_VERSION,
         "schema_version":SCHEMA_VERSION,
         "started_at_utc":utc_now(),
-        "model":{"provider":"ollama-local","model_id":model,"version":str(model_info.get("version","unknown"))},
+        "model":{"provider":"ollama-local","model_id":model,"ollama_version":str(model_info.get("version","unknown")),"model_digest":model_info.get("model_digest"),"model_details":dict(model_info.get("model_details") or {})},
         "environment":_environment(model_info),
         "resource_limits":dict(limits),
         "base_commit":"starter-sha256:"+starter_hash
     }
 
 
-def _condition_config(enabled: bool, model: str, options: Mapping[str, Any], skill_hash: str | None, max_turns: int, max_tool_calls: int) -> tuple[str, str]:
+def _condition_config(enabled: bool, model: str, options: Mapping[str, Any], skill_hash: str | None, skill_source: Mapping[str, Any], max_turns: int, max_tool_calls: int) -> tuple[str, str]:
     value = {
         "model":model,
         "skill_enabled":enabled,
         "skill_sha256":skill_hash if enabled else None,
+        "skill_source":dict(skill_source) if enabled else None,
         "options":dict(options),
         "max_turns":max_turns,
         "max_tool_calls":max_tool_calls,
@@ -238,7 +256,8 @@ def _condition_config(enabled: bool, model: str, options: Mapping[str, Any], ski
 def _run_one(label: str, enabled: bool, workspace: Path, run_dir: Path, acceptance_dir: Path,
              model: str, model_info: Mapping[str, Any], client: OllamaClient, brief: str, contract: str,
              skill_text: str | None, skill_hash: str | None, task_hash: str, starter_hash: str,
-             options: Mapping[str, Any], limits: Mapping[str, Any], max_turns: int, max_tool_calls: int, pair_id: str) -> dict[str, Any]:
+             options: Mapping[str, Any], limits: Mapping[str, Any], max_turns: int, max_tool_calls: int, pair_id: str,
+             skill_source: Mapping[str, Any], skill_git_blob_sha1: str) -> dict[str, Any]:
     workspace.mkdir(parents=True, exist_ok=False)
     (workspace / "STARTER.md").write_text((TASK_DIR / "STARTER.md").read_text(encoding="utf-8"), encoding="utf-8")
     # Re-hash the common starting tree. A/B must begin with the same bytes.
@@ -246,14 +265,17 @@ def _run_one(label: str, enabled: bool, workspace: Path, run_dir: Path, acceptan
     if start_hash != starter_hash:
         raise ValueError("starter workspace hash does not match frozen baseline")
     run_id = f"{pair_id}-{label.lower()}"
-    config_hash, _ = _condition_config(enabled, model, options, skill_hash, max_turns, max_tool_calls)
+    config_hash, _ = _condition_config(enabled, model, options, skill_hash, skill_source, max_turns, max_tool_calls)
     manifest = _new_manifest(run_id,label,task_hash,config_hash,model,model_info,limits,starter_hash)
     manifest.update({
         "client_brief_sha256":_sha_bytes((TASK_DIR/"CLIENT_BRIEF.md").read_bytes()),
         "api_contract_sha256":_sha_bytes((TASK_DIR/"API_CONTRACT.json").read_bytes()),
         "starter_sha256":starter_hash,
         "acceptance_suite_sha256":_sha_bytes((PACKAGE_DIR/"acceptance.py").read_bytes()),
-        "acceptance_contract_version":"1.0"
+        "acceptance_contract_version":"1.0",
+        "skill_source":dict(skill_source) if enabled else None,
+        "skill_file_sha256":skill_hash if enabled else None,
+        "skill_file_git_blob_sha1":skill_git_blob_sha1 if enabled else None
     })
     logger = RunLogger(run_dir,workspace,manifest)
     result: dict[str, Any] = {
@@ -323,7 +345,7 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
              temperature: float = 0.0, num_ctx: int = 8192, num_predict: int = 1800,
              timeout: float = 180.0, max_turns: int = 36, max_tool_calls: int = 100,
              key_file: str | Path | None = None, client: OllamaClient | None = None,
-             allow_host_execution: bool = False) -> dict[str, Any]:
+             allow_host_execution: bool = False, allow_unpinned_skill: bool = False) -> dict[str, Any]:
     """Run one locally hosted model twice with identical controls, changing only skill inclusion."""
     if not allow_host_execution:
         raise PermissionError("The post-run acceptance suite executes model-generated app.py as this OS user; there is no OS sandbox. Run inside a disposable VM/container and pass allow_host_execution=True only after isolating secrets and valuable files.")
@@ -343,6 +365,17 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
     if not skill_text.strip():
         raise ValueError("Critical Thinking skill file is empty")
     skill_hash=_sha_bytes(skill_bytes)
+    pinned_skill_source=_skill_source_spec()
+    skill_git_sha1=_git_blob_sha1(skill_bytes)
+    if skill_git_sha1 != pinned_skill_source["git_blob_sha1"] and not allow_unpinned_skill:
+        raise ValueError(
+            "The supplied Critical Thinking file does not match the experiment's pinned source. "
+            f"Expected Git blob {pinned_skill_source['git_blob_sha1']} from {pinned_skill_source['source_url']}; "
+            f"received {skill_git_sha1}. Do not silently substitute another skill version."
+        )
+    effective_skill_source = dict(pinned_skill_source) if skill_git_sha1 == pinned_skill_source["git_blob_sha1"] else {
+        "status":"test-only-unpinned-override", "expected":pinned_skill_source, "actual_git_blob_sha1":skill_git_sha1
+    }
     # Validate the local model and frozen task before creating output directories or the private key.
     ollama=client or OllamaClient(base_url,timeout=timeout)
     model_info=ollama.info()
@@ -350,6 +383,10 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
     names={str(m.get("name") or m.get("model") or "") for m in available}
     if model not in names:
         raise ValueError(f"model {model!r} is not installed under that exact name; available: {sorted(n for n in names if n)}")
+    selected_model=next(m for m in available if str(m.get("name") or m.get("model") or "")==model)
+    model_info_for_runs=dict(model_info)
+    model_info_for_runs["model_digest"]=selected_model.get("digest")
+    model_info_for_runs["model_details"]=selected_model.get("details") or {}
     brief,contract,starter,task_hash=_base_files()
     starter_hash=_starter_sha(starter)
     opts={"temperature":temperature,"num_ctx":num_ctx,"num_predict":num_predict}
@@ -374,13 +411,16 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
         "condition_mapping":{label:("skill_enabled" if enabled else "skill_disabled") for label,enabled in enabled_by_label.items()},
         "skill_file_basename":skill_path.name,
         "skill_file_sha256":skill_hash,
+        "skill_file_git_blob_sha1":skill_git_sha1,
+        "skill_source":effective_skill_source,
         "task_bundle_sha256":task_hash,
         "model":model,
+        "model_digest":selected_model.get("digest"),
         "options":opts,
         "note":"Controller-private. Keep separate from blind scoring packets until assessor scores are frozen."
     }
     key_path.write_text(json.dumps(key_doc,indent=2,sort_keys=True)+"\n",encoding="utf-8")
-    (output/"task-manifest.json").write_text(json.dumps({"pair_id":pair_id,"task_bundle_sha256":task_hash,"client_brief_sha256":_sha_text(brief),"api_contract_sha256":_sha_text(contract),"starter_sha256":starter_hash,"acceptance_suite_sha256":_sha_bytes((PACKAGE_DIR/"acceptance.py").read_bytes()),"acceptance_contract_version":"1.0","model":model,"common_options":opts,"base_commit":"starter-sha256:"+starter_hash},indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    (output/"task-manifest.json").write_text(json.dumps({"pair_id":pair_id,"task_bundle_sha256":task_hash,"client_brief_sha256":_sha_text(brief),"api_contract_sha256":_sha_text(contract),"starter_sha256":starter_hash,"acceptance_suite_sha256":_sha_bytes((PACKAGE_DIR/"acceptance.py").read_bytes()),"acceptance_contract_version":"1.0","skill_source":effective_skill_source,"skill_file_sha256":skill_hash,"skill_file_git_blob_sha1":skill_git_sha1,"model":model,"model_digest":selected_model.get("digest"),"common_options":opts,"base_commit":"starter-sha256:"+starter_hash},indent=2,sort_keys=True)+"\n",encoding="utf-8")
     labels_to_run=list(labels)
     # execution order is randomized separately from the A/B condition mapping.
     if secrets.randbelow(2):
@@ -391,7 +431,7 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
         workspace=workspaces_dir/label
         run_dir=runs_dir/("run-"+label.lower())
         accepted_dir=acceptance_dir/label
-        result=_run_one(label,enabled,workspace,run_dir,accepted_dir,model,model_info,ollama,brief,contract,skill_text,skill_hash,task_hash,starter_hash,opts,limits,max_turns,max_tool_calls,pair_id)
+        result=_run_one(label,enabled,workspace,run_dir,accepted_dir,model,model_info_for_runs,ollama,brief,contract,skill_text,skill_hash,task_hash,starter_hash,opts,limits,max_turns,max_tool_calls,pair_id,effective_skill_source,skill_git_sha1)
         results[label]=result
         _build_blind_score_packet(label,run_dir,workspace,accepted_dir,result,score_packets_dir/f"score-{label}.zip")
     pair_validation: dict[str,Any]

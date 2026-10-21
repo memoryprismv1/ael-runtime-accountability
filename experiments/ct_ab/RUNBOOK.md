@@ -44,3 +44,16 @@ The paired runner makes score-packets/score-A.zip and score-packets/score-B.zip.
 Each assessor should fill a separate scorecard for each blind label and submit both independently. Preserve original ratings and reasons before comparing them. Record disagreement; do not silently average away differences. Freeze the scorecards before using the private condition key to identify skill-on/off.
 
 Use packet SHA-256 values in blinded-pair-report.json to verify you are scoring the produced packets. Human ratings should cite files, acceptance checks, or event sequence IDs. Do not rate hidden reasoning. One pair remains exploratory evidence.
+
+
+## Pinned skill revision
+
+The experiment accepts only the exact bytes at memoryprismv1/cognitive-interface-ai-skills/critical-thinking/SKILL.md, pinned to commit d1f23e2ad9dafd323940fc6b7a00f1700275d885 (Git blob SHA-1 d7134969b124e39c04e343bed2ce2475f64b9a64). The runner checks the blob identity and logs SHA-256. Substituting or editing the file fails before a model request is sent.
+
+## One-click real local-model pilot
+
+After the harness PR is merged, open Actions → **CT A-B real local-model pilot** → **Run workflow**. The workflow installs local Ollama on an ephemeral GitHub-hosted VM, pulls qwen2.5-coder:7b, validates the pinned skill, and executes a randomized pair using identical settings except for skill inclusion. The model is code-focused and the official model page lists the 7B variant as 4.7 GB: https://ollama.com/library/qwen2.5-coder.
+
+Download the ct-ab-blind-score-packets artifact for assessors. Do not share the ct-ab-audit-evidence artifact with them before they freeze their scores; it contains the actual requests, including the skill text on the enabled condition. After scoring, inspect that audit evidence and the manifests to unblind the A/B conditions. The private key is not part of the uploaded artifacts.
+
+This hosted pilot executes generated app code on an ephemeral VM, not a hardened sandbox. The checkout action does not persist credentials and the acceptance subprocess receives a restricted environment, but this is not a guarantee against arbitrary code. The real run is manually triggered and separate from routine CI.
