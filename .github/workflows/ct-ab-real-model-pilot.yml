@@ -104,7 +104,7 @@ jobs:
             --temperature 0 \
             --num-ctx 16384 \
             --num-predict 1200 \
-            --timeout 180 \
+            --timeout 600 \
             --max-turns 24 \
             --max-tool-calls 60 \
             --allow-host-execution
