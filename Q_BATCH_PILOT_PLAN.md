@@ -1,81 +1,85 @@
 # Q-Batch Pilot Plan — AEL Runtime Accountability
 
-**Status:** Prepared; execution pending  
+**Status:** Protocol recovered; real-model execution still pending a valid pair  
 **Method:** Q-Batch of Evidence  
-**Purpose:** Replace a context-contaminated, runtime-heavy paired pilot with independently executed evidence batches and offline evaluation.
+**Purpose:** Preserve independently inspectable evidence for the Critical Thinking skill-on/skill-off software-task experiment, with offline comparison after evidence is frozen.
 
-## What is known
+## Plain-English status
 
-- The repository reports 57 passing unit tests, including CLI and interactive-shell tests against a mocked local Ollama endpoint.
-- The repository explicitly states that Ollama was not installed in the development environment and that no real model inference was run there.
-- A previous CT pilot attempt was recorded as incomplete after repeated no-tool responses and an audit-event schema mismatch. The audit schema was subsequently corrected for recovery-attempt and loop-detection events.
-- Therefore, the current evidence supports local invariants and mock-adapter behaviour, not a claim that the real-model pilot passed.
+The experiment harness already exists. This plan is not a replacement for it.
 
-## Before execution: freeze the contract
+- The experiment is a paired software-building task: one blind condition has the pinned Critical Thinking skill and the other does not.
+- The real-model workflow uses a disposable GitHub-hosted Linux runner, installs Ollama, downloads `qwen2.5-coder:7b`, verifies the pinned skill revision, and runs both conditions.
+- Two earlier real-model attempts failed as harness/model-tool-protocol runs: first, the model encoded tool calls as response text; second, it repeatedly produced prose/echoes without calling tools. Neither attempt produced a valid comparison or ran the independent acceptance suite.
+- The no-tool loop handling and audit-event schema have since been updated. That is a code fix, not proof the next real-model attempt will pass.
+- The repository's routine tests and synthetic preflight are instrumentation checks. They do not establish that the skill improves task performance.
 
-Record the exact pilot protocol and version before either batch runs. The protocol must specify:
+## Frozen protocol source
 
-- the experimental question and what the baseline/CT conditions mean;
-- the exact prompts, task cases, allowed resources, instructions and loading sequence for each condition;
-- the expected response, runtime logs, audit events, result files and required artefacts;
-- the acceptance criteria and scoring rules, including how incomplete runs and missing evidence are treated;
-- model name/tag, runtime commit, environment/reset procedure, timeout and retry policy;
-- what must remain isolated between runs and what persistence is intentionally retained.
+The controlling experiment instructions are in [experiments/ct_ab/README.md](experiments/ct_ab/README.md), with the executable workflow in [.github/workflows/ct-ab-real-model-pilot.yml](.github/workflows/ct-ab-real-model-pilot.yml). Do not invent a new task, prompt, rubric, model, or skill revision for this pilot.
 
-Do not invent missing CT/baseline details. Recover them from the existing evaluation protocol and experiment records before execution.
+Protocol settings currently declared by the workflow:
 
-## Batch A — baseline condition
+- Model: `qwen2.5-coder:7b`
+- Temperature: `0`
+- Context setting: `16384`
+- Prediction limit: `1200`
+- Request timeout: `180` seconds
+- Maximum agent turns: `24`
+- Maximum tool calls: `60`
+- Skill source: `memoryprismv1/cognitive-interface-ai-skills`, commit `d1f23e2ad9dafd323940fc6b7a00f1700275d885`, file `critical-thinking/SKILL.md`
+- Both blind runs use the same model, client brief, starter workspace, tool definitions and resource limits. The run order and mapping of blind A/B to skill-off/skill-on are randomized. The controller key stays separate until scoring is frozen.
 
-1. Start from the declared reset state.
-2. Record the runtime commit, model tag, environment and loaded resources.
-3. Execute only the frozen baseline cases and procedure.
-4. Preserve raw prompts/inputs, model responses, runtime audit, logs, result files, errors and timestamps.
-5. Mark each case pass, fail, or incomplete against the frozen contract.
-6. Freeze the complete evidence set and record its hashes or immutable commit/artifact references where practical.
+## Acceptance gate for a valid pair
 
-## Batch B — CT condition
+Treat a real-model pair as **valid only if all** of these hold:
 
-Repeat the same evidence-collection discipline in a separately established environment, loading only the CT condition's declared resources. Do not carry conversational state from Batch A into Batch B. Record intentional differences between conditions. Preserve and freeze the evidence set independently.
+1. Both conditions finish; a failed or incomplete condition makes the pair invalid/incomplete.
+2. The harness captures observed tool calls, commands, file changes and test results; a model's claim that it did work is not proof.
+3. Both run logs and their referenced artifacts pass validation, including hashes and required event types.
+4. Controlled manifest fields match; task and condition configuration hashes are preserved.
+5. The independent acceptance suite runs and produces a report for each condition.
+6. The blinded pair report and blind scoring packets are generated.
+7. Raw request/response audit evidence and the controller key remain withheld from assessors until their independent scorecards are frozen.
 
-Batch A and Batch B may run on different days and need not run consecutively. Do not change the contract between runs without versioning the change.
+The independent acceptance score is an objective task result. Human assessor ratings are additional qualitative evidence, not a substitute. Agreement between assessors is not proof of correctness. Do not infer skill effectiveness from one pair alone.
 
-## Offline comparison
+## Q-Batch evidence handling
 
-Evaluate the frozen evidence sets against the contract, without rerunning the original test cases merely to reconstruct missing evidence.
+Preserve the run as an immutable evidence batch. Do not rerun or reconstruct missing evidence and silently combine it with the original.
 
-Report:
+For each attempt, record:
 
-- expected versus observed output for each case and condition;
-- audit-schema validity and required event presence;
-- response completeness, tool/no-tool behaviour, timeouts and recovery attempts;
-- missing, malformed or unexpected artefacts;
-- per-condition acceptance scores and the exact scoring basis;
-- differences between conditions, confounds, uncertainty and limits on conclusions.
+- workflow run URL and run ID;
+- commit SHA and pinned skill revision;
+- final workflow/job status;
+- whether both conditions finished;
+- whether the instrumentation and log-validation gates passed;
+- whether independent acceptance ran for both conditions;
+- names and hashes of uploaded artifacts;
+- explicit failure/incomplete reasons and any recovery code changes since the previous attempt.
 
-A difference between conditions does not by itself establish its cause. If either batch is incomplete, report that explicitly; do not turn missing evidence into a pass or fail without a predeclared rule.
+Keep blind scoring packets separate from full audit evidence. The audit traces contain raw model requests/responses and may reveal the condition. Do not expose the controller key or audit evidence before blind scoring is frozen.
 
-## Minimum evidence package
+## Run history
 
-Use the Q-Batch templates for one BATCH-RECORD.md per condition and one COMPARISON-RECORD.md. Store raw evidence separately from summaries. Redact secrets and unnecessary personal data without silently editing the preserved raw output; document any redaction.
+### Attempt 1 — invalid
+Run `39592787189`: both conditions returned tool calls encoded in response text rather than the structured tool-call field. Tool dispatch did not occur; both exhausted the 24-turn budget. Acceptance was not run. This is a harness/model protocol failure, not evidence for or against the skill.
 
-Suggested layout:
+### Attempt 2 — invalid
+Run `39597455540`: after the text-tool-call fallback, both conditions fell into repeated no-tool responses/echoes and exhausted the 24-turn budget. Acceptance was not run. Issue #8 added bounded recovery and loop detection. Again, this is not efficacy evidence.
 
-    q-batch/
-      contract/
-        pilot-protocol.md
-      batch-a-baseline/
-        BATCH-RECORD.md
-        responses/
-        logs/
-        results/
-      batch-b-ct/
-        BATCH-RECORD.md
-        responses/
-        logs/
-        results/
-      comparison/
-        COMPARISON-RECORD.md
+### Attempt 3 — status
+The audit event schema was subsequently corrected to include the recovery-attempt and loop-detection events introduced by the fix. The latest commit visible during this review is `1b0ee8ad691a70165c7c211d3ba92c048619cd14`, which adds this Q-Batch plan. A new real-model run has **not been verified from this review**, so do not assume it ran or passed.
+
+## What happens next
+
+1. Routine CI and the synthetic preflight should pass on the current main branch.
+2. Run the existing **CT A-B real local-model pilot** workflow from GitHub Actions, or let its configured push trigger run when a relevant harness/workflow file changes. This downloads a multi-gigabyte model and can take a long time.
+3. Freeze the resulting workflow artifacts as one attempt.
+4. If the run is invalid, use its audit evidence to fix the specific harness failure, then create a new attempt; do not score an invalid pair.
+5. If valid, distribute only the blind scoring packets, collect independent scorecards, freeze those scorecards, and only then inspect the condition key/audit evidence and compare.
 
 ## Execution boundary
 
-The GitHub repository connection can inspect and change repository files, but it cannot itself run a local Ollama server on the user's machine. A real-model batch must be executed in an environment where Ollama and the selected local model are installed and available. Until both required evidence sets exist, the pilot remains pending and no real-model outcome should be claimed.
+The GitHub repository connection used to prepare this document cannot itself start or observe a new Actions workflow run. The real-model workflow is already present and has a manual **Run workflow** option in GitHub Actions. No local Ollama installation on the user's computer is needed for that hosted workflow. A run still must actually occur before any result can be claimed.
