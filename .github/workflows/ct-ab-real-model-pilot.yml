@@ -1,5 +1,8 @@
 name: CT A-B real local-model pilot
 
+# Q-Batch: each execution is an independent evidence batch. Preserve this run's
+# artifacts as-is; do not combine incomplete attempts or score invalid pairs.
+
 on:
   workflow_dispatch:
   push:
