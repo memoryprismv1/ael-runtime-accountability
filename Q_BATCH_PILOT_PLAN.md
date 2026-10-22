@@ -83,3 +83,15 @@ The audit event schema was subsequently corrected to include the recovery-attemp
 ## Execution boundary
 
 The GitHub repository connection used to prepare this document cannot itself start or observe a new Actions workflow run. The real-model workflow is already present and has a manual **Run workflow** option in GitHub Actions. No local Ollama installation on the user's computer is needed for that hosted workflow. A run still must actually occur before any result can be claimed.
+
+
+### Attempt 3 — invalid: first-turn model request timeout
+
+Run [39730856613](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/39730856613), commit `5abd6ced1b5b2a35310b4e7b28c7fbc485bcc150`:
+
+- Skill revision verification, Ollama installation, 4.7 GB model download, and local model inventory all passed.
+- Both A and B failed on turn 1 with `model request failed ... timed out` under the 180-second request timeout.
+- The pair report correctly says `RUN_INCOMPLETE`; instrumentation validation failed because neither run reached planning/tool/command events; independent acceptance was not run.
+- Therefore this is not a scored pair and says nothing about the skill's effect.
+
+**Recovery action:** the next attempt keeps the same model, pinned skill, task, temperature, context, prediction limit, turn/tool limits and blinded paired design, but increases the per-request timeout from 180 to 600 seconds. This is an operational allowance to test whether the hosted CPU runner can complete the first response, not a change to the task or rubric. The retry is a new independent evidence batch; do not merge it with this failed batch.
