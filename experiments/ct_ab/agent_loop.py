@@ -464,7 +464,7 @@ class AgentLoop:
                     self.messages.append({
                         "role":"user",
                         "content":(
-                            f'Tool result for {name} (JSON): {tool_result}\\n'
+                            f'Tool result for {name} (JSON): {tool_result}\n'
                             "Choose the next concrete action from this observed result. Do not repeat completed actions. "
                             'For another tool call, return exactly one JSON object with keys "name" and "arguments".'
                         ),
