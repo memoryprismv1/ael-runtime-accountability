@@ -32,7 +32,7 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
             message={"role":"assistant","content":self.plain_text_response,"thinking":"MOCK_INTERNAL_THOUGHT_SENTINEL"}
             return self._json({"model":"mock:latest","created_at":"2026-01-01T00:00:00Z","message":message,"done":True,"done_reason":"stop","prompt_eval_count":10,"eval_count":3})
         messages=body.get("messages",[])
-        count=sum(m.get("role")=="tool" for m in messages)
+        count=sum(m.get("role")=="tool" or (m.get("role")=="user" and m.get("content","").startswith("Tool result for ")) for m in messages)
         if count==0:
             name="submit_plan";args={"plan":"Inspect the starter, implement the fixed local JSON API and basic browser interface, then run the compile check."}
         elif count==1:
@@ -62,6 +62,7 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
 
 class ScriptedClient:
     """Deterministic in-process chat script for AgentLoop recovery tests."""
+    timeout = 30.0
     def __init__(self, contents):
         self.contents = list(contents)
         self.requests = []
