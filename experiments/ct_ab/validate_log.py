@@ -10,7 +10,7 @@ from .logger import SCHEMA_VERSION, LOGGER_VERSION, canonical_json, sha256_bytes
 
 PHASES = {"setup", "planning", "implementation", "debugging", "verification", "delivery", "preflight"}
 ACTORS = {"runner", "agent", "tool", "runtime", "reviewer", "logger"}
-EVENT_TYPES = {"run_started", "run_finished", "plan_submitted", "phase_started", "agent_note", "tool_call", "model_request", "model_response", "command_started", "command_finished", "test_result", "requirement_check", "commit_created", "file_changed", "artifact_captured", "preflight_check", "error", "retry", "agent_recovery_attempt", "agent_loop_detected"}
+EVENT_TYPES = {"run_started", "run_finished", "plan_submitted", "phase_started", "agent_note", "tool_call", "model_request_started", "model_request_succeeded", "model_request_failed", "model_request", "model_response", "command_started", "command_finished", "test_result", "requirement_check", "commit_created", "file_changed", "artifact_captured", "preflight_check", "error", "retry", "agent_recovery_attempt", "agent_loop_detected"}
 STATUSES = {"started", "succeeded", "failed", "observed", "declared", "skipped", "requested"}
 HASH_RE = re.compile(r"^[a-f0-9]{64}$")
 MANIFEST_FIELDS = {"run_id", "condition_label", "task_brief_sha256", "condition_config_sha256", "logger_version", "schema_version", "started_at_utc", "model", "environment", "resource_limits", "base_commit"}
