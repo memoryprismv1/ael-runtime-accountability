@@ -32,7 +32,7 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
             message={"role":"assistant","content":self.plain_text_response,"thinking":"MOCK_INTERNAL_THOUGHT_SENTINEL"}
             return self._json({"model":"mock:latest","created_at":"2026-01-01T00:00:00Z","message":message,"done":True,"done_reason":"stop","prompt_eval_count":10,"eval_count":3})
         messages=body.get("messages",[])
-        count=sum(m.get("role")=="tool" for m in messages)
+        count=sum(m.get("role")=="tool" or (m.get("role")=="user" and m.get("content","").startswith("Tool result for ")) for m in messages)
         if count==0:
             name="submit_plan";args={"plan":"Inspect the starter, implement the fixed local JSON API and basic browser interface, then run the compile check."}
         elif count==1:
@@ -62,6 +62,7 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
 
 class ScriptedClient:
     """Deterministic in-process chat script for AgentLoop recovery tests."""
+    timeout = 30.0
     def __init__(self, contents):
         self.contents = list(contents)
         self.requests = []
@@ -274,6 +275,61 @@ class AcceptanceSuiteTests(unittest.TestCase):
             self.assertTrue(any("make one tool call now" in prompt.lower() for prompt in recovery_prompts))
             self.assertTrue(any("write_file" in prompt for prompt in recovery_prompts))
             self.assertTrue((root/"workspace"/"app.py").is_file())
+
+    def test_text_encoded_tool_call_uses_explicit_user_tool_result(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            contents = [
+                json.dumps({"name":"submit_plan","arguments":{"plan":"Inspect, implement, verify."}}),
+                json.dumps({"name":"list_files","arguments":{"path":"."}}),
+                json.dumps({"name":"finish","arguments":{"summary":"Finished scripted test.","known_issues":[],"checks_claimed":[]}}),
+            ]
+            result, error, events, client, run_dir = self._run_scripted_agent(root, contents)
+            self.assertIsNone(error)
+            self.assertEqual(result["status"], "finished")
+            second_request_messages = client.requests[1]["messages"]
+            self.assertTrue(any(
+                m.get("role") == "user" and "Tool result for submit_plan" in m.get("content", "")
+                for m in second_request_messages
+            ))
+            self.assertFalse(any(
+                m.get("role") == "tool" and m.get("tool_name") == "submit_plan"
+                for m in second_request_messages
+            ))
+            event_types = {event["event_type"] for event in events}
+            self.assertIn("model_request_started", event_types)
+            self.assertIn("model_request_succeeded", event_types)
+            self.assertTrue(any(event["event_type"] == "tool_call" for event in events))
+
+    def test_model_request_timeout_is_logged_with_request_id_and_elapsed_time(self):
+        class TimeoutClient(ScriptedClient):
+            timeout = 12.0
+            def chat(self, request_body):
+                self.requests.append(json.loads(json.dumps(request_body)))
+                raise TimeoutError("mock timeout")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            logger = RunLogger(root / "run-log", workspace, {
+                "run_id":"timeout-test", "condition_label":"A", "task_brief_sha256":"0"*64,
+                "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION,
+                "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(),
+                "model":{"model_id":"mock:latest"}, "environment":{}, "resource_limits":{}, "base_commit":"test-fixture",
+            })
+            loop = AgentLoop(workspace, logger, TimeoutClient([]), "mock:latest", "brief", "{}", None,
+                             "1"*64, {"temperature":0}, max_turns=2, max_tool_calls=4)
+            try:
+                with self.assertRaisesRegex(RunnerError, "model request failed on turn 1"):
+                    loop.run()
+            finally:
+                logger.close()
+            events = [json.loads(line) for line in (root / "run-log" / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+            failed = next(event for event in events if event["event_type"] == "model_request_failed")
+            self.assertEqual(failed["payload"]["request_id"], "timeout-test-turn-001")
+            self.assertEqual(failed["payload"]["failure_class"], "timeout")
+            self.assertGreaterEqual(failed["payload"]["elapsed_ms"], 0)
+            self.assertEqual(failed["payload"]["timeout_seconds"], 12.0)
 
     def test_repeated_echoed_tool_response_is_detected_and_original_exchanges_are_preserved(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -314,12 +314,44 @@ class AgentLoop:
                 "options":self.options,"think":False,
             }
             began=time.monotonic()
+            request_payload_sha256 = hashlib.sha256(json.dumps(request_body, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+            self.logger.emit(
+                "model_request_started", "runtime", "implementation", "started",
+                {
+                    "request_id": request_id,
+                    "turn": turn,
+                    "model_id": self.model_name,
+                    "timeout_seconds": self.client.timeout,
+                    "message_count": len(self.messages),
+                    "request_payload_sha256": request_payload_sha256,
+                },
+            )
             try:
                 response=self.client.chat(request_body)
             except (OSError, urllib.error.URLError, TimeoutError, ValueError, RunnerError) as exc:
-                self.logger.emit("error","runtime","implementation","observed",{"kind":"model_request_failed","turn":turn,"error_type":type(exc).__name__,"message":str(exc)[:1000]})
+                elapsed_ms = round((time.monotonic()-began)*1000,3)
+                reason = getattr(exc, "reason", None)
+                is_timeout = isinstance(exc, (socket.timeout, TimeoutError)) or isinstance(reason, (socket.timeout, TimeoutError))
+                self.logger.emit(
+                    "model_request_failed", "runtime", "implementation", "failed",
+                    {
+                        "request_id": request_id,
+                        "turn": turn,
+                        "model_id": self.model_name,
+                        "elapsed_ms": elapsed_ms,
+                        "timeout_seconds": self.client.timeout,
+                        "failure_class": "timeout" if is_timeout else "transport_or_response_error",
+                        "error_type": type(exc).__name__,
+                        "message": str(exc)[:1000],
+                    },
+                )
+                self.logger.emit("error","runtime","implementation","observed",{"kind":"model_request_failed","request_id":request_id,"turn":turn,"elapsed_ms":elapsed_ms,"error_type":type(exc).__name__,"message":str(exc)[:1000]})
                 raise RunnerError(f"model request failed on turn {turn}: {exc}") from exc
             elapsed_ms=round((time.monotonic()-began)*1000,3)
+            self.logger.emit(
+                "model_request_succeeded", "runtime", "implementation", "succeeded",
+                {"request_id": request_id, "turn": turn, "model_id": self.model_name, "elapsed_ms": elapsed_ms},
+            )
             message=response.get("message",{})
             # Some local models expose a separate "thinking" field. It is
             # explicitly excluded from logs and conversational history.
@@ -335,18 +367,21 @@ class AgentLoop:
                 phase="implementation"
             )
             tool_calls=safe_message.get("tool_calls",[])
-            # Prefer Ollama's native structured tool calls. A narrow fallback
-            # handles models that encode one call as raw/fenced JSON content.
+            # Prefer Ollama's native structured tool calls. Some models instead
+            # emit an allowlisted tool call as JSON text. Do not rewrite that
+            # text-only exchange into a synthetic native tool_calls message:
+            # the model did not produce the native structure, and doing so can
+            # confuse the next turn's chat template. Return text-call results
+            # as an explicit user message instead of a synthetic role=tool reply.
+            text_call_fallback = None
             assistant_entry={"role":"assistant","content":safe_message.get("content","") or ""}
             if isinstance(tool_calls,list) and tool_calls:
                 assistant_entry["tool_calls"]=tool_calls
             else:
                 text_call=_parse_text_encoded_tool_call(safe_message.get("content",""))
                 if text_call is not None:
+                    text_call_fallback = text_call
                     tool_calls=[{"function":{"name":text_call["name"],"arguments":text_call["arguments"]}}]
-                    # Keep the normalized call in dialogue history; the original
-                    # response text remains unchanged in the audit artifact.
-                    assistant_entry={"role":"assistant","content":"","tool_calls":tool_calls}
                 else:
                     self.messages.append(assistant_entry)
                     self.logger.emit("error","runtime","implementation","observed",{"kind":"model_response_without_tool_call","turn":turn})
@@ -424,7 +459,18 @@ class AgentLoop:
                     self.logger.record_file_changes(before,self.logger.snapshot_workspace())
                 if name=="finish" and status=="succeeded" and self.finished:
                     return {"status":"finished","turns":turn,"tool_calls":self.tool_calls,"finish":self.finish_args}
-                self.messages.append({"role":"tool","tool_name":str(name),"content":json.dumps(outcome,ensure_ascii=False,sort_keys=True)})
+                tool_result = json.dumps(outcome,ensure_ascii=False,sort_keys=True)
+                if text_call_fallback is not None:
+                    self.messages.append({
+                        "role":"user",
+                        "content":(
+                            f'Tool result for {name} (JSON): {tool_result}\n'
+                            "Choose the next concrete action from this observed result. Do not repeat completed actions. "
+                            'For another tool call, return exactly one JSON object with keys "name" and "arguments".'
+                        ),
+                    })
+                else:
+                    self.messages.append({"role":"tool","tool_name":str(name),"content":tool_result})
         raise RunnerError(f"agent did not call finish within {self.max_turns} turns")
 
 
