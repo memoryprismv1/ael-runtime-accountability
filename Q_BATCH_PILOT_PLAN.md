@@ -24,7 +24,7 @@ Protocol settings currently declared by the workflow:
 - Temperature: `0`
 - Context setting: `16384`
 - Prediction limit: `1200`
-- Request timeout: `180` seconds
+- Request timeout: `600` seconds (the GitHub Actions workflow explicitly passes `--timeout 600`; the CLI's general-purpose default remains 180 seconds)
 - Maximum agent turns: `24`
 - Maximum tool calls: `60`
 - Skill source: `memoryprismv1/cognitive-interface-ai-skills`, commit `d1f23e2ad9dafd323940fc6b7a00f1700275d885`, file `critical-thinking/SKILL.md`
@@ -94,4 +94,4 @@ Run [39730856613](https://github.com/memoryprismv1/ael-runtime-accountability/ac
 - The pair report correctly says `RUN_INCOMPLETE`; instrumentation validation failed because neither run reached planning/tool/command events; independent acceptance was not run.
 - Therefore this is not a scored pair and says nothing about the skill's effect.
 
-**Recovery action:** the next attempt keeps the same model, pinned skill, task, temperature, context, prediction limit, turn/tool limits and blinded paired design, but increases the per-request timeout from 180 to 600 seconds. This is an operational allowance to test whether the hosted CPU runner can complete the first response, not a change to the task or rubric. The retry is a new independent evidence batch; do not merge it with this failed batch.
+**Recovery action:** the workflow now passes a 600-second per-request timeout while keeping the model, pinned skill, task, temperature, context, prediction limit, turn/tool limits and blinded paired design unchanged. This is an operational allowance to test whether the hosted CPU runner can complete the first response, not a change to the task or rubric. The next attempt remains pending until a new workflow run is observed. It must be preserved as a new independent evidence batch; do not merge it with this failed batch.
