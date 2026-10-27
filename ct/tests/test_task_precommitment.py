@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import subprocess
 import sys
@@ -146,6 +147,91 @@ class TaskPrecommitmentTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("generate-case", result.stdout)
         self.assertIn("decide-plan", result.stdout)
+
+
+    def test_skill_obj_loads_multiple_manifest_pinned_skills(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = b"Skill alpha guidance.\\n"
+            second = b"Skill beta guidance.\\n"
+            (root / "alpha.md").write_bytes(first)
+            (root / "beta.md").write_bytes(second)
+
+            def git_blob(data):
+                return hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\\0" + data).hexdigest()
+
+            manifest = {
+                "schema_version": 1,
+                "experiment_id": "two-skill-test",
+                "requirements": {
+                    "alpha": {
+                        "version": "git:abc123",
+                        "source_commit": "abc123",
+                        "path": "alpha.md",
+                        "required": True,
+                        "source_blob_sha": git_blob(first),
+                    },
+                    "beta": {
+                        "version": "1.2.3",
+                        "path": "beta.md",
+                        "required": True,
+                        "sha256": hashlib.sha256(second).hexdigest(),
+                    },
+                    "optional-not-installed": {
+                        "version": "1.0",
+                        "path": "optional.md",
+                        "required": False,
+                        "sha256": "0" * 64,
+                    },
+                },
+            }
+            (root / "experiment.json").write_text(json.dumps(manifest), encoding="utf-8")
+            skills = task.skill_obj(root)
+            self.assertEqual(set(skills), {"alpha", "beta"})
+            self.assertEqual(skills["alpha"]["text"], first.decode("utf-8"))
+            self.assertEqual(skills["beta"]["text"], second.decode("utf-8"))
+            self.assertEqual(len(task.skill_obj_fingerprint(skills)), 64)
+            self.assertEqual(task.skill_obj_fingerprint(skills), task.skill_obj_fingerprint(dict(reversed(list(skills.items())))))
+
+    def test_skill_obj_fails_closed_on_integrity_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "skill.md").write_text("tampered", encoding="utf-8")
+            manifest = {
+                "schema_version": 1,
+                "experiment_id": "tamper-test",
+                "requirements": {
+                    "alpha": {
+                        "version": "1.0",
+                        "path": "skill.md",
+                        "required": True,
+                        "sha256": "0" * 64,
+                    }
+                },
+            }
+            (root / "experiment.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "SHA-256"):
+                task.skill_obj(root)
+
+    def test_skill_obj_rejects_paths_outside_environment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "env"
+            root.mkdir()
+            manifest = {
+                "schema_version": 1,
+                "experiment_id": "path-test",
+                "requirements": {
+                    "alpha": {
+                        "version": "1.0",
+                        "path": "../outside.md",
+                        "required": True,
+                        "sha256": "0" * 64,
+                    }
+                },
+            }
+            (root / "experiment.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "escapes"):
+                task.skill_obj(root)
 
 
 if __name__ == "__main__":
