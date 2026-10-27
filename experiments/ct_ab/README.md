@@ -83,6 +83,13 @@ After each run, the controller produces score-packets/score-A.zip and score-pack
 Have assessors score A and B independently before comparing or opening the key. Preserve original scorecards and disagreements. The runner records each score-packet SHA-256 in the blinded pair report so reviewers can confirm the packet has not changed. The acceptance score remains a separate, objective task result; human ratings add qualitative assessment but do not replace it.
 
 
+
+### Skill-object interface
+
+The agent prompt builder accepts `skill_obj`, a mapping of stable skill names to exact skill text, rather than a single `skill_text` string. Every enabled entry is injected verbatim in deterministic name order, and probes record per-skill hashes plus a stable fingerprint for the complete object. Unit tests exercise a two-skill object to ensure the prompt interface is not Critical-Thinking-specific.
+
+This experiment's treatment remains **Critical Thinking alone** by design: its pinned source manifest and real-model workflow currently load only that skill, so the A/B treatment stays isolated. Adding another skill to a future experiment requires an explicit manifest/source pin, corresponding checkout, and a separately named experimental condition; the generic prompt interface does not silently enable another skill. The path-rooted `AEL_PATH` environment design is documented separately in the environment experiment branch.
+
 ### Pinned real skill and one-click local-model pilot
 
 The A/B runner pins the input skill to commit d1f23e2ad9dafd323940fc6b7a00f1700275d885 in memoryprismv1/cognitive-interface-ai-skills, file critical-thinking/SKILL.md. It verifies the Git blob SHA-1 for exact bytes and records the file's SHA-256. A different revision is refused, not silently accepted. The pin lives in skill_source.json.

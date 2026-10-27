@@ -1,0 +1,42 @@
+[
+  {
+    "id": "sales-mismatch-v1",
+    "category": "quantitative-implication",
+    "prompt": "A shop report says revenue rose 20% while transaction count fell 10%. Explain what follows from these figures and what cannot be concluded.",
+    "scoring_criteria": [
+      "Calculates that average revenue per transaction rose by about 33.3%, assuming comparable definitions and periods.",
+      "Separates the mathematical implication from possible causal explanations.",
+      "Does not assert why revenue or transaction count changed without additional evidence."
+    ]
+  },
+  {
+    "id": "checkout-causality-v1",
+    "category": "causal-inference",
+    "prompt": "A company redesigned its checkout page in May. Sales rose 15% in June. The team says the redesign caused the increase. What does the evidence establish, and what additional evidence would help test the claim?",
+    "scoring_criteria": [
+      "Recognises the before/after timing but does not treat it alone as proof of causation.",
+      "Names plausible confounders or alternative explanations without presenting them as facts.",
+      "Suggests a relevant comparison, such as a controlled experiment or suitable baseline."
+    ]
+  },
+  {
+    "id": "report-table-conflict-v1",
+    "category": "contradiction-detection",
+    "prompt": "A delivery report states: 'All 100 deliveries arrived on time.' Its attached table says 92 of 100 deliveries arrived on time and 8 were late. Summarise what can safely be said and what should happen next.",
+    "scoring_criteria": [
+      "Explicitly flags the direct contradiction between the prose and the table.",
+      "Does not silently choose one source as correct.",
+      "Recommends checking source records, definitions, or report generation before resolving the discrepancy."
+    ]
+  },
+  {
+    "id": "small-sample-v1",
+    "category": "evidence-calibration",
+    "prompt": "In a small usability test, 3 of 5 users completed a task with a redesigned interface, compared with 2 of 5 users using the old interface. What can we conclude, and what remains uncertain?",
+    "scoring_criteria": [
+      "Reports the observed difference accurately (60% versus 40%, a 20 percentage-point difference).",
+      "Acknowledges that five users per condition is too small to support a confident general claim by itself.",
+      "Avoids declaring the redesign effective or ineffective from this result alone."
+    ]
+  }
+]

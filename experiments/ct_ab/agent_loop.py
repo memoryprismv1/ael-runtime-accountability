@@ -34,6 +34,32 @@ The application must be built from scratch; do not copy Trello code, brand asset
 """
 
 
+def build_system_prompt(skill_obj: Mapping[str, str] | None, base_system: str = BASE_SYSTEM) -> str:
+    """Append the enabled, named skill set verbatim in deterministic order."""
+    system = base_system
+    if skill_obj is None:
+        return system
+    if not isinstance(skill_obj, Mapping):
+        raise TypeError("skill_obj must be a mapping of skill name to exact text, or None.")
+    for name, text in sorted(skill_obj.items()):
+        if not isinstance(name, str) or not name.strip() or not isinstance(text, str) or not text.strip():
+            raise ValueError("Each skill_obj entry needs a non-empty name and text.")
+        system += f"\n\n=== SKILL: {name} (verbatim supplied file) ===\n{text}\n=== END SKILL: {name} ===\n"
+    return system
+
+
+def skill_obj_fingerprint(skill_obj: Mapping[str, str] | None) -> str | None:
+    """Return a stable hash of skill names and exact content hashes."""
+    if skill_obj is None:
+        return None
+    identities = {
+        name: hashlib.sha256(text.encode("utf-8")).hexdigest()
+        for name, text in sorted(skill_obj.items())
+    }
+    canonical = json.dumps(identities, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _no_tool_recovery_instruction(plan_submitted: bool) -> str:
     """Ask for one concrete tool action after an assistant response without a tool call."""
     plan_note = (
@@ -179,13 +205,13 @@ class OllamaClient:
 
 class AgentLoop:
     def __init__(self, workspace: str | Path, logger: RunLogger, client: OllamaClient, model_name: str,
-                 brief: str, contract_json: str, skill_text: str | None, condition_config_sha256: str,
+                 brief: str, contract_json: str, skill_obj: Mapping[str, str] | None, condition_config_sha256: str,
                  options: Mapping[str, Any], max_turns: int = MAX_TURNS, max_tool_calls: int = 100):
         self.workspace = Path(workspace).resolve(strict=True)
         self.logger = logger
         self.client = client
         self.model_name = model_name
-        self.skill_text = skill_text
+        self.skill_obj = dict(skill_obj) if skill_obj is not None else None
         self.condition_config_sha256 = condition_config_sha256
         self.options = dict(options)
         self.max_turns = max_turns
@@ -198,9 +224,7 @@ class AgentLoop:
         self.consecutive_no_tool_responses = 0
         self.last_no_tool_fingerprint: str | None = None
         self.identical_no_tool_responses = 0
-        system = BASE_SYSTEM
-        if skill_text is not None:
-            system += "\n\n=== CRITICAL THINKING SKILL (verbatim supplied file) ===\n" + skill_text + "\n=== END CRITICAL THINKING SKILL ===\n"
+        system = build_system_prompt(self.skill_obj)
         self.messages: list[dict[str, Any]] = [
             {"role":"system","content":system},
             {"role":"user","content":"Client brief follows:\n\n" + brief + "\n\nAPI contract (JSON):\n" + contract_json + "\n\nThe starter workspace initially contains only STARTER.md. Begin by calling submit_plan."}

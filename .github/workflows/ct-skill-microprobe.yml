@@ -1,0 +1,96 @@
+name: CT skill microprobe
+
+# Deliberately manual-only: real-model runs are slow and can generate noisy
+# failure notifications while the experiment harness is being developed.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  microprobe:
+    name: Verify skill delivery and tiny behaviour probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OLLAMA_HOST: 127.0.0.1:11434
+      CT_AB_MODEL: qwen2.5-coder:7b
+      SKILL_COMMIT: d1f23e2ad9dafd323940fc6b7a00f1700275d885
+      SKILL_GIT_BLOB_SHA1: d7134969b124e39c04e343bed2ce2475f64b9a64
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout exact pinned skill
+        uses: actions/checkout@v4
+        with:
+          repository: memoryprismv1/cognitive-interface-ai-skills
+          ref: d1f23e2ad9dafd323940fc6b7a00f1700275d885
+          path: skill-source
+          persist-credentials: false
+      - name: Verify pinned revision and blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C skill-source rev-parse HEAD)" = "$SKILL_COMMIT"
+          test "$(git -C skill-source rev-parse "$SKILL_COMMIT:critical-thinking/SKILL.md")" = "$SKILL_GIT_BLOB_SHA1"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ollama
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://ollama.com/install.sh -o "$RUNNER_TEMP/ollama-install.sh"
+          sh "$RUNNER_TEMP/ollama-install.sh"
+      - name: Start Ollama and pull fixed model
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:11434/api/version >/dev/null; then break; fi
+            sleep 2
+          done
+          curl --silent --fail http://127.0.0.1:11434/api/version
+          ollama pull "$CT_AB_MODEL"
+      - name: Run probe unit tests
+        run: python -m unittest experiments.ct_ab.test_microprobe experiments.ct_ab.test_multi_task_probe -v
+      - name: Run two-condition tiny real-model probe
+        run: |
+          python -m experiments.ct_ab.microprobe \
+            --skill-path skill-source/critical-thinking/SKILL.md \
+            --output "$RUNNER_TEMP/ct-skill-microprobe" \
+            --model "$CT_AB_MODEL" \
+            --timeout 360
+      - name: Run four-task paired real-model probe
+        run: |
+          python -m experiments.ct_ab.multi_task_probe \
+            --skill-path skill-source/critical-thinking/SKILL.md \
+            --tasks-path experiments/ct_ab/microprobe_tasks.json \
+            --output "$RUNNER_TEMP/ct-multi-task-probe" \
+            --model "$CT_AB_MODEL" \
+            --timeout 360
+      - name: Run four-task selective-clarification probe
+        run: |
+          python -m experiments.ct_ab.multi_task_probe \
+            --skill-path skill-source/critical-thinking/SKILL.md \
+            --tasks-path experiments/ct_ab/clarification_tasks.json \
+            --output "$RUNNER_TEMP/ct-clarification-probe" \
+            --model "$CT_AB_MODEL" \
+            --timeout 360
+      - name: Upload exact requests, responses and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ct-skill-microprobe
+          path: |
+            ${{ runner.temp }}/ct-skill-microprobe/
+            ${{ runner.temp }}/ct-multi-task-probe/
+            ${{ runner.temp }}/ct-clarification-probe/
+            ${{ runner.temp }}/ollama.log
+          if-no-files-found: warn
+          retention-days: 30

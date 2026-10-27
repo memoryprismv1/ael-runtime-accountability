@@ -255,7 +255,7 @@ def _condition_config(enabled: bool, model: str, options: Mapping[str, Any], ski
 
 def _run_one(label: str, enabled: bool, workspace: Path, run_dir: Path, acceptance_dir: Path,
              model: str, model_info: Mapping[str, Any], client: OllamaClient, brief: str, contract: str,
-             skill_text: str | None, skill_hash: str | None, task_hash: str, starter_hash: str,
+             skill_obj: Mapping[str, str] | None, skill_hash: str | None, task_hash: str, starter_hash: str,
              options: Mapping[str, Any], limits: Mapping[str, Any], max_turns: int, max_tool_calls: int, pair_id: str,
              skill_source: Mapping[str, Any], skill_git_blob_sha1: str) -> dict[str, Any]:
     workspace.mkdir(parents=True, exist_ok=False)
@@ -289,7 +289,7 @@ def _run_one(label: str, enabled: bool, workspace: Path, run_dir: Path, acceptan
     try:
         loop = AgentLoop(
             workspace, logger, client, model, brief, contract,
-            skill_text if enabled else None, config_hash, options,
+            skill_obj if enabled else None, config_hash, options,
             max_turns=max_turns,max_tool_calls=max_tool_calls
         )
         agent_result=loop.run()
@@ -361,9 +361,12 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
     if not skill_path.is_file():
         raise ValueError("skill_file must be a file")
     skill_bytes=skill_path.read_bytes()
-    skill_text=skill_bytes.decode("utf-8")
-    if not skill_text.strip():
+    skill_content=skill_bytes.decode("utf-8")
+    if not skill_content.strip():
         raise ValueError("Critical Thinking skill file is empty")
+    # Keep the runner interface generic even though this experiment's treatment
+    # deliberately contains only the Critical Thinking skill.
+    skill_obj={"critical-thinking": skill_content}
     skill_hash=_sha_bytes(skill_bytes)
     pinned_skill_source=_skill_source_spec()
     skill_git_sha1=_git_blob_sha1(skill_bytes)
@@ -431,7 +434,7 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
         workspace=workspaces_dir/label
         run_dir=runs_dir/("run-"+label.lower())
         accepted_dir=acceptance_dir/label
-        result=_run_one(label,enabled,workspace,run_dir,accepted_dir,model,model_info_for_runs,ollama,brief,contract,skill_text,skill_hash,task_hash,starter_hash,opts,limits,max_turns,max_tool_calls,pair_id,effective_skill_source,skill_git_sha1)
+        result=_run_one(label,enabled,workspace,run_dir,accepted_dir,model,model_info_for_runs,ollama,brief,contract,skill_obj,skill_hash,task_hash,starter_hash,opts,limits,max_turns,max_tool_calls,pair_id,effective_skill_source,skill_git_sha1)
         results[label]=result
         _build_blind_score_packet(label,run_dir,workspace,accepted_dir,result,score_packets_dir/f"score-{label}.zip")
     pair_validation: dict[str,Any]
