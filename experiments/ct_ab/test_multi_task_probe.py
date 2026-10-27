@@ -51,6 +51,9 @@ class MultiTaskProbeTests(unittest.TestCase):
             self.assertFalse(pair["skill_off"]["skill_in_system_message"])
             self.assertTrue(pair["skill_on"]["skill_in_system_message"])
             self.assertEqual(pair["skill_off"]["eval_count"], 20)
+            self.assertTrue(report["request_comparison"]["task_prompts_identical_between_conditions"])
+            self.assertTrue(report["request_comparison"]["model_and_options_identical_between_conditions"])
+            self.assertTrue(report["request_comparison"]["full_request_payloads_differ_between_conditions"])
             self.assertTrue((Path(tmp) / "multi-task-report.json").is_file())
             for label in ("skill_off", "skill_on"):
                 self.assertTrue((Path(tmp) / f"conflict-v1-{label}-request.json").is_file())
