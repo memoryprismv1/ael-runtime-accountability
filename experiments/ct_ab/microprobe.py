@@ -77,7 +77,7 @@ def run_probe(client: Any, model: str, skill_obj: Mapping[str, str], output_dir:
             "response_sha256": hashlib.sha256(response_bytes).hexdigest(),
             "response_artifact": response_path.name,
             "skill_in_system_message": skill_present,
-                        "skill_sha256": hashlib.sha256(supplied_skill["critical-thinking"].encode("utf-8")).hexdigest() if supplied_skill and "critical-thinking" in supplied_skill else None,
+            "skill_sha256": hashlib.sha256(supplied_skill["critical-thinking"].encode("utf-8")).hexdigest() if supplied_skill and "critical-thinking" in supplied_skill else None,
             "skill_obj_sha256": skill_obj_fingerprint(supplied_skill),
             "skill_hashes": {name: hashlib.sha256(text.encode("utf-8")).hexdigest() for name, text in sorted(supplied_skill.items())} if supplied_skill else {},
             "response_text": message.get("content", ""),
