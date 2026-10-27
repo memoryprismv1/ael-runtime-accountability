@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -192,6 +193,27 @@ class TaskPrecommitmentTests(unittest.TestCase):
             self.assertEqual(skills["beta"]["text"], second.decode("utf-8"))
             self.assertEqual(len(task.skill_obj_fingerprint(skills)), 64)
             self.assertEqual(task.skill_obj_fingerprint(skills), task.skill_obj_fingerprint(dict(reversed(list(skills.items())))))
+
+
+    def test_build_prompt_injects_every_enabled_skill(self):
+        skills = {
+            "critical-thinking": {
+                "version": "git:abc123", "sha256": "a" * 64, "text": "CT SKILL SENTINEL",
+            },
+            "approach-calibration": {
+                "version": "2.0", "sha256": "b" * 64, "text": "AC SKILL SENTINEL",
+            },
+        }
+        with mock.patch.object(task, "skill_obj", return_value=skills):
+            context, request, skill_set_hash = task.build_prompt(
+                None, {"request": "test task"}, None, "case_notes"
+            )
+        self.assertIn("CT SKILL SENTINEL", context)
+        self.assertIn("AC SKILL SENTINEL", context)
+        self.assertIn("critical-thinking", context)
+        self.assertIn("approach-calibration", context)
+        self.assertIn("test task", request)
+        self.assertEqual(skill_set_hash, task.skill_obj_fingerprint(skills))
 
     def test_skill_obj_fails_closed_on_integrity_mismatch(self):
         with tempfile.TemporaryDirectory() as tmp:
