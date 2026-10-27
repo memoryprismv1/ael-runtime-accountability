@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   test:
+    # Keep ordinary CI for main and other branches, but don't spam notifications
+    # while the isolated skill-microprobe branch is being iterated on.
+    if: github.ref_name != 'test/ct-skill-microprobe' && github.event.pull_request.head.ref != 'test/ct-skill-microprobe'
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
