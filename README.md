@@ -101,3 +101,16 @@ The original AEL writing remains the authoritative source and is linked, not rec
 ## Explicit non-goals
 
 No direct integration into ChatGPT or Claude websites; no paid/cloud API integration; no automatic materiality classifier; no automatic semantic-relevance classifier; no production concurrency service; no fully validated locale-tag service; no claim of automatic model-weight learning; no claim that all AEL mechanisms are complete. Locale Tags remain a documented hypothesis and are not overbuilt here.
+
+## Reproducible test evidence (experimental branch)
+
+The branch `test/capture-unit-test-evidence` adds a GitHub Actions workflow and a standard-library runner that execute the existing unit suite and preserve:
+
+- the raw verbose `unittest` log;
+- a structured Q-Batch-compatible JSON record with source revision, command, exit status, reported test count, timestamps, environment, and SHA-256 of the raw log;
+- a workflow artifact retained for 90 days.
+
+The workflow runs on pushes to this experimental branch and can also be started manually in GitHub Actions. Download the artifact for each run if you need to retain it beyond the workflow's retention window. The runner intentionally labels this as a **mocked/unit-test run** and records that no real model inference occurred. It does not manufacture ledger, audit-sidecar, model-input, or response references when those artifacts were not produced by the test suite.
+
+This is a first evidence-capture harness, not yet the full runtime scenario matrix. Real local Ollama inference still requires a machine with Ollama and a local model installed. Keep any such live-run logs and user context private unless reviewed and redacted before sharing.
+
