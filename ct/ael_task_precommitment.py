@@ -481,7 +481,7 @@ def build_prompt(con,t,runtime,kind):
     skill_context = "\n\n".join(
         f"PINNED SKILL: {name} (version {item['version']}, SHA-256 {item['sha256']})\n"
         f"Apply this skill as guidance, not as an inflexible checklist:\n{item['text']}"
-        for name, item in skills.items()
+        for name, item in sorted(skills.items())
     )
     if kind=="case_notes":
         request=("Investigate the user's task and write detailed case notes for precommitment review. Apply the supplied skills as flexible guidance, not rigid checklists. Include task interpretation and boundaries, observations versus assumptions, sources searched and claim support, plausible alternatives, attempts to challenge your preferred account, unresolved issues, risk and a clear recommendation. Do not write the implementation plan yet. Be explicit about what you did not verify.\n\nUSER TASK:\n"+t["request"])
