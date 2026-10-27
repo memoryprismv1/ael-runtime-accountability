@@ -78,11 +78,11 @@ jobs:
             --timeout 360
       - name: Run four-task paired real-model probe
         run: |
-          python -m experiments.ct_ab.multi_task_probe \\
-            --skill-path skill-source/critical-thinking/SKILL.md \\
-            --tasks-path experiments/ct_ab/microprobe_tasks.json \\
-            --output "$RUNNER_TEMP/ct-multi-task-probe" \\
-            --model "$CT_AB_MODEL" \\
+          python -m experiments.ct_ab.multi_task_probe \
+            --skill-path skill-source/critical-thinking/SKILL.md \
+            --tasks-path experiments/ct_ab/microprobe_tasks.json \
+            --output "$RUNNER_TEMP/ct-multi-task-probe" \
+            --model "$CT_AB_MODEL" \
             --timeout 360
       - name: Upload exact requests, responses and report
         if: always()
