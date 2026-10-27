@@ -73,26 +73,117 @@ def sha(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def skill_obj(environment_root: Path = ROOT):
+    """Load every skill declared by the selected environment root (AEL_PATH)."""
+    environment_root = Path(environment_root).resolve()
+    experiment_path = environment_root / "experiment.json"
+    if not experiment_path.is_file():
+        raise RuntimeError("The active experiment manifest is missing.")
+    experiment = json.loads(experiment_path.read_text(encoding="utf-8"))
+    requirements = experiment.get("requirements")
+    if not isinstance(requirements, dict):
+        raise RuntimeError("The active experiment must declare a requirements mapping.")
+
+    loaded = {}
+    for name, requirement in requirements.items():
+        if not isinstance(name, str) or not name.strip() or not isinstance(requirement, dict):
+            raise RuntimeError("Each skill requirement must have a non-empty name and object definition.")
+        required = requirement.get("required", True)
+        if not isinstance(required, bool):
+            raise RuntimeError(f"Skill {name!r} has a non-boolean required flag.")
+        relative_path = requirement.get("path")
+        if not isinstance(relative_path, str) or not relative_path.strip():
+            raise RuntimeError(f"Skill {name!r} has no relative path.")
+        target = (environment_root / relative_path).resolve()
+        if not target.is_relative_to(environment_root):
+            raise RuntimeError(f"Skill {name!r} path escapes the active AEL_PATH environment.")
+        if not target.is_file():
+            if required:
+                raise RuntimeError(f"Required skill {name!r} is missing: {target}")
+            continue
+
+        raw = target.read_bytes()
+        text = raw.decode("utf-8")
+        actual_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
+        expected_commit = requirement.get("source_commit")
+        expected_blob = requirement.get("source_blob_sha")
+        version = requirement.get("version")
+        if not isinstance(version, str) or not version.strip():
+            raise RuntimeError(f"Skill {name!r} has no exact version.")
+        if version.startswith("git:") and (not expected_commit or version != f"git:{expected_commit}"):
+            raise RuntimeError(f"Skill {name!r} version is not pinned to its exact source commit.")
+        if expected_blob and actual_blob != expected_blob:
+            raise RuntimeError(f"Skill {name!r} does not match its pinned Git blob SHA.")
+        expected_sha256 = requirement.get("sha256")
+        content_sha256 = sha(text)
+        if not expected_blob and not expected_sha256:
+            raise RuntimeError(f"Skill {name!r} must declare source_blob_sha or sha256 integrity.")
+        if expected_sha256 and content_sha256 != expected_sha256:
+            raise RuntimeError(f"Skill {name!r} does not match its pinned SHA-256.")
+        loaded[name] = {
+            "name": name,
+            "text": text,
+            "version": version,
+            "path": relative_path,
+            "source_repository": requirement.get("source_repository"),
+            "source_path": requirement.get("source_path"),
+            "source_commit": expected_commit,
+            "source_blob_sha": expected_blob,
+            "sha256": content_sha256,
+            "required": required,
+            "license": requirement.get("license"),
+        }
+
+    if not loaded:
+        raise RuntimeError("The active experiment declares no available skills.")
+    return loaded
+
+
+def skill_obj_fingerprint(skills=None):
+    """Stable identity for the complete loaded skill set, excluding skill text."""
+    skills = skill_obj() if skills is None else skills
+    identity = {
+        name: {key: value for key, value in item.items() if key != "text"}
+        for name, item in sorted(skills.items())
+    }
+    return sha(json.dumps(identity, sort_keys=True, ensure_ascii=False, separators=(",", ":")))
+
+
 def dependency():
-    if not SKILL_PATH.is_file() or not DEPENDENCY_PATH.is_file() or not EXPERIMENT_PATH.is_file():
-        raise RuntimeError("A required critical-thinking dependency file is missing.")
-    body = SKILL_PATH.read_text(encoding="utf-8")
-    raw = body.encode("utf-8")
-    manifest = json.loads(DEPENDENCY_PATH.read_text(encoding="utf-8"))
-    experiment = json.loads(EXPERIMENT_PATH.read_text(encoding="utf-8"))
-    requirement = experiment.get("requirements", {}).get("critical-thinking")
-    if not isinstance(requirement, dict) or not requirement.get("required", True):
-        raise RuntimeError("The active experiment must declare critical-thinking as a required dependency.")
-    actual_git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
-    expected_commit = requirement.get("source_commit")
-    expected_blob = requirement.get("source_blob_sha")
-    if not expected_commit or requirement.get("version") != f"git:{expected_commit}":
-        raise RuntimeError("Critical-thinking dependency version is not pinned to its exact source commit.")
-    if not expected_blob or actual_git_blob != expected_blob:
-        raise RuntimeError("Vendored critical-thinking skill does not match the experiment's pinned Git blob SHA.")
-    if manifest.get("source_commit") != expected_commit or manifest.get("source_blob_sha") != expected_blob:
-        raise RuntimeError("Critical-thinking dependency metadata disagrees with the experiment manifest.")
-    return body, manifest, sha(body)
+    """Return the primary skill for legacy single-dependency audit columns.
+
+    New prompt construction and provenance use the complete skill_obj. The
+    primary view exists only to keep the existing database schema compatible.
+    """
+    skills = skill_obj()
+    if not skills:
+        raise RuntimeError("The active experiment declares no available skills.")
+    name = "critical-thinking" if "critical-thinking" in skills else sorted(skills)[0]
+    item = skills[name]
+    manifest = {
+        "name": name,
+        "source_repo": item.get("source_repository") or "",
+        "source_path": item.get("source_path") or item["path"],
+        "source_commit": item.get("source_commit") or item["version"],
+        "source_blob_sha": item.get("source_blob_sha") or "",
+        "upstream_license": item.get("license") or "not specified",
+        "license": "",
+    }
+    # Retain the upstream attribution/license metadata check for the existing
+    # CT dependency when its companion manifest is present in this environment.
+    metadata_path = ROOT / "dependencies" / "critical-thinking" / "DEPENDENCY.json"
+    if name == "critical-thinking" and metadata_path.is_file():
+        ct_manifest = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if (ct_manifest.get("source_commit") != item["source_commit"]
+                or ct_manifest.get("source_blob_sha") != item["source_blob_sha"]):
+            raise RuntimeError("Critical-thinking dependency metadata disagrees with the experiment manifest.")
+        manifest.update({
+            "source_repo": ct_manifest.get("source_repo", manifest["source_repo"]),
+            "source_path": ct_manifest.get("source_path", manifest["source_path"]),
+            "upstream_license": ct_manifest.get("upstream_license", manifest["upstream_license"]),
+            "license": ct_manifest.get("license", ""),
+        })
+    return item["text"], manifest, item["sha256"]
 
 
 def init(con):
@@ -154,7 +245,9 @@ def create(con,runtime,task_id,account,project,chat,request,model=None):
         raise ValueError("Task ID, account, project, chat and request must be non-empty.")
     if con.execute("SELECT 1 FROM task_runs WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=?",
                    (task_id,account,project,chat)).fetchone(): raise ValueError("Task ID already exists in this scope.")
-    _,m,content_hash=dependency()
+    skills=skill_obj(); _,m,content_hash=dependency()
+    skill_set_hash=skill_obj_fingerprint(skills)
+    skill_sources=[{k:v for k,v in item.items() if k!="text"} for item in skills.values()]
     stamp=now()
     con.execute("""INSERT INTO task_runs(task_id,account_id,project_id,chat_id,request,state,model_name,skill_commit,skill_blob_sha,
        current_case_artifact_id,current_plan_artifact_id,created_at,updated_at)
@@ -162,8 +255,10 @@ def create(con,runtime,task_id,account,project,chat,request,model=None):
        (task_id,account,project,chat,request,model,m["source_commit"],m["source_blob_sha"],stamp,stamp))
     con.commit(); t=get_task(con,task_id,account,project,chat)
     ev=emit(con,runtime,t,"task.created","user","created",note="Task created: "+request,
-            metadata={"model":model,"skill_commit":m["source_commit"],"skill_blob_sha":m["source_blob_sha"],"skill_content_sha256":content_hash})
-    return {"task_id":task_id,"state":"created","skill_commit":m["source_commit"],"skill_blob_sha":m["source_blob_sha"],"skill_content_sha256":content_hash,"event":ev}
+            metadata={"model":model,"skill_commit":m["source_commit"],"skill_blob_sha":m["source_blob_sha"],
+                      "skill_content_sha256":content_hash,"skill_obj_sha256":skill_set_hash,"skill_dependencies":skill_sources})
+    return {"task_id":task_id,"state":"created","skill_commit":m["source_commit"],"skill_blob_sha":m["source_blob_sha"],
+            "skill_content_sha256":content_hash,"skill_obj_sha256":skill_set_hash,"skill_dependencies":skill_sources,"event":ev}
 
 
 def put_artifact(con,runtime,t,kind,body,creator,based_case=None,metadata=None):
@@ -171,14 +266,21 @@ def put_artifact(con,runtime,t,kind,body,creator,based_case=None,metadata=None):
     count=con.execute("""SELECT COALESCE(MAX(version),0)+1 FROM task_artifacts WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=? AND kind=?""",
        (t["task_id"],t["account_id"],t["project_id"],t["chat_id"],kind)).fetchone()[0]
     aid="TA-"+os.urandom(8).hex(); _,m,content_hash=dependency(); body_hash=sha(body)
+    skills=skill_obj()
+    metadata_doc=dict(metadata or {})
+    metadata_doc.update({
+        "skill_obj_sha256":skill_obj_fingerprint(skills),
+        "skill_dependencies":[{k:v for k,v in item.items() if k!="text"} for item in skills.values()]
+    })
     con.execute("""INSERT INTO task_artifacts(artifact_id,task_id,account_id,project_id,chat_id,kind,version,content,content_sha256,
         based_on_case_sha256,dependency_commit,dependency_blob_sha,created_at,creator,metadata_json)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (aid,t["task_id"],t["account_id"],t["project_id"],t["chat_id"],kind,count,body,body_hash,based_case,
-         m["source_commit"],m["source_blob_sha"],now(),creator,json.dumps(metadata or {},ensure_ascii=False)))
+         m["source_commit"],m["source_blob_sha"],now(),creator,json.dumps(metadata_doc,ensure_ascii=False)))
     con.commit()
     return {"artifact_id":aid,"kind":kind,"version":count,"content":body,"content_sha256":body_hash,
-            "based_on_case_sha256":based_case,"dependency_commit":m["source_commit"],"dependency_blob_sha":m["source_blob_sha"]}
+            "based_on_case_sha256":based_case,"dependency_commit":m["source_commit"],"dependency_blob_sha":m["source_blob_sha"],
+            "skill_obj_sha256":metadata_doc["skill_obj_sha256"]}
 
 
 def submit_case(con,runtime,task_id,account,project,chat,body,creator="assistant",artifact_metadata=None):
@@ -332,17 +434,23 @@ def snapshot(con,task_id,account,project,chat):
     ver=allrows("SELECT * FROM task_verifications WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=? ORDER BY rowid",args)
     for v in ver: v["checks"]=json.loads(v.pop("checks_json"))
     body,manifest,content_hash=dependency()
+    skills=skill_obj()
     return {"task":t,"artifacts":arts,"decisions":dec,"actions":acts,"events":evs,"verifications":ver,
-       "dependency":{"source_repo":manifest["source_repo"],"source_path":manifest["source_path"],"source_commit":manifest["source_commit"],
-       "source_blob_sha":manifest["source_blob_sha"],"content_sha256":content_hash,"license":manifest["upstream_license"],"license_url":manifest["license"]}}
+       "dependency":{"name":manifest["name"],"source_repo":manifest["source_repo"],"source_path":manifest["source_path"],"source_commit":manifest["source_commit"],
+       "source_blob_sha":manifest["source_blob_sha"],"content_sha256":content_hash,"license":manifest["upstream_license"],"license_url":manifest["license"]},
+       "skill_obj_sha256":skill_obj_fingerprint(skills),
+       "skill_dependencies":[{k:v for k,v in item.items() if k!="text"} for item in skills.values()]}
 
 
 def export_markdown(s):
     t=s["task"]; d=s["dependency"]; lines=[
       "# AEL Task Audit — "+t["task_id"],"", "**State:** "+t["state"],"**Scope:** "+t["account_id"]+" / "+t["project_id"]+" / "+t["chat_id"],
-      "**Created:** "+t["created_at"],"**Critical-thinking source commit:** "+d["source_commit"],"**Source blob SHA:** "+d["source_blob_sha"],
-      "**Bundled skill SHA-256:** "+d["content_sha256"],"**Source URL:** "+d["source_repo"]+"/blob/"+d["source_commit"]+"/"+d["source_path"],
-      "**License:** "+d["license"]+" ("+d["license_url"]+")","","## Original request","",t["request"],"","## Artifacts",""]
+      "**Created:** "+t["created_at"],"**Primary skill:** "+d["name"],"**Primary skill source commit/version:** "+d["source_commit"],"**Primary skill source blob SHA:** "+d["source_blob_sha"],
+      "**Primary skill SHA-256:** "+d["content_sha256"],"**Source location:** "+(d["source_repo"]+"/blob/"+d["source_commit"]+"/"+d["source_path"] if d["source_repo"] else d["source_path"]),
+      "**License:** "+d["license"]+" ("+d["license_url"]+")","**Complete skill object SHA-256:** "+s["skill_obj_sha256"],"","## Loaded skill dependencies",""]
+    for item in s["skill_dependencies"]:
+        lines.append("- "+item["name"]+": version="+item["version"]+"; path="+item["path"]+"; SHA-256="+item["sha256"]+"; source commit="+str(item["source_commit"] or "not supplied")+"; blob="+str(item["source_blob_sha"] or "not supplied"))
+    lines += ["","## Original request","",t["request"],"","## Artifacts",""]
     for a in s["artifacts"]:
         lines += ["### "+a["kind"]+" v"+str(a["version"]),"Artifact ID: "+a["artifact_id"],"SHA-256: "+a["content_sha256"],
           "Creator: "+a["creator"],"Based on case SHA-256: "+str(a["based_on_case_sha256"] or "not applicable"),"Metadata: "+json.dumps(a["metadata"],ensure_ascii=False),"",a["content"],""]
@@ -368,17 +476,22 @@ def export_markdown(s):
 
 
 def build_prompt(con,t,runtime,kind):
-    skill,manifest,skill_hash=dependency()
+    skills = skill_obj()
+    skill_hash = skill_obj_fingerprint(skills)
+    skill_context = "\n\n".join(
+        f"PINNED SKILL: {name} (version {item['version']}, SHA-256 {item['sha256']})\n"
+        f"Apply this skill as guidance, not as an inflexible checklist:\n{item['text']}"
+        for name, item in sorted(skills.items())
+    )
     if kind=="case_notes":
-        request=("Investigate the user's task and write detailed case notes for precommitment review. Apply the bundled Critical Thinking skill as flexible guidance, not a rigid checklist. Include task interpretation and boundaries, observations versus assumptions, sources searched and claim support, plausible alternatives, attempts to challenge your preferred account, unresolved issues, risk and a clear recommendation. Do not write the implementation plan yet. Be explicit about what you did not verify.\n\nUSER TASK:\n"+t["request"])
-        context="PINNED CRITICAL-THINKING SKILL (follow as guidance):\n"+skill
-        return context,request,skill_hash
+        request=("Investigate the user's task and write detailed case notes for precommitment review. Apply the supplied skills as flexible guidance, not rigid checklists. Include task interpretation and boundaries, observations versus assumptions, sources searched and claim support, plausible alternatives, attempts to challenge your preferred account, unresolved issues, risk and a clear recommendation. Do not write the implementation plan yet. Be explicit about what you did not verify.\n\nUSER TASK:\n"+t["request"])
+        return skill_context,request,skill_hash
     case=current_artifact(con,t,"case_notes")
     if not case: raise ValueError("No current case notes.")
     cd=latest_decision(con,t,"case_notes",case)
     if not cd or cd["decision"]!="approve": raise ValueError("Generate a plan only after the current case is approved.")
     request=("Using the approved case notes, propose a concrete implementation plan. Specify actions in order, expected outputs, preconditions, constraints and permissions, risks and failure handling, what counts as completion, and how each important claim/action will be verified. Mark irreversible or consequential actions and require explicit approval for changes outside scope. Do not execute the plan.\n\nORIGINAL USER TASK:\n"+t["request"]+"\n\nAPPROVED CASE NOTES:\n"+case["content"])
-    return "PINNED CRITICAL-THINKING SKILL (follow as guidance):\n"+skill,request,skill_hash
+    return skill_context,request,skill_hash
 
 
 def add_cli_parser(sub):
@@ -412,9 +525,9 @@ def dispatch(con,runtime,a,account):
         response=runtime.ollama_chat({"working_context":context,"current_user_message":message},model=a.model,base_url=a.endpoint,timeout=a.timeout)
         out=Path(a.out).expanduser().resolve(); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(response["content"],encoding="utf-8")
         generation_metadata={"provider":"ollama-local","model":response["model"],"endpoint_host":response.get("endpoint_host"),
-            "generated_by_model":True,"skill_content_sha256":skill_hash,"output_path":str(out)}
+            "generated_by_model":True,"skill_obj_sha256":skill_hash,"output_path":str(out)}
         result=submit_case(con,runtime,task_id,account,project,chat,response["content"],artifact_metadata=generation_metadata) if kind=="case_notes" else submit_plan(con,runtime,task_id,account,project,chat,response["content"],artifact_metadata=generation_metadata)
-        result.update({"out":str(out),"model":response["model"],"provider":"ollama-local","skill_content_sha256":skill_hash,"generated_by_model":True})
+        result.update({"out":str(out),"model":response["model"],"provider":"ollama-local","skill_obj_sha256":skill_hash,"generated_by_model":True})
         result.pop("content",None)
     elif a.task_cmd=="submit-case":
         result=submit_case(con,runtime,task_id,account,project,chat,Path(a.content_file).expanduser().read_text(encoding="utf-8"),a.creator)
