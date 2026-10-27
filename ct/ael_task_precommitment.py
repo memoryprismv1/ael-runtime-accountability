@@ -446,7 +446,7 @@ def export_markdown(s):
     t=s["task"]; d=s["dependency"]; lines=[
       "# AEL Task Audit — "+t["task_id"],"", "**State:** "+t["state"],"**Scope:** "+t["account_id"]+" / "+t["project_id"]+" / "+t["chat_id"],
       "**Created:** "+t["created_at"],"**Primary skill:** "+d["name"],"**Primary skill source commit/version:** "+d["source_commit"],"**Primary skill source blob SHA:** "+d["source_blob_sha"],
-      "**Primary skill SHA-256:** "+d["content_sha256"],"**Source location:** "+(d["source_repo"] ? d["source_repo"]+"/blob/"+d["source_commit"]+"/"+d["source_path"] : d["source_path"]),
+      "**Primary skill SHA-256:** "+d["content_sha256"],"**Source location:** "+(d["source_repo"]+"/blob/"+d["source_commit"]+"/"+d["source_path"] if d["source_repo"] else d["source_path"]),
       "**License:** "+d["license"]+" ("+d["license_url"]+")","**Complete skill object SHA-256:** "+s["skill_obj_sha256"],"","## Loaded skill dependencies",""]
     for item in s["skill_dependencies"]:
         lines.append("- "+item["name"]+": version="+item["version"]+"; path="+item["path"]+"; SHA-256="+item["sha256"]+"; source commit="+str(item["source_commit"] or "not supplied")+"; blob="+str(item["source_blob_sha"] or "not supplied"))
