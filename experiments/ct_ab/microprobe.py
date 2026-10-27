@@ -21,10 +21,10 @@ PROMPT = (
     "A shop report says revenue rose 20% while transaction count fell 10%. "
     "Explain what follows from these figures and what cannot be concluded."
 )
-PROBE_SYSTEM = ("You are answering a small data-interpretation question. Be concise. "
-                "Separate what the figures imply from what remains unknown. "
-                "Do not write code or an implementation plan unless the user asks.")
-OPTIONS = {"temperature": 0, "num_predict": 500, "num_ctx": 4096}
+PROBE_SYSTEM = ("Answer in at most 3 short bullets and no more than 80 words total. "
+                "Lead with the key conclusion. Separate what the figures imply from what remains unknown. "
+                "Do not repeat the question, speculate about causes, or write code/an implementation plan unless asked.")
+OPTIONS = {"temperature": 0, "num_predict": 180, "num_ctx": 4096}
 
 
 def build_probe_request(model: str, skill_text: str | None) -> dict[str, Any]:
