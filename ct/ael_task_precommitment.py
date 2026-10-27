@@ -407,9 +407,12 @@ def snapshot(con,task_id,account,project,chat):
     ver=allrows("SELECT * FROM task_verifications WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=? ORDER BY rowid",args)
     for v in ver: v["checks"]=json.loads(v.pop("checks_json"))
     body,manifest,content_hash=dependency()
+    skills=skill_obj()
     return {"task":t,"artifacts":arts,"decisions":dec,"actions":acts,"events":evs,"verifications":ver,
        "dependency":{"source_repo":manifest["source_repo"],"source_path":manifest["source_path"],"source_commit":manifest["source_commit"],
-       "source_blob_sha":manifest["source_blob_sha"],"content_sha256":content_hash,"license":manifest["upstream_license"],"license_url":manifest["license"]}}
+       "source_blob_sha":manifest["source_blob_sha"],"content_sha256":content_hash,"license":manifest["upstream_license"],"license_url":manifest["license"]},
+       "skill_obj_sha256":skill_obj_fingerprint(skills),
+       "skill_dependencies":[{k:v for k,v in item.items() if k!="text"} for item in skills.values()]}
 
 
 def export_markdown(s):
@@ -417,7 +420,10 @@ def export_markdown(s):
       "# AEL Task Audit — "+t["task_id"],"", "**State:** "+t["state"],"**Scope:** "+t["account_id"]+" / "+t["project_id"]+" / "+t["chat_id"],
       "**Created:** "+t["created_at"],"**Critical-thinking source commit:** "+d["source_commit"],"**Source blob SHA:** "+d["source_blob_sha"],
       "**Bundled skill SHA-256:** "+d["content_sha256"],"**Source URL:** "+d["source_repo"]+"/blob/"+d["source_commit"]+"/"+d["source_path"],
-      "**License:** "+d["license"]+" ("+d["license_url"]+")","","## Original request","",t["request"],"","## Artifacts",""]
+      "**License:** "+d["license"]+" ("+d["license_url"]+")","**Complete skill object SHA-256:** "+s["skill_obj_sha256"],"","## Loaded skill dependencies",""]
+    for item in s["skill_dependencies"]:
+        lines.append("- "+item["name"]+": version="+item["version"]+"; path="+item["path"]+"; SHA-256="+item["sha256"]+"; source commit="+str(item["source_commit"] or "not supplied")+"; blob="+str(item["source_blob_sha"] or "not supplied"))
+    lines += ["","## Original request","",t["request"],"","## Artifacts",""]
     for a in s["artifacts"]:
         lines += ["### "+a["kind"]+" v"+str(a["version"]),"Artifact ID: "+a["artifact_id"],"SHA-256: "+a["content_sha256"],
           "Creator: "+a["creator"],"Based on case SHA-256: "+str(a["based_on_case_sha256"] or "not applicable"),"Metadata: "+json.dumps(a["metadata"],ensure_ascii=False),"",a["content"],""]
@@ -492,9 +498,9 @@ def dispatch(con,runtime,a,account):
         response=runtime.ollama_chat({"working_context":context,"current_user_message":message},model=a.model,base_url=a.endpoint,timeout=a.timeout)
         out=Path(a.out).expanduser().resolve(); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(response["content"],encoding="utf-8")
         generation_metadata={"provider":"ollama-local","model":response["model"],"endpoint_host":response.get("endpoint_host"),
-            "generated_by_model":True,"skill_content_sha256":skill_hash,"output_path":str(out)}
+            "generated_by_model":True,"skill_obj_sha256":skill_hash,"output_path":str(out)}
         result=submit_case(con,runtime,task_id,account,project,chat,response["content"],artifact_metadata=generation_metadata) if kind=="case_notes" else submit_plan(con,runtime,task_id,account,project,chat,response["content"],artifact_metadata=generation_metadata)
-        result.update({"out":str(out),"model":response["model"],"provider":"ollama-local","skill_content_sha256":skill_hash,"generated_by_model":True})
+        result.update({"out":str(out),"model":response["model"],"provider":"ollama-local","skill_obj_sha256":skill_hash,"generated_by_model":True})
         result.pop("content",None)
     elif a.task_cmd=="submit-case":
         result=submit_case(con,runtime,task_id,account,project,chat,Path(a.content_file).expanduser().read_text(encoding="utf-8"),a.creator)
