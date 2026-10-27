@@ -11,6 +11,9 @@ on:
       - "experiments/ct_ab/agent_loop.py"
       - "experiments/ct_ab/skill_source.json"
       - "experiments/ct_ab/test_microprobe.py"
+      - "experiments/ct_ab/multi_task_probe.py"
+      - "experiments/ct_ab/microprobe_tasks.json"
+      - "experiments/ct_ab/test_multi_task_probe.py"
 
 permissions:
   contents: read
@@ -19,7 +22,7 @@ jobs:
   microprobe:
     name: Verify skill delivery and tiny behaviour probe
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       OLLAMA_HOST: 127.0.0.1:11434
       CT_AB_MODEL: qwen2.5-coder:7b
@@ -64,14 +67,22 @@ jobs:
           done
           curl --silent --fail http://127.0.0.1:11434/api/version
           ollama pull "$CT_AB_MODEL"
-      - name: Run microprobe unit tests
-        run: python -m unittest experiments.ct_ab.test_microprobe -v
+      - name: Run probe unit tests
+        run: python -m unittest experiments.ct_ab.test_microprobe experiments.ct_ab.test_multi_task_probe -v
       - name: Run two-condition tiny real-model probe
         run: |
           python -m experiments.ct_ab.microprobe \
             --skill-path skill-source/critical-thinking/SKILL.md \
             --output "$RUNNER_TEMP/ct-skill-microprobe" \
             --model "$CT_AB_MODEL" \
+            --timeout 360
+      - name: Run four-task paired real-model probe
+        run: |
+          python -m experiments.ct_ab.multi_task_probe \\
+            --skill-path skill-source/critical-thinking/SKILL.md \\
+            --tasks-path experiments/ct_ab/microprobe_tasks.json \\
+            --output "$RUNNER_TEMP/ct-multi-task-probe" \\
+            --model "$CT_AB_MODEL" \\
             --timeout 360
       - name: Upload exact requests, responses and report
         if: always()
@@ -80,6 +91,7 @@ jobs:
           name: ct-skill-microprobe
           path: |
             ${{ runner.temp }}/ct-skill-microprobe/
+            ${{ runner.temp }}/ct-multi-task-probe/
             ${{ runner.temp }}/ollama.log
           if-no-files-found: warn
           retention-days: 30
