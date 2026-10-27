@@ -9,9 +9,9 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
-from .agent_loop import OllamaClient, build_system_prompt
+from .agent_loop import OllamaClient, build_system_prompt, skill_obj_fingerprint
 from .paired_runner import _git_blob_sha1, _skill_source_spec
 
 PROBE_SYSTEM = (
@@ -22,19 +22,19 @@ PROBE_SYSTEM = (
 OPTIONS = {"temperature": 0, "num_predict": 180, "num_ctx": 4096}
 
 
-def build_request(model: str, prompt: str, skill_text: str | None) -> dict[str, Any]:
+def build_request(model: str, prompt: str, skill_obj: Mapping[str, str] | None) -> dict[str, Any]:
     return {
         "model": model,
         "stream": False,
         "messages": [
-            {"role": "system", "content": build_system_prompt(skill_text, PROBE_SYSTEM)},
+            {"role": "system", "content": build_system_prompt(skill_obj, PROBE_SYSTEM)},
             {"role": "user", "content": prompt},
         ],
         "options": dict(OPTIONS),
     }
 
 
-def run_tasks(client: Any, model: str, skill_text: str, tasks: list[dict[str, Any]],
+def run_tasks(client: Any, model: str, skill_obj: Mapping[str, str], tasks: list[dict[str, Any]],
               output_dir: Path) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     report: dict[str, Any] = {
@@ -46,7 +46,7 @@ def run_tasks(client: Any, model: str, skill_text: str, tasks: list[dict[str, An
         "conditions": {},
         "interpretation_limits": [
             "One response per condition and task is exploratory; it does not establish general skill effectiveness.",
-            "Captured skill delivery does not prove attention to or compliance with the skill.",
+            "Captured skill delivery does not prove attention to or compliance with the skill object.",
             "Token and duration metadata are operational measurements, not quality scores.",
             "Task scoring criteria are reference guidance; responses are not automatically scored."
         ]
@@ -59,15 +59,15 @@ def run_tasks(client: Any, model: str, skill_text: str, tasks: list[dict[str, An
             "scoring_criteria": task["scoring_criteria"],
             "responses": {}
         }
-        for label, supplied_skill in (("skill_off", None), ("skill_on", skill_text)):
+        for label, supplied_skill in (("skill_off", None), ("skill_on", dict(skill_obj))):
             request = build_request(model, task["prompt"], supplied_skill)
             request_bytes = json.dumps(request, ensure_ascii=False, sort_keys=True).encode("utf-8")
             request_path = output_dir / f"{task_id}-{label}-request.json"
             request_path.write_bytes(request_bytes)
             system = request["messages"][0]["content"]
-            skill_present = (
-                "=== CRITICAL THINKING SKILL (verbatim supplied file) ===" in system
-                and skill_text in system
+            skill_present = bool(supplied_skill) and all(
+                f"=== SKILL: {name} (verbatim supplied file) ===" in system and text in system
+                for name, text in supplied_skill.items()
             )
             response = client.chat(request)
             response_bytes = json.dumps(response, ensure_ascii=False, sort_keys=True).encode("utf-8")
@@ -83,6 +83,8 @@ def run_tasks(client: Any, model: str, skill_text: str, tasks: list[dict[str, An
                 "request_artifact": request_path.name,
                 "response_artifact": response_path.name,
                 "skill_in_system_message": skill_present,
+                "skill_obj_sha256": skill_obj_fingerprint(supplied_skill),
+                "skill_hashes": {name: hashlib.sha256(text.encode("utf-8")).hexdigest() for name, text in sorted(supplied_skill.items())} if supplied_skill else {},
                 "response_text": message.get("content", ""),
                 "finish_reason": response.get("done_reason"),
                 "prompt_eval_count": response.get("prompt_eval_count"),
