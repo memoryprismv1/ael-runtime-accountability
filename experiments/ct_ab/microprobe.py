@@ -21,7 +21,10 @@ PROMPT = (
     "A shop report says revenue rose 20% while transaction count fell 10%. "
     "Explain what follows from these figures and what cannot be concluded."
 )
-OPTIONS = {"temperature": 0, "num_predict": 300, "num_ctx": 4096}
+PROBE_SYSTEM = ("You are answering a small data-interpretation question. Be concise. "
+                "Separate what the figures imply from what remains unknown. "
+                "Do not write code or an implementation plan unless the user asks.")
+OPTIONS = {"temperature": 0, "num_predict": 500, "num_ctx": 4096}
 
 
 def build_probe_request(model: str, skill_text: str | None) -> dict[str, Any]:
@@ -30,7 +33,7 @@ def build_probe_request(model: str, skill_text: str | None) -> dict[str, Any]:
         "model": model,
         "stream": False,
         "messages": [
-            {"role": "system", "content": build_system_prompt(skill_text)},
+            {"role": "system", "content": build_system_prompt(skill_text, PROBE_SYSTEM)},
             {"role": "user", "content": PROMPT},
         ],
         "options": dict(OPTIONS),
