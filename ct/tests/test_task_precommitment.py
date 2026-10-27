@@ -153,13 +153,13 @@ class TaskPrecommitmentTests(unittest.TestCase):
     def test_skill_obj_loads_multiple_manifest_pinned_skills(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            first = b"Skill alpha guidance.\\n"
-            second = b"Skill beta guidance.\\n"
+            first = b"Skill alpha guidance.\n"
+            second = b"Skill beta guidance.\n"
             (root / "alpha.md").write_bytes(first)
             (root / "beta.md").write_bytes(second)
 
             def git_blob(data):
-                return hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\\0" + data).hexdigest()
+                return hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
 
             manifest = {
                 "schema_version": 1,
