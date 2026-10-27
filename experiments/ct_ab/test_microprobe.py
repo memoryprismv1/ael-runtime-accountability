@@ -7,14 +7,14 @@ import unittest
 from pathlib import Path
 
 from .microprobe import PROMPT, build_probe_request, run_probe
-from .agent_loop import BASE_SYSTEM, build_system_prompt
+from .agent_loop import BASE_SYSTEM, build_system_prompt, skill_obj_fingerprint
 from .microprobe import PROBE_SYSTEM
 
 
-SKILL = "# Tiny fixture skill\\nNotice conflicting evidence and state what remains unknown."
+SKILL = "# Tiny fixture skill\nNotice conflicting evidence and state what remains unknown."
 SKILL_OBJ = {
     "critical-thinking": SKILL,
-    "approach-calibration-help-seeking": "# AC fixture skill\\nAsk a focused question only when essential.",
+    "approach-calibration-help-seeking": "# AC fixture skill\nAsk a focused question only when essential.",
 }
 
 
@@ -38,7 +38,7 @@ class MicroprobeTests(unittest.TestCase):
         self.assertIn("Ask a focused question only when essential.", on)
         self.assertIn("=== SKILL: critical-thinking (verbatim supplied file) ===", on)
         self.assertIn("=== SKILL: approach-calibration-help-seeking (verbatim supplied file) ===", on)
-        self.assertTrue(on.endswith("=== END CRITICAL THINKING SKILL ===\n"))
+        self.assertTrue(on.endswith("=== END SKILL: critical-thinking ===\n"))
 
     def test_probe_requests_keep_task_identical_and_only_change_skill_condition(self):
         off = build_probe_request("test-model", None)
@@ -64,7 +64,7 @@ class MicroprobeTests(unittest.TestCase):
             self.assertTrue(report["conditions"]["skill_on"]["skill_in_system_message"])
             self.assertEqual(report["conditions"]["skill_on"]["skill_sha256"], hashlib.sha256(SKILL.encode()).hexdigest())
             self.assertEqual(len(report["conditions"]["skill_on"]["skill_hashes"]), 2)
-            self.assertEqual(report["conditions"]["skill_on"]["skill_obj_sha256"], report["conditions"]["skill_on"]["skill_obj_sha256"])
+            self.assertEqual(report["conditions"]["skill_on"]["skill_obj_sha256"], skill_obj_fingerprint(SKILL_OBJ))
             for label in ("skill_off", "skill_on"):
                 req = json.loads((root / f"{label}-request.json").read_text())
                 resp = json.loads((root / f"{label}-response.json").read_text())
