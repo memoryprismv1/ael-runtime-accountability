@@ -34,9 +34,9 @@ The application must be built from scratch; do not copy Trello code, brand asset
 """
 
 
-def build_system_prompt(skill_text: str | None) -> str:
-    """Build the exact system message used by the production agent and micro-probes."""
-    system = BASE_SYSTEM
+def build_system_prompt(skill_text: str | None, base_system: str = BASE_SYSTEM) -> str:
+    """Append the pinned skill verbatim to a supplied base system prompt."""
+    system = base_system
     if skill_text is not None:
         system += "\n\n=== CRITICAL THINKING SKILL (verbatim supplied file) ===\n" + skill_text + "\n=== END CRITICAL THINKING SKILL ===\n"
     return system
