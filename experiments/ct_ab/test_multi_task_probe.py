@@ -7,10 +7,10 @@ from pathlib import Path
 
 from .multi_task_probe import build_request, run_tasks
 
-SKILL = "# fixture skill\\nNotice contradictions and separate evidence from speculation."
+SKILL = "# fixture skill\nNotice contradictions and separate evidence from speculation."
 SKILL_OBJ = {
     "critical-thinking": SKILL,
-    "approach-calibration-help-seeking": "# AC fixture skill\\nAsk a focused question only when essential.",
+    "approach-calibration-help-seeking": "# AC fixture skill\nAsk a focused question only when essential.",
 }
 
 
