@@ -111,7 +111,7 @@ class AcceptanceSuiteTests(unittest.TestCase):
             model_name="mock:latest",
             brief="Implement a tiny task board.",
             contract_json="{}",
-            skill_text=None,
+            skill_obj=None,
             condition_config_sha256="1" * 64,
             options={"temperature":0},
             max_turns=max_turns,
