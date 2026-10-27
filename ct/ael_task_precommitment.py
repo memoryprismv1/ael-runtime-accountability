@@ -150,12 +150,39 @@ def skill_obj_fingerprint(skills=None):
 
 
 def dependency():
-    """Backward-compatible primary CT dependency view for existing audit fields."""
+    """Return the primary skill for legacy single-dependency audit columns.
+
+    New prompt construction and provenance use the complete skill_obj. The
+    primary view exists only to keep the existing database schema compatible.
+    """
     skills = skill_obj()
-    item = skills.get("critical-thinking")
-    if item is None:
-        raise RuntimeError("This task workflow currently requires the critical-thinking skill.")
-    manifest = json.loads(DEPENDENCY_PATH.read_text(encoding="utf-8"))
+    if not skills:
+        raise RuntimeError("The active experiment declares no available skills.")
+    name = "critical-thinking" if "critical-thinking" in skills else sorted(skills)[0]
+    item = skills[name]
+    manifest = {
+        "name": name,
+        "source_repo": item.get("source_repository") or "",
+        "source_path": item.get("source_path") or item["path"],
+        "source_commit": item.get("source_commit") or item["version"],
+        "source_blob_sha": item.get("source_blob_sha") or "",
+        "upstream_license": item.get("license") or "not specified",
+        "license": "",
+    }
+    # Retain the upstream attribution/license metadata check for the existing
+    # CT dependency when its companion manifest is present in this environment.
+    metadata_path = ROOT / "dependencies" / "critical-thinking" / "DEPENDENCY.json"
+    if name == "critical-thinking" and metadata_path.is_file():
+        ct_manifest = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if (ct_manifest.get("source_commit") != item["source_commit"]
+                or ct_manifest.get("source_blob_sha") != item["source_blob_sha"]):
+            raise RuntimeError("Critical-thinking dependency metadata disagrees with the experiment manifest.")
+        manifest.update({
+            "source_repo": ct_manifest.get("source_repo", manifest["source_repo"]),
+            "source_path": ct_manifest.get("source_path", manifest["source_path"]),
+            "upstream_license": ct_manifest.get("upstream_license", manifest["upstream_license"]),
+            "license": ct_manifest.get("license", ""),
+        })
     return item["text"], manifest, item["sha256"]
 
 
@@ -409,7 +436,7 @@ def snapshot(con,task_id,account,project,chat):
     body,manifest,content_hash=dependency()
     skills=skill_obj()
     return {"task":t,"artifacts":arts,"decisions":dec,"actions":acts,"events":evs,"verifications":ver,
-       "dependency":{"source_repo":manifest["source_repo"],"source_path":manifest["source_path"],"source_commit":manifest["source_commit"],
+       "dependency":{"name":manifest["name"],"source_repo":manifest["source_repo"],"source_path":manifest["source_path"],"source_commit":manifest["source_commit"],
        "source_blob_sha":manifest["source_blob_sha"],"content_sha256":content_hash,"license":manifest["upstream_license"],"license_url":manifest["license"]},
        "skill_obj_sha256":skill_obj_fingerprint(skills),
        "skill_dependencies":[{k:v for k,v in item.items() if k!="text"} for item in skills.values()]}
@@ -418,8 +445,8 @@ def snapshot(con,task_id,account,project,chat):
 def export_markdown(s):
     t=s["task"]; d=s["dependency"]; lines=[
       "# AEL Task Audit — "+t["task_id"],"", "**State:** "+t["state"],"**Scope:** "+t["account_id"]+" / "+t["project_id"]+" / "+t["chat_id"],
-      "**Created:** "+t["created_at"],"**Critical-thinking source commit:** "+d["source_commit"],"**Source blob SHA:** "+d["source_blob_sha"],
-      "**Bundled skill SHA-256:** "+d["content_sha256"],"**Source URL:** "+d["source_repo"]+"/blob/"+d["source_commit"]+"/"+d["source_path"],
+      "**Created:** "+t["created_at"],"**Primary skill:** "+d["name"],"**Primary skill source commit/version:** "+d["source_commit"],"**Primary skill source blob SHA:** "+d["source_blob_sha"],
+      "**Primary skill SHA-256:** "+d["content_sha256"],"**Source location:** "+(d["source_repo"] ? d["source_repo"]+"/blob/"+d["source_commit"]+"/"+d["source_path"] : d["source_path"]),
       "**License:** "+d["license"]+" ("+d["license_url"]+")","**Complete skill object SHA-256:** "+s["skill_obj_sha256"],"","## Loaded skill dependencies",""]
     for item in s["skill_dependencies"]:
         lines.append("- "+item["name"]+": version="+item["version"]+"; path="+item["path"]+"; SHA-256="+item["sha256"]+"; source commit="+str(item["source_commit"] or "not supplied")+"; blob="+str(item["source_blob_sha"] or "not supplied"))
