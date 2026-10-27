@@ -73,11 +73,13 @@ def sha(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def skill_obj():
-    """Load every skill declared by the active AEL_PATH environment."""
-    if not EXPERIMENT_PATH.is_file():
+def skill_obj(environment_root: Path = ROOT):
+    """Load every skill declared by the selected environment root (AEL_PATH)."""
+    environment_root = Path(environment_root).resolve()
+    experiment_path = environment_root / "experiment.json"
+    if not experiment_path.is_file():
         raise RuntimeError("The active experiment manifest is missing.")
-    experiment = json.loads(EXPERIMENT_PATH.read_text(encoding="utf-8"))
+    experiment = json.loads(experiment_path.read_text(encoding="utf-8"))
     requirements = experiment.get("requirements")
     if not isinstance(requirements, dict):
         raise RuntimeError("The active experiment must declare a requirements mapping.")
@@ -92,8 +94,8 @@ def skill_obj():
         relative_path = requirement.get("path")
         if not isinstance(relative_path, str) or not relative_path.strip():
             raise RuntimeError(f"Skill {name!r} has no relative path.")
-        target = (ROOT / relative_path).resolve()
-        if not target.is_relative_to(ROOT.resolve()):
+        target = (environment_root / relative_path).resolve()
+        if not target.is_relative_to(environment_root):
             raise RuntimeError(f"Skill {name!r} path escapes the active AEL_PATH environment.")
         if not target.is_file():
             if required:
@@ -216,7 +218,9 @@ def create(con,runtime,task_id,account,project,chat,request,model=None):
         raise ValueError("Task ID, account, project, chat and request must be non-empty.")
     if con.execute("SELECT 1 FROM task_runs WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=?",
                    (task_id,account,project,chat)).fetchone(): raise ValueError("Task ID already exists in this scope.")
-    _,m,content_hash=dependency()
+    skills=skill_obj(); _,m,content_hash=dependency()
+    skill_set_hash=skill_obj_fingerprint(skills)
+    skill_sources=[{k:v for k,v in item.items() if k!="text"} for item in skills.values()]
     stamp=now()
     con.execute("""INSERT INTO task_runs(task_id,account_id,project_id,chat_id,request,state,model_name,skill_commit,skill_blob_sha,
        current_case_artifact_id,current_plan_artifact_id,created_at,updated_at)
@@ -224,8 +228,10 @@ def create(con,runtime,task_id,account,project,chat,request,model=None):
        (task_id,account,project,chat,request,model,m["source_commit"],m["source_blob_sha"],stamp,stamp))
     con.commit(); t=get_task(con,task_id,account,project,chat)
     ev=emit(con,runtime,t,"task.created","user","created",note="Task created: "+request,
-            metadata={"model":model,"skill_commit":m["source_commit"],"skill_blob_sha":m["source_blob_sha"],"skill_content_sha256":content_hash})
-    return {"task_id":task_id,"state":"created","skill_commit":m["source_commit"],"skill_blob_sha":m["source_blob_sha"],"skill_content_sha256":content_hash,"event":ev}
+            metadata={"model":model,"skill_commit":m["source_commit"],"skill_blob_sha":m["source_blob_sha"],
+                      "skill_content_sha256":content_hash,"skill_obj_sha256":skill_set_hash,"skill_dependencies":skill_sources})
+    return {"task_id":task_id,"state":"created","skill_commit":m["source_commit"],"skill_blob_sha":m["source_blob_sha"],
+            "skill_content_sha256":content_hash,"skill_obj_sha256":skill_set_hash,"skill_dependencies":skill_sources,"event":ev}
 
 
 def put_artifact(con,runtime,t,kind,body,creator,based_case=None,metadata=None):
@@ -233,14 +239,21 @@ def put_artifact(con,runtime,t,kind,body,creator,based_case=None,metadata=None):
     count=con.execute("""SELECT COALESCE(MAX(version),0)+1 FROM task_artifacts WHERE task_id=? AND account_id=? AND project_id=? AND chat_id=? AND kind=?""",
        (t["task_id"],t["account_id"],t["project_id"],t["chat_id"],kind)).fetchone()[0]
     aid="TA-"+os.urandom(8).hex(); _,m,content_hash=dependency(); body_hash=sha(body)
+    skills=skill_obj()
+    metadata_doc=dict(metadata or {})
+    metadata_doc.update({
+        "skill_obj_sha256":skill_obj_fingerprint(skills),
+        "skill_dependencies":[{k:v for k,v in item.items() if k!="text"} for item in skills.values()]
+    })
     con.execute("""INSERT INTO task_artifacts(artifact_id,task_id,account_id,project_id,chat_id,kind,version,content,content_sha256,
         based_on_case_sha256,dependency_commit,dependency_blob_sha,created_at,creator,metadata_json)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (aid,t["task_id"],t["account_id"],t["project_id"],t["chat_id"],kind,count,body,body_hash,based_case,
-         m["source_commit"],m["source_blob_sha"],now(),creator,json.dumps(metadata or {},ensure_ascii=False)))
+         m["source_commit"],m["source_blob_sha"],now(),creator,json.dumps(metadata_doc,ensure_ascii=False)))
     con.commit()
     return {"artifact_id":aid,"kind":kind,"version":count,"content":body,"content_sha256":body_hash,
-            "based_on_case_sha256":based_case,"dependency_commit":m["source_commit"],"dependency_blob_sha":m["source_blob_sha"]}
+            "based_on_case_sha256":based_case,"dependency_commit":m["source_commit"],"dependency_blob_sha":m["source_blob_sha"],
+            "skill_obj_sha256":metadata_doc["skill_obj_sha256"]}
 
 
 def submit_case(con,runtime,task_id,account,project,chat,body,creator="assistant",artifact_metadata=None):
