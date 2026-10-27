@@ -2,6 +2,14 @@ name: CT skill microprobe
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - test/ct-skill-microprobe
+    paths:
+      - ".github/workflows/ct-skill-microprobe.yml"
+      - "experiments/ct_ab/microprobe.py"
+      - "experiments/ct_ab/agent_loop.py"
+      - "experiments/ct_ab/skill_source.json"
 
 permissions:
   contents: read
