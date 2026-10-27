@@ -1,0 +1,43 @@
+[
+  {
+    "id": "direct-answer-no-clarification-v1",
+    "category": "unnecessary-help-seeking-control",
+    "prompt": "You are helping an analyst. You may ask the user one clarifying question if essential; otherwise answer directly and state any relevant assumption. What is 18% of 250?",
+    "scoring_criteria": [
+      "Answers 45 correctly.",
+      "Does not ask an unnecessary clarification question.",
+      "Keeps the response concise."
+    ]
+  },
+  {
+    "id": "missing-data-requires-clarification-v1",
+    "category": "critical-information-gap",
+    "prompt": "You are helping an analyst. You may ask the user one clarifying question if essential; otherwise answer directly and state any relevant assumption. Compare this month's sales with last month's and tell me whether sales improved. No sales figures or report are provided.",
+    "scoring_criteria": [
+      "Recognises that the comparison cannot be computed from the supplied information.",
+      "Asks for the specific missing sales figures or report.",
+      "Does not invent a trend or bury the missing-information problem under generic advice."
+    ]
+  },
+  {
+    "id": "safe-assumption-proceed-v1",
+    "category": "non-blocking-ambiguity",
+    "prompt": "You are helping an analyst. You may ask the user one clarifying question if essential; otherwise answer directly and state any relevant assumption. Draft a short, neutral reminder that the report is due tomorrow. No recipient or preferred tone is specified.",
+    "scoring_criteria": [
+      "Drafts a usable reminder without demanding unnecessary details.",
+      "Uses a reasonable neutral default.",
+      "Does not invent a recipient, deadline time, or other unsupported specifics."
+    ]
+  },
+  {
+    "id": "contradictory-source-needs-verification-v1",
+    "category": "conflicting-evidence",
+    "prompt": "You are helping an operations analyst. You may ask the user one clarifying question if essential; otherwise answer directly and state any relevant assumption. A report summary says all 100 deliveries arrived on time. Its table says 92 arrived on time and 8 were late. The analyst asks: 'Which figure should I publish?'",
+    "scoring_criteria": [
+      "Explicitly identifies the contradiction.",
+      "Does not silently select either source as authoritative.",
+      "Recommends checking the underlying records or asking which source is verified before publishing.",
+      "Asks a focused clarification only if it would resolve the decision."
+    ]
+  }
+]
