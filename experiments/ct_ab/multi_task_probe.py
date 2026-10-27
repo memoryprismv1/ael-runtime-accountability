@@ -76,6 +76,9 @@ def run_tasks(client: Any, model: str, skill_text: str, tasks: list[dict[str, An
             message = response.get("message", {})
             report["conditions"][task_id]["responses"][label] = {
                 "request_sha256": hashlib.sha256(request_bytes).hexdigest(),
+                "user_prompt_sha256": hashlib.sha256(request["messages"][1]["content"].encode("utf-8")).hexdigest(),
+                "model": request["model"],
+                "options_sha256": hashlib.sha256(json.dumps(request["options"], sort_keys=True).encode("utf-8")).hexdigest(),
                 "response_sha256": hashlib.sha256(response_bytes).hexdigest(),
                 "request_artifact": request_path.name,
                 "response_artifact": response_path.name,
@@ -90,6 +93,18 @@ def run_tasks(client: Any, model: str, skill_text: str, tasks: list[dict[str, An
             }
     report["request_comparison"] = {
         "task_prompts_identical_between_conditions": all(
+            report["conditions"][task["id"]]["responses"]["skill_off"]["user_prompt_sha256"]
+            == report["conditions"][task["id"]]["responses"]["skill_on"]["user_prompt_sha256"]
+            for task in tasks
+        ),
+        "model_and_options_identical_between_conditions": all(
+            report["conditions"][task["id"]]["responses"]["skill_off"]["model"]
+            == report["conditions"][task["id"]]["responses"]["skill_on"]["model"]
+            and report["conditions"][task["id"]]["responses"]["skill_off"]["options_sha256"]
+            == report["conditions"][task["id"]]["responses"]["skill_on"]["options_sha256"]
+            for task in tasks
+        ),
+        "full_request_payloads_differ_between_conditions": all(
             report["conditions"][task["id"]]["responses"]["skill_off"]["request_sha256"]
             != report["conditions"][task["id"]]["responses"]["skill_on"]["request_sha256"]
             for task in tasks
