@@ -48,6 +48,18 @@ def build_system_prompt(skill_obj: Mapping[str, str] | None, base_system: str = 
     return system
 
 
+def skill_obj_fingerprint(skill_obj: Mapping[str, str] | None) -> str | None:
+    """Return a stable hash of skill names and exact content hashes."""
+    if skill_obj is None:
+        return None
+    identities = {
+        name: hashlib.sha256(text.encode("utf-8")).hexdigest()
+        for name, text in sorted(skill_obj.items())
+    }
+    canonical = json.dumps(identities, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _no_tool_recovery_instruction(plan_submitted: bool) -> str:
     """Ask for one concrete tool action after an assistant response without a tool call."""
     plan_note = (
