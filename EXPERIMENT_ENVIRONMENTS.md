@@ -16,6 +16,15 @@ Each environment has an experiment.json. Its requirements map records exact vers
 
 To create another experiment, copy an environment, give it a unique experiment_id and list the desired pinned skills. A future ct_xyz/ may declare Critical Thinking and XYZ at separate versions.
 
+
+## Manifest-driven skill object
+
+The active environment's `experiment.json` is the source of truth for the complete skill set. The task-precommitment loader builds `skill_obj` from every entry in `requirements`; it does not assume that Critical Thinking is the only skill. Each entry pins a version, environment-relative path, required/optional status, and integrity data (`source_blob_sha` and/or `sha256`). Git-based versions must match `source_commit`. Missing required skills, hash mismatches, or paths escaping the active environment fail closed. Missing optional skills are omitted.
+
+`AEL_PATH` selects the runtime/environment tree; it is not a skill selector. The launcher passes the selected root to child processes, and the selected environment's manifest determines its skill object. For example, a future `ct_xyz/` environment can declare Critical Thinking and XYZ at independent pinned versions. Prompts include all loaded skills, and the audit event/artifact metadata records a stable `skill_obj_sha256` plus each skill's provenance. Existing single-skill audit columns are retained as compatibility fields for the primary Critical Thinking dependency.
+
+The skill object's fingerprint is an identity/provenance checksum, not a quality score and not evidence that a model followed a skill.
+
 ## Comparison testing
 compare_environments.py runs the same standard-library test command separately inside each environment with distinct AEL_PATH and PYTHONPATH. It records per-test outcomes and compares shared tests pairwise across all specified environments, flags baseline-pass-to-experiment-failure regressions and reports tests unique to each tree. Repeat --environment NAME=PATH for more environments. CI tests Python 3.11, 3.12 and 3.13 and preserves a JSON report.
 
