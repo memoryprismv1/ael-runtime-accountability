@@ -73,26 +73,88 @@ def sha(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def dependency():
-    if not SKILL_PATH.is_file() or not DEPENDENCY_PATH.is_file() or not EXPERIMENT_PATH.is_file():
-        raise RuntimeError("A required critical-thinking dependency file is missing.")
-    body = SKILL_PATH.read_text(encoding="utf-8")
-    raw = body.encode("utf-8")
-    manifest = json.loads(DEPENDENCY_PATH.read_text(encoding="utf-8"))
+def skill_obj():
+    """Load every skill declared by the active AEL_PATH environment."""
+    if not EXPERIMENT_PATH.is_file():
+        raise RuntimeError("The active experiment manifest is missing.")
     experiment = json.loads(EXPERIMENT_PATH.read_text(encoding="utf-8"))
-    requirement = experiment.get("requirements", {}).get("critical-thinking")
-    if not isinstance(requirement, dict) or not requirement.get("required", True):
-        raise RuntimeError("The active experiment must declare critical-thinking as a required dependency.")
-    actual_git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
-    expected_commit = requirement.get("source_commit")
-    expected_blob = requirement.get("source_blob_sha")
-    if not expected_commit or requirement.get("version") != f"git:{expected_commit}":
-        raise RuntimeError("Critical-thinking dependency version is not pinned to its exact source commit.")
-    if not expected_blob or actual_git_blob != expected_blob:
-        raise RuntimeError("Vendored critical-thinking skill does not match the experiment's pinned Git blob SHA.")
-    if manifest.get("source_commit") != expected_commit or manifest.get("source_blob_sha") != expected_blob:
-        raise RuntimeError("Critical-thinking dependency metadata disagrees with the experiment manifest.")
-    return body, manifest, sha(body)
+    requirements = experiment.get("requirements")
+    if not isinstance(requirements, dict):
+        raise RuntimeError("The active experiment must declare a requirements mapping.")
+
+    loaded = {}
+    for name, requirement in requirements.items():
+        if not isinstance(name, str) or not name.strip() or not isinstance(requirement, dict):
+            raise RuntimeError("Each skill requirement must have a non-empty name and object definition.")
+        required = requirement.get("required", True)
+        if not isinstance(required, bool):
+            raise RuntimeError(f"Skill {name!r} has a non-boolean required flag.")
+        relative_path = requirement.get("path")
+        if not isinstance(relative_path, str) or not relative_path.strip():
+            raise RuntimeError(f"Skill {name!r} has no relative path.")
+        target = (ROOT / relative_path).resolve()
+        if not target.is_relative_to(ROOT.resolve()):
+            raise RuntimeError(f"Skill {name!r} path escapes the active AEL_PATH environment.")
+        if not target.is_file():
+            if required:
+                raise RuntimeError(f"Required skill {name!r} is missing: {target}")
+            continue
+
+        raw = target.read_bytes()
+        text = raw.decode("utf-8")
+        actual_blob = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
+        expected_commit = requirement.get("source_commit")
+        expected_blob = requirement.get("source_blob_sha")
+        version = requirement.get("version")
+        if not isinstance(version, str) or not version.strip():
+            raise RuntimeError(f"Skill {name!r} has no exact version.")
+        if version.startswith("git:") and (not expected_commit or version != f"git:{expected_commit}"):
+            raise RuntimeError(f"Skill {name!r} version is not pinned to its exact source commit.")
+        if expected_blob and actual_blob != expected_blob:
+            raise RuntimeError(f"Skill {name!r} does not match its pinned Git blob SHA.")
+        expected_sha256 = requirement.get("sha256")
+        content_sha256 = sha(text)
+        if not expected_blob and not expected_sha256:
+            raise RuntimeError(f"Skill {name!r} must declare source_blob_sha or sha256 integrity.")
+        if expected_sha256 and content_sha256 != expected_sha256:
+            raise RuntimeError(f"Skill {name!r} does not match its pinned SHA-256.")
+        loaded[name] = {
+            "name": name,
+            "text": text,
+            "version": version,
+            "path": relative_path,
+            "source_repository": requirement.get("source_repository"),
+            "source_path": requirement.get("source_path"),
+            "source_commit": expected_commit,
+            "source_blob_sha": expected_blob,
+            "sha256": content_sha256,
+            "required": required,
+            "license": requirement.get("license"),
+        }
+
+    if not loaded:
+        raise RuntimeError("The active experiment declares no available skills.")
+    return loaded
+
+
+def skill_obj_fingerprint(skills=None):
+    """Stable identity for the complete loaded skill set, excluding skill text."""
+    skills = skill_obj() if skills is None else skills
+    identity = {
+        name: {key: value for key, value in item.items() if key != "text"}
+        for name, item in sorted(skills.items())
+    }
+    return sha(json.dumps(identity, sort_keys=True, ensure_ascii=False, separators=(",", ":")))
+
+
+def dependency():
+    """Backward-compatible primary CT dependency view for existing audit fields."""
+    skills = skill_obj()
+    item = skills.get("critical-thinking")
+    if item is None:
+        raise RuntimeError("This task workflow currently requires the critical-thinking skill.")
+    manifest = json.loads(DEPENDENCY_PATH.read_text(encoding="utf-8"))
+    return item["text"], manifest, item["sha256"]
 
 
 def init(con):
@@ -368,17 +430,22 @@ def export_markdown(s):
 
 
 def build_prompt(con,t,runtime,kind):
-    skill,manifest,skill_hash=dependency()
+    skills = skill_obj()
+    skill_hash = skill_obj_fingerprint(skills)
+    skill_context = "\n\n".join(
+        f"PINNED SKILL: {name} (version {item['version']}, SHA-256 {item['sha256']})\n"
+        f"Apply this skill as guidance, not as an inflexible checklist:\n{item['text']}"
+        for name, item in skills.items()
+    )
     if kind=="case_notes":
-        request=("Investigate the user's task and write detailed case notes for precommitment review. Apply the bundled Critical Thinking skill as flexible guidance, not a rigid checklist. Include task interpretation and boundaries, observations versus assumptions, sources searched and claim support, plausible alternatives, attempts to challenge your preferred account, unresolved issues, risk and a clear recommendation. Do not write the implementation plan yet. Be explicit about what you did not verify.\n\nUSER TASK:\n"+t["request"])
-        context="PINNED CRITICAL-THINKING SKILL (follow as guidance):\n"+skill
-        return context,request,skill_hash
+        request=("Investigate the user's task and write detailed case notes for precommitment review. Apply the supplied skills as flexible guidance, not rigid checklists. Include task interpretation and boundaries, observations versus assumptions, sources searched and claim support, plausible alternatives, attempts to challenge your preferred account, unresolved issues, risk and a clear recommendation. Do not write the implementation plan yet. Be explicit about what you did not verify.\n\nUSER TASK:\n"+t["request"])
+        return skill_context,request,skill_hash
     case=current_artifact(con,t,"case_notes")
     if not case: raise ValueError("No current case notes.")
     cd=latest_decision(con,t,"case_notes",case)
     if not cd or cd["decision"]!="approve": raise ValueError("Generate a plan only after the current case is approved.")
     request=("Using the approved case notes, propose a concrete implementation plan. Specify actions in order, expected outputs, preconditions, constraints and permissions, risks and failure handling, what counts as completion, and how each important claim/action will be verified. Mark irreversible or consequential actions and require explicit approval for changes outside scope. Do not execute the plan.\n\nORIGINAL USER TASK:\n"+t["request"]+"\n\nAPPROVED CASE NOTES:\n"+case["content"])
-    return "PINNED CRITICAL-THINKING SKILL (follow as guidance):\n"+skill,request,skill_hash
+    return skill_context,request,skill_hash
 
 
 def add_cli_parser(sub):
