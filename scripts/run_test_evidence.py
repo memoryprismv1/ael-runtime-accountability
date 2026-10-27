@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Run AEL's standard-library test suite and preserve machine-readable evidence."""
+# Q-Batch A/B rehearsal: B intentionally differs from A only by comments.
+# No test, collection, evidence, or runtime behavior is changed in this branch.
 from __future__ import annotations
 import hashlib
 import json
