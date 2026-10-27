@@ -15,11 +15,11 @@ from .agent_loop import OllamaClient, build_system_prompt
 from .paired_runner import _git_blob_sha1, _skill_source_spec
 
 PROBE_SYSTEM = (
-    "You are answering a small evidence-interpretation question. Be concise and precise. "
-    "Separate what the evidence establishes from what remains unknown. "
-    "Do not write code or an implementation plan unless the user asks."
+    "Answer in at most 3 short bullets and no more than 80 words total. "
+    "Lead with the key conclusion. Separate what the evidence establishes from what remains unknown. "
+    "Do not repeat the question, speculate beyond the evidence, or write code/an implementation plan unless asked."
 )
-OPTIONS = {"temperature": 0, "num_predict": 500, "num_ctx": 4096}
+OPTIONS = {"temperature": 0, "num_predict": 180, "num_ctx": 4096}
 
 
 def build_request(model: str, prompt: str, skill_text: str | None) -> dict[str, Any]:
