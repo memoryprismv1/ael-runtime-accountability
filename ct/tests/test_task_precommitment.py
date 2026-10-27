@@ -130,7 +130,7 @@ class TaskPrecommitmentTests(unittest.TestCase):
         self.assertEqual(report["state"], "verification_recorded")
         snapshot = task.snapshot(self.con, "task-1", self.account, self.project, self.chat)
         output = task.export_markdown(snapshot)
-        self.assertIn("Critical-thinking source commit", output)
+        self.assertIn("Primary skill source commit/version", output)
         self.assertIn("out/test-report.txt", output)
         self.assertIn("not independent proof", output)
         self.assertIn("task.execution_started", output)
