@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from .agent_loop import OllamaClient, build_system_prompt
+from .agent_loop import OllamaClient, build_system_prompt, skill_obj_fingerprint
 from .paired_runner import _git_blob_sha1, _skill_source_spec
 
 PROBE_ID = "sales-mismatch-v1"
@@ -27,22 +27,22 @@ PROBE_SYSTEM = ("Answer in at most 3 short bullets and no more than 80 words tot
 OPTIONS = {"temperature": 0, "num_predict": 180, "num_ctx": 4096}
 
 
-def build_probe_request(model: str, skill_text: str | None) -> dict[str, Any]:
+def build_probe_request(model: str, skill_obj: Mapping[str, str] | None) -> dict[str, Any]:
     """Build a tiny request using the same system-prompt builder as production."""
     return {
         "model": model,
         "stream": False,
         "messages": [
-            {"role": "system", "content": build_system_prompt(skill_text, PROBE_SYSTEM)},
+            {"role": "system", "content": build_system_prompt(skill_obj, PROBE_SYSTEM)},
             {"role": "user", "content": PROMPT},
         ],
         "options": dict(OPTIONS),
     }
 
 
-def run_probe(client: Any, model: str, skill_text: str, output_dir: Path) -> dict[str, Any]:
+def run_probe(client: Any, model: str, skill_obj: Mapping[str, str], output_dir: Path) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    conditions = {"skill_off": None, "skill_on": skill_text}
+    conditions = {"skill_off": None, "skill_on": dict(skill_obj)}
     result: dict[str, Any] = {
         "schema_version": "1.0",
         "probe_id": PROBE_ID,
@@ -51,7 +51,7 @@ def run_probe(client: Any, model: str, skill_text: str, output_dir: Path) -> dic
         "transport": "Ollama /api/chat via loopback client",
         "conditions": {},
         "interpretation_limits": [
-            "A captured outgoing request proves the harness sent the skill text to the model transport, not that the model attended to or followed it.",
+            "A captured outgoing request proves the harness sent the skill object to the model transport, not that the model attended to or followed it.",
             "One prompt and one response per condition are diagnostic only; they do not establish general skill effectiveness.",
             "This probe tests mismatch interpretation and evidence calibration, not web research or website-building ability.",
         ],
@@ -62,9 +62,9 @@ def run_probe(client: Any, model: str, skill_text: str, output_dir: Path) -> dic
         request_path = output_dir / f"{label}-request.json"
         request_path.write_bytes(request_bytes)
         system = request["messages"][0]["content"]
-        skill_present = (
-            "=== CRITICAL THINKING SKILL (verbatim supplied file) ===" in system
-            and skill_text in system
+        skill_present = bool(supplied_skill) and all(
+            f"=== SKILL: {name} (verbatim supplied file) ===" in system and text in system
+            for name, text in supplied_skill.items()
         )
         response = client.chat(request)
         response_bytes = json.dumps(response, ensure_ascii=False, sort_keys=True).encode("utf-8")
@@ -77,7 +77,9 @@ def run_probe(client: Any, model: str, skill_text: str, output_dir: Path) -> dic
             "response_sha256": hashlib.sha256(response_bytes).hexdigest(),
             "response_artifact": response_path.name,
             "skill_in_system_message": skill_present,
-            "skill_sha256": hashlib.sha256(skill_text.encode("utf-8")).hexdigest() if supplied_skill is not None else None,
+                        "skill_sha256": hashlib.sha256(supplied_skill["critical-thinking"].encode("utf-8")).hexdigest() if supplied_skill and "critical-thinking" in supplied_skill else None,
+            "skill_obj_sha256": skill_obj_fingerprint(supplied_skill),
+            "skill_hashes": {name: hashlib.sha256(text.encode("utf-8")).hexdigest() for name, text in sorted(supplied_skill.items())} if supplied_skill else {},
             "response_text": message.get("content", ""),
             "finish_reason": response.get("done_reason"),
         }
@@ -110,14 +112,14 @@ def main() -> int:
         raise SystemExit(
             f"Pinned skill mismatch: expected Git blob {spec['git_blob_sha1']}, got {actual_blob}"
         )
-    skill_text = skill_bytes.decode("utf-8")
+    skill_obj = {"critical-thinking": skill_bytes.decode("utf-8")}
     client = OllamaClient(args.base_url, timeout=args.timeout)
     info = client.info()
     available = client.list_models()
     if not any(str(item.get("name", "")).split(":")[0] == args.model.split(":")[0] for item in available):
         raise SystemExit(f"Configured model {args.model!r} is not present in Ollama: {available!r}")
 
-    report = run_probe(client, args.model, skill_text, args.output)
+    report = run_probe(client, args.model, skill_obj, args.output)
     report["skill_source"] = {
         "repository": spec["repository"],
         "path": spec["path"],
