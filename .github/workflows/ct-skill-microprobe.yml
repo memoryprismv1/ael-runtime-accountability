@@ -1,20 +1,9 @@
 name: CT skill microprobe
 
+# Deliberately manual-only: real-model runs are slow and can generate noisy
+# failure notifications while the experiment harness is being developed.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - test/ct-skill-microprobe
-    paths:
-      - ".github/workflows/ct-skill-microprobe.yml"
-      - "experiments/ct_ab/microprobe.py"
-      - "experiments/ct_ab/agent_loop.py"
-      - "experiments/ct_ab/skill_source.json"
-      - "experiments/ct_ab/test_microprobe.py"
-      - "experiments/ct_ab/multi_task_probe.py"
-      - "experiments/ct_ab/microprobe_tasks.json"
-      - "experiments/ct_ab/test_multi_task_probe.py"
-      - "experiments/ct_ab/clarification_tasks.json"
 
 permissions:
   contents: read
