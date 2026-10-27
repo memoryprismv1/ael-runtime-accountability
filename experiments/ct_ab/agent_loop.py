@@ -34,6 +34,14 @@ The application must be built from scratch; do not copy Trello code, brand asset
 """
 
 
+def build_system_prompt(skill_text: str | None) -> str:
+    """Build the exact system message used by the production agent and micro-probes."""
+    system = BASE_SYSTEM
+    if skill_text is not None:
+        system += "\n\n=== CRITICAL THINKING SKILL (verbatim supplied file) ===\n" + skill_text + "\n=== END CRITICAL THINKING SKILL ===\n"
+    return system
+
+
 def _no_tool_recovery_instruction(plan_submitted: bool) -> str:
     """Ask for one concrete tool action after an assistant response without a tool call."""
     plan_note = (
@@ -198,9 +206,7 @@ class AgentLoop:
         self.consecutive_no_tool_responses = 0
         self.last_no_tool_fingerprint: str | None = None
         self.identical_no_tool_responses = 0
-        system = BASE_SYSTEM
-        if skill_text is not None:
-            system += "\n\n=== CRITICAL THINKING SKILL (verbatim supplied file) ===\n" + skill_text + "\n=== END CRITICAL THINKING SKILL ===\n"
+        system = build_system_prompt(skill_text)
         self.messages: list[dict[str, Any]] = [
             {"role":"system","content":system},
             {"role":"user","content":"Client brief follows:\n\n" + brief + "\n\nAPI contract (JSON):\n" + contract_json + "\n\nThe starter workspace initially contains only STARTER.md. Begin by calling submit_plan."}
