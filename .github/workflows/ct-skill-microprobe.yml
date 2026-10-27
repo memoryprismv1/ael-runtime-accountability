@@ -10,6 +10,7 @@ on:
       - "experiments/ct_ab/microprobe.py"
       - "experiments/ct_ab/agent_loop.py"
       - "experiments/ct_ab/skill_source.json"
+      - "experiments/ct_ab/test_microprobe.py"
 
 permissions:
   contents: read
@@ -71,7 +72,7 @@ jobs:
             --skill-path skill-source/critical-thinking/SKILL.md \
             --output "$RUNNER_TEMP/ct-skill-microprobe" \
             --model "$CT_AB_MODEL" \
-            --timeout 180
+            --timeout 360
       - name: Upload exact requests, responses and report
         if: always()
         uses: actions/upload-artifact@v4
