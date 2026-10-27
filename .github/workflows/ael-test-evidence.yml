@@ -5,6 +5,7 @@ on:
     branches:
       - test/capture-unit-test-evidence
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
   workflow_dispatch:
