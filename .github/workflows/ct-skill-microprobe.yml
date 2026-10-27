@@ -14,6 +14,7 @@ on:
       - "experiments/ct_ab/multi_task_probe.py"
       - "experiments/ct_ab/microprobe_tasks.json"
       - "experiments/ct_ab/test_multi_task_probe.py"
+      - "experiments/ct_ab/clarification_tasks.json"
 
 permissions:
   contents: read
@@ -84,6 +85,14 @@ jobs:
             --output "$RUNNER_TEMP/ct-multi-task-probe" \
             --model "$CT_AB_MODEL" \
             --timeout 360
+      - name: Run four-task selective-clarification probe
+        run: |
+          python -m experiments.ct_ab.multi_task_probe \
+            --skill-path skill-source/critical-thinking/SKILL.md \
+            --tasks-path experiments/ct_ab/clarification_tasks.json \
+            --output "$RUNNER_TEMP/ct-clarification-probe" \
+            --model "$CT_AB_MODEL" \
+            --timeout 360
       - name: Upload exact requests, responses and report
         if: always()
         uses: actions/upload-artifact@v4
@@ -92,6 +101,7 @@ jobs:
           path: |
             ${{ runner.temp }}/ct-skill-microprobe/
             ${{ runner.temp }}/ct-multi-task-probe/
+            ${{ runner.temp }}/ct-clarification-probe/
             ${{ runner.temp }}/ollama.log
           if-no-files-found: warn
           retention-days: 30
