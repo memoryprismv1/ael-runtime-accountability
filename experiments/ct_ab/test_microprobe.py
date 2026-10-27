@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .microprobe import PROMPT, build_probe_request, run_probe
 from .agent_loop import BASE_SYSTEM, build_system_prompt
+from .microprobe import PROBE_SYSTEM
 
 
 SKILL = "# Tiny fixture skill\nNotice conflicting evidence and state what remains unknown."
@@ -24,9 +25,10 @@ class FakeClient:
 
 class MicroprobeTests(unittest.TestCase):
     def test_production_prompt_builder_includes_exact_skill_only_when_enabled(self):
-        off = build_system_prompt(None)
-        on = build_system_prompt(SKILL)
-        self.assertEqual(off, BASE_SYSTEM)
+        off = build_system_prompt(None, PROBE_SYSTEM)
+        on = build_system_prompt(SKILL, PROBE_SYSTEM)
+        self.assertEqual(off, PROBE_SYSTEM)
+        self.assertNotIn("Kanban", off)
         self.assertNotIn(SKILL, off)
         self.assertIn(SKILL, on)
         self.assertIn("=== CRITICAL THINKING SKILL (verbatim supplied file) ===", on)
@@ -36,6 +38,8 @@ class MicroprobeTests(unittest.TestCase):
         off = build_probe_request("test-model", None)
         on = build_probe_request("test-model", SKILL)
         self.assertEqual(off["messages"][1], on["messages"][1])
+        self.assertIn("Separate what the figures imply", off["messages"][0]["content"])
+        self.assertNotIn("Kanban", off["messages"][0]["content"])
         self.assertEqual(off["messages"][1]["content"], PROMPT)
         self.assertEqual(off["options"], on["options"])
         self.assertEqual(off["model"], on["model"])
