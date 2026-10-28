@@ -45,6 +45,14 @@ class LoggingContractTests(unittest.TestCase):
             with self.assertRaises(LogValidationError):
                 validate_run(root / "run-a")
 
+    def test_missing_final_checksum_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "output"
+            run_rehearsal(root)
+            (root / "run-a" / "checksums.sha256").unlink()
+            with self.assertRaisesRegex(LogValidationError, "missing checksums"):
+                validate_run(root / "run-a")
+
     def test_changed_controlled_manifest_field_rejects_pair(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "output"
