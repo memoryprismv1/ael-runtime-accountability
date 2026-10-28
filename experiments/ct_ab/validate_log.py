@@ -128,10 +128,11 @@ def validate_run(run_dir: str | Path, require_finished: bool = True) -> dict[str
     if require_finished and parsed[-1]["event_type"] != "run_finished":
         _fail("last event must be run_finished")
     checksum_path = root / "checksums.sha256"
-    if checksum_path.exists():
-        first = checksum_path.read_text(encoding="ascii").split()
-        if len(first) < 2 or first[1] != "events.jsonl" or first[0] != sha256_file(events_path):
-            _fail("events.jsonl checksum mismatch")
+    if not checksum_path.is_file():
+        _fail("missing checksums.sha256")
+    first = checksum_path.read_text(encoding="ascii").split()
+    if len(first) != 2 or first[1] != "events.jsonl" or first[0] != sha256_file(events_path):
+        _fail("events.jsonl checksum missing, malformed, or mismatched")
     return {"run_id": manifest["run_id"], "condition_label": manifest["condition_label"], "events": len(parsed), "event_types": sorted(event_types), "evidence_refs_verified": referenced, "events_sha256": sha256_file(events_path), "status": parsed[-1]["payload"].get("completion_status", parsed[-1]["status"])}
 
 
