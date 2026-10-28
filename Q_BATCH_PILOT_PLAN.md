@@ -130,3 +130,31 @@ It compares six logged runs:
 The fixture is intentionally stateful: the first condition sees a clean baseline, and the next condition inherits the previous condition's state. The expected result is order dependence in the sequential comparisons and comparable clean-baseline outcomes in the isolated runs. Every run's event chain, checksum and evidence references are validated before the method report is marked PASS.
 
 **Interpretation boundary:** this is a deterministic demonstration that a particular sequential carryover confound can be exposed by clean-baseline runs and an evidence batch. It is not proof of universal superiority over A/B testing, and it says nothing about Critical Thinking skill efficacy.
+
+## Longer-term direction: historical evidence and retrospective analysis
+
+This is a future direction, not work to implement as part of the current method demonstration.
+
+Q-Batch evidence should remain useful after its original experiment has finished. In addition to comparing conditions for one experiment, accumulated run evidence may later support longitudinal questions such as:
+
+- How has `main`'s behaviour changed across weeks or months?
+- When did a runtime, failure rate, retry pattern, or other observed property begin to drift?
+- Does a development branch differ from the current baseline, and how does that difference compare with the longer-term history?
+- Is a change consistent with ordinary run-to-run variability, or does it warrant investigation?
+- Can old evidence answer a question that nobody thought to ask when those runs were collected?
+
+### Architectural boundary
+
+- The existing event log records observable events and references to evidence. It does not know whether downstream consumers will compare, aggregate, chart, or otherwise analyse those records.
+- Preserve original run evidence; do not replace detailed observations with averages or other irreversible summaries.
+- Historical analysis belongs in separate post-processing code. Start with Python and the existing JSONL/manifests/artifacts; introduce another dependency or storage format only if a demonstrated need arises.
+- Derived reports should identify the source runs and processing method so a finding can be traced back to its evidence.
+- Retain historical evidence beyond ordinary short-lived CI artifact windows if it is to serve as a longitudinal baseline. The archive/retention mechanism is a separate future decision.
+- Record enough run context to judge comparability, including source commit, test/suite identity, configuration, environment and relevant data/seed identity. Do not assume runs are comparable merely because their test names match.
+- Treat trends and correlations as investigative evidence, not automatic proof that a particular commit caused a change.
+
+### Scope boundary
+
+This direction does not require changing the event logger into a comparison system, adopting Allure or another reporting product, adding DuckDB, introducing Parquet, or building a dashboard now. Existing tools may provide reusable mechanisms later, but Q-Batch should borrow individual mechanisms only when they solve a concrete need.
+
+The first practical exploration, when undertaken, should be a small Python post-processor over existing Q-Batch evidence to test a real historical question without modifying the source logs. No historical archive, scheduled baseline run, charting system, or new dependency is being introduced by this plan.
