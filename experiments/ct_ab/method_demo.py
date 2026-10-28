@@ -47,7 +47,9 @@ def _run_condition(root: Path, scenario: str, label: str, order_index: int,
         "model": MODEL,
         "environment": ENVIRONMENT,
         "resource_limits": LIMITS,
-        "base_commit": "fixture-baseline-sha256:" + _state_hash({"prior_condition": None}),
+        # Record actual initial state identity, not merely the nominal fixture.
+        # Sequential second runs must visibly differ from the clean baseline.
+        "base_commit": "fixture-state-sha256:" + _state_hash(state),
     }
     logger = RunLogger(run_dir, workspace, manifest)
     try:
