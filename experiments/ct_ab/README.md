@@ -1,6 +1,8 @@
 # CT A/B Experiment Logging Gate
 
-This package must be implemented and rehearsed before the scored Critical Thinking skill-on/skill-off software task begins. It provides one shared JSONL logger, one versioned event contract, artifact integrity checks, and paired-run validation. Both conditions use this same code and schema; the model does not supply or modify the logger.
+This package provides a shared JSONL logger, a versioned event contract, artifact integrity checks, and paired-run validation. Both conditions use the same code and schema; the model does not supply or modify the logger.
+
+> **Scope correction:** the heavyweight real-model skill-on/skill-off pilot is not the test of whether Q-Batch is useful. It is an attempted application experiment that has so far failed in both conditions before producing a valid pair: earlier runs hit tool-protocol/no-tool loops, and a later run timed out on the first model request. Those failures show that this task/model/runner combination is too expensive or brittle for a useful first test; they do not show that Q-Batch failed, that A/B is inherently inferior, or that the skill helps or hurts. Test Q-Batch's evidence workflow with small, deterministic, inexpensive fixtures first. Keep real-model efficacy testing separate.
 
 ## Layout
 
@@ -110,3 +112,19 @@ Merging the parser fix automatically retriggers the real-model pilot. A valid at
 The follow-up pilot (run 39597455540) passed pinned-skill verification and Ollama preflight but again did not produce a valid comparison. The model then repeatedly returned prose or echoed prior tool output without invoking a tool; both runs exhausted their 24-turn budgets. Acceptance was not run. This is a runner/model interaction failure, not evidence for or against the skill.
 
 Issue #8 adds an explicit recovery prompt, hash-based repeated-response detection, a bounded consecutive no-tool limit, and structured `agent_recovery_attempt` / `agent_loop_detected` events. The runner must stop with an auditable reason rather than spend the rest of the inference budget repeating the same instruction.
+
+
+## Separate question: what Q-Batch is meant to demonstrate
+
+Q-Batch is an evidence-batching and comparison workflow, not a claim that every A/B experiment should be replaced. The practical question here is whether it makes tests possible to inspect and compare when the ordinary back-to-back experiment is too costly, fragile, stateful, or difficult to reproduce.
+
+The current real-model pilot does **not** answer that question: both conditions have been too heavy for the available execution setup, and neither produced a valid scored pair. Do not keep spending multi-gigabyte downloads and long model runs just to test whether the logger records evidence correctly.
+
+The next methodological test should be a cheap, deterministic fixture with known expected outcomes. It should:
+1. Demonstrate a specific failure mode in a naive sequential comparison (for example, a shared mutable state that makes the second result depend on which condition ran first).
+2. Run the same conditions independently from a declared clean baseline.
+3. Record condition, order, baseline/state identifiers or hashes, outcomes, and failure/skip status in the evidence batch.
+4. Verify that the batch report exposes the order-dependent result and that clean-baseline results are comparable.
+5. Label this a **synthetic methodology demonstration**, not real-model efficacy evidence.
+
+A fixture that merely proves JSONL hashes validate is a logger test. A fixture that deliberately creates and then detects a known order/carryover confound is a Q-Batch methodology test. Keep those claims separate.
