@@ -128,3 +128,15 @@ The next methodological test should be a cheap, deterministic fixture with known
 5. Label this a **synthetic methodology demonstration**, not real-model efficacy evidence.
 
 A fixture that merely proves JSONL hashes validate is a logger test. A fixture that deliberately creates and then detects a known order/carryover confound is a Q-Batch methodology test. Keep those claims separate.
+
+
+## Run the deterministic method demonstration (no model required)
+
+Run this from the repository root:
+
+    python -m unittest experiments.ct_ab.test_method_demo -v
+    python -m experiments.ct_ab.method_demo --output /path/to/new-method-demo
+
+The command creates six immutable run logs: sequential A→B, sequential B→A, and isolated clean-baseline A/B. The fixture deliberately leaves state behind after the first sequential condition. It checks that reversing the order changes which condition appears to have the clean result, while isolated conditions both start clean. Every run is validated, and `method-report.json` records the result and limitations. The output directory must be new or empty.
+
+This is a synthetic demonstration of one known carryover failure mode. It does not use Ollama, call a model, execute generated application code, or establish model/skill efficacy. CI runs it separately from the heavyweight real-model pilot and uploads its evidence artifact.
