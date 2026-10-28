@@ -325,7 +325,19 @@ def _run_one(label: str, enabled: bool, workspace: Path, run_dir: Path, acceptan
             result["errors"].append(f"acceptance runner failed: {type(exc).__name__}: {str(exc)[:2000]}")
             logger.emit("error","runner","verification","observed",{"kind":"acceptance_runner_error","error_type":type(exc).__name__,"message":str(exc)[:2000]})
     else:
-        logger.record_test_result(["independent_acceptance_suite"],1,None,None,[])
+        # The acceptance suite did not execute. Record it as skipped/not-run,
+        # not as a test failure with exit code 1 (which falsely implies a process ran).
+        logger.emit(
+            "test_result", "runner", "verification", "skipped",
+            {
+                "command": ["independent_acceptance_suite"],
+                "execution_status": "not_run",
+                "reason": "agent did not finish; acceptance suite was not executed",
+                "exit_code": None,
+                "passed": None,
+                "failed": None,
+            },
+        )
         result["acceptance_status"]="NOT_RUN_AGENT_FAILED"
     run_status="succeeded" if result["agent_status"]=="finished" and result["acceptance_status"]=="PASS" else "failed"
     result["source_tree_sha256"]=_folder_sha(workspace)
