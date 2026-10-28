@@ -140,3 +140,20 @@ Run this from the repository root:
 The command creates six immutable run logs: sequential A→B, sequential B→A, and isolated clean-baseline A/B. The fixture deliberately leaves state behind after the first sequential condition. It checks that reversing the order changes which condition appears to have the clean result, while isolated conditions both start clean. Every run is validated, and `method-report.json` records the result and limitations. The output directory must be new or empty.
 
 This is a synthetic demonstration of one known carryover failure mode. It does not use Ollama, call a model, execute generated application code, or establish model/skill efficacy. CI runs it separately from the heavyweight real-model pilot and uploads its evidence artifact.
+
+## Future direction: longitudinal evidence (planned, not implemented)
+
+Q-Batch may later retain historical test-run evidence so that it can be queried across time, not only compared within one experiment. For example, weekly runs of `main` could form a historical baseline against which development branches are compared, while the same archive supports retrospective investigation of drift or recurring failure patterns.
+
+This is a future direction; it is not part of the current logger or method demonstration.
+
+Design boundaries:
+
+- The event logger records what happened and preserves evidence. It does not implement comparisons, charts, aggregation, or downstream analysis.
+- Keep original run evidence available. Do not retain only averages or other lossy summaries that prevent later analysis of distributions and individual observations.
+- Implement future analysis as separate post-processing. Python over the existing JSONL files, manifests, and artifacts is the starting point; no new analytical dependency is currently required.
+- Keep derived findings traceable to their source runs and processing method.
+- Longitudinal use will require an evidence-retention mechanism beyond the short retention window of ordinary CI artifacts. That mechanism is not selected or implemented yet.
+- Comparisons must account for commit, test-suite/configuration and environment differences. Historical correlation alone does not prove causation.
+
+We may borrow individual mechanisms from existing tools when useful, but we are not adopting a reporting product or building a dashboard now. The next exploratory step, when prioritised, is to test a concrete historical query with a small Python processor against existing Q-Batch evidence without changing the source logs.
