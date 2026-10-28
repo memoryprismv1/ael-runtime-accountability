@@ -315,6 +315,14 @@ class AgentLoop:
             }
             began=time.monotonic()
             request_payload_sha256 = hashlib.sha256(json.dumps(request_body, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+            # Preserve the exact outbound request before transport. If the
+            # request times out, there will be no response artifact, but the
+            # evidence must still show what the runner attempted to send.
+            request_ref = self.logger.capture_artifact(
+                f"model-request-payload-{request_id}.json",
+                json.dumps(request_body, ensure_ascii=False, sort_keys=True),
+                "application/json",
+            )
             self.logger.emit(
                 "model_request_started", "runtime", "implementation", "started",
                 {
@@ -325,6 +333,7 @@ class AgentLoop:
                     "message_count": len(self.messages),
                     "request_payload_sha256": request_payload_sha256,
                 },
+                [request_ref],
             )
             try:
                 response=self.client.chat(request_body)
