@@ -109,6 +109,49 @@ class LoggingContractTests(unittest.TestCase):
             self.assertEqual(sum(e["event_type"] == "model_request" for e in payloads), 1)
             self.assertEqual(sum(e["event_type"] == "model_response" for e in payloads), 1)
 
+    def test_failed_model_request_preserves_outbound_payload_without_fake_response(self):
+        from .agent_loop import AgentLoop, OllamaClient, RunnerError
+
+        class TimeoutClient:
+            timeout = 0.01
+            def chat(self, request_body):
+                raise TimeoutError("fixture timeout")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            manifest = {
+                "run_id": "timeout-test", "condition_label": "A",
+                "task_brief_sha256": "0" * 64, "condition_config_sha256": "1" * 64,
+                "logger_version": LOGGER_VERSION, "schema_version": SCHEMA_VERSION,
+                "started_at_utc": utc_now(), "model": {"provider": "mock", "model_id": "sample"},
+                "environment": {}, "resource_limits": {}, "base_commit": "none",
+            }
+            logger = RunLogger(root / "run", workspace, manifest)
+            try:
+                loop = AgentLoop(workspace, logger, TimeoutClient(), "sample", "brief", "{}", None, "1" * 64, {}, max_turns=1)
+                with self.assertRaises(RunnerError):
+                    loop.run()
+                logger.finish("failed", "intentional timeout fixture")
+            finally:
+                logger.close()
+
+            rows = [json.loads(line) for line in (root / "run" / "events.jsonl").read_text().splitlines()]
+            started = next(e for e in rows if e["event_type"] == "model_request_started")
+            failed = next(e for e in rows if e["event_type"] == "model_request_failed")
+            self.assertEqual(started["payload"]["request_id"], failed["payload"]["request_id"])
+            refs = started["evidence_refs"]
+            self.assertEqual(len(refs), 1)
+            ref = refs[0]
+            payload_path = root / "run" / ref["path"]
+            payload = payload_path.read_bytes()
+            import hashlib
+            self.assertEqual(hashlib.sha256(payload).hexdigest(), ref["sha256"])
+            self.assertEqual(hashlib.sha256(payload).hexdigest(), started["payload"]["request_payload_sha256"])
+            self.assertFalse(any(e["event_type"] == "model_response" for e in rows))
+            self.assertTrue(any(e["event_type"] == "run_finished" and e["status"] == "failed" for e in rows))
+
     def test_unsafe_artifact_name_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
