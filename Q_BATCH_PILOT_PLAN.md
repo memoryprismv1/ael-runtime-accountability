@@ -116,3 +116,17 @@ Use a deterministic, low-cost fixture to show the distinction between (a) two co
 The method test should complete without Ollama, model downloads, generated application code, or human scoring. Its report must say explicitly that it is synthetic and establishes only the demonstrated failure mode and evidence handling. It must not be described as proof that Q-Batch is universally better than A/B testing.
 
 Only return to the real-model skill pilot if the skill-effectiveness question is still worth its execution cost and a suitably lightweight, reliable model/task setup is available. Any new attempt remains a separate immutable evidence batch.
+
+
+## Deterministic method demonstration (implemented)
+
+The model-free demonstration is implemented in `experiments/ct_ab/method_demo.py` and tested by `experiments/ct_ab/test_method_demo.py`. CI runs the unit test and creates an evidence artifact named `ct-ab-method-demo-evidence`.
+
+It compares six logged runs:
+- A then B against shared state;
+- B then A against shared state;
+- A and B independently, each from a fresh baseline.
+
+The fixture is intentionally stateful: the first condition sees a clean baseline, and the next condition inherits the previous condition's state. The expected result is order dependence in the sequential comparisons and comparable clean-baseline outcomes in the isolated runs. Every run's event chain, checksum and evidence references are validated before the method report is marked PASS.
+
+**Interpretation boundary:** this is a deterministic demonstration that a particular sequential carryover confound can be exposed by clean-baseline runs and an evidence batch. It is not proof of universal superiority over A/B testing, and it says nothing about Critical Thinking skill efficacy.
