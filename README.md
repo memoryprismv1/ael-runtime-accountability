@@ -102,6 +102,10 @@ The original AEL writing remains the authoritative source and is linked, not rec
 
 No direct integration into ChatGPT or Claude websites; no paid/cloud API integration; no automatic materiality classifier; no automatic semantic-relevance classifier; no production concurrency service; no fully validated locale-tag service; no claim of automatic model-weight learning; no claim that all AEL mechanisms are complete. Locale Tags remain a documented hypothesis and are not overbuilt here.
 
+## Basic Q-Batch evidence review
+
+The optional offline checker verifies raw-log presence and SHA-256 integrity, basic run status, and presence of the test summary, then writes a readable Markdown report. It does not replace the experiment-specific acceptance gate. See [`Q_BATCH_BASIC_REVIEW.md`](Q_BATCH_BASIC_REVIEW.md) for use and limitations. For broader cumulative or qualitative review, the [Peer Review skill](https://github.com/memoryprismv1/cognitive-interface-ai-skills/tree/main/peer-review) is available but not required.
+
 ## Reproducible test evidence (experimental branch)
 
 The branch `test/capture-unit-test-evidence` adds a GitHub Actions workflow and a standard-library runner that execute the existing unit suite and preserve:
