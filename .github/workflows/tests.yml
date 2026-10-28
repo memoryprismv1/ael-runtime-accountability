@@ -29,6 +29,18 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run experiment logging and paired-run contract tests
         run: python -m unittest experiments.ct_ab.test_logging experiments.ct_ab.test_pair_runner -v
+      - name: Test Q-Batch order/carryover methodology demonstration
+        run: python -m unittest experiments.ct_ab.test_method_demo -v
+      - name: Execute deterministic Q-Batch methodology demonstration
+        run: python -m experiments.ct_ab.method_demo --output "$RUNNER_TEMP/ct-ab-method-demo"
+      - name: Upload Q-Batch methodology evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ct-ab-method-demo-evidence
+          path: ${{ runner.temp }}/ct-ab-method-demo/
+          if-no-files-found: warn
+          retention-days: 30
       - name: Run synthetic pair preflight
         run: python -m experiments.ct_ab.preflight --output "$RUNNER_TEMP/ct-ab-preflight"
       - name: Upload synthetic preflight logs and report
