@@ -28,6 +28,17 @@ class MethodDemoTests(unittest.TestCase):
             self.assertEqual(analysis["isolated_outcomes"], {
                 "A": "clean_baseline", "B": "clean_baseline"
             })
+            # The manifest must identify the actual starting state. Sequential
+            # B inherits A's state; isolated A and B share the same clean baseline.
+            def base_state(scenario, label):
+                path = output / "runs" / scenario / f"{scenario}-{label.lower()}" / "manifest.json"
+                manifest = json.loads(path.read_text(encoding="utf-8"))
+                return manifest["base_commit"]
+            self.assertNotEqual(base_state("sequential_ab", "A"),
+                                base_state("sequential_ab", "B"))
+            self.assertNotEqual(base_state("sequential_ba", "B"),
+                                base_state("sequential_ba", "A"))
+            self.assertEqual(base_state("isolated", "A"), base_state("isolated", "B"))
             saved = json.loads((output / "method-report.json").read_text(encoding="utf-8"))
             self.assertEqual(saved["classification"],
                              "SYNTHETIC_METHODOLOGY_DEMONSTRATION_NOT_MODEL_EFFICACY")
