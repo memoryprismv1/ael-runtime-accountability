@@ -1,8 +1,20 @@
 # Q-Batch Pilot Plan — AEL Runtime Accountability
 
-**Status:** Protocol recovered; real-model execution still pending a valid pair  
+**Status:** Real-model skill-on/skill-off pilot has no valid pair; method demonstration should be tested separately  
 **Method:** Q-Batch of Evidence  
-**Purpose:** Preserve independently inspectable evidence for the Critical Thinking skill-on/skill-off software-task experiment, with offline comparison after evidence is frozen.
+**Purpose:** Preserve independently inspectable evidence in batches and enable comparison without requiring a fragile, expensive back-to-back model run. The Critical Thinking pilot is one possible application, not proof of the Q-Batch method itself.
+
+## Important distinction: the pilot is too heavy to test the method
+
+The existing real-model task has failed in both conditions in repeated attempts: tool-protocol/no-tool loops in earlier attempts, then a first-request timeout in both A and B. No valid pair reached independent acceptance scoring. This is evidence that the current task/model/runner combination is too heavy or brittle for a first demonstration—not evidence for or against Critical Thinking, and not a verdict on Q-Batch.
+
+Do not use another expensive real-model attempt as the first test of Q-Batch's value. First test the method with a small deterministic fixture whose expected result is known. The fixture should reproduce a specific sequential-comparison problem, such as order-dependent outcomes caused by shared mutable state, then compare that with independent runs from a clean recorded baseline. Q-Batch should preserve the run order, baseline/state identity, outcomes, and evidence needed to expose the confound.
+
+Keep three claims separate:
+
+- **Logger integrity:** event chains, checksums, and artifact references detect missing or changed evidence.
+- **Q-Batch methodology:** a frozen evidence batch makes independently executed conditions inspectable and reveals a known confound that a naive sequential comparison obscures.
+- **Real-model efficacy:** whether the Critical Thinking skill improves task performance. The current pilot has not established this.
 
 ## Plain-English status
 
@@ -95,3 +107,12 @@ Run [39730856613](https://github.com/memoryprismv1/ael-runtime-accountability/ac
 - Therefore this is not a scored pair and says nothing about the skill's effect.
 
 **Recovery action:** the workflow now passes a 600-second per-request timeout while keeping the model, pinned skill, task, temperature, context, prediction limit, turn/tool limits and blinded paired design unchanged. This is an operational allowance to test whether the hosted CPU runner can complete the first response, not a change to the task or rubric. The next attempt remains pending until a new workflow run is observed. It must be preserved as a new independent evidence batch; do not merge it with this failed batch.
+
+
+## Recommended next step: small method test before another model pilot
+
+Use a deterministic, low-cost fixture to show the distinction between (a) two conditions executed sequentially against shared state and (b) the same conditions run independently from clean, recorded baselines. Intentionally make the shared-state outcome order-dependent, then verify that the batch records enough evidence to identify that dependency and compare the isolated runs.
+
+The method test should complete without Ollama, model downloads, generated application code, or human scoring. Its report must say explicitly that it is synthetic and establishes only the demonstrated failure mode and evidence handling. It must not be described as proof that Q-Batch is universally better than A/B testing.
+
+Only return to the real-model skill pilot if the skill-effectiveness question is still worth its execution cost and a suitably lightweight, reliable model/task setup is available. Any new attempt remains a separate immutable evidence batch.
