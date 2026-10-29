@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, sha256_bytes, utc_now
+from .context import load_context
 from .validate_log import validate_run
 
 TASK = (
@@ -50,6 +51,8 @@ def _run_condition(root: Path, scenario: str, label: str, order_index: int,
         # Record actual initial state identity, not merely the nominal fixture.
         # Sequential second runs must visibly differ from the clean baseline.
         "base_commit": "fixture-state-sha256:" + _state_hash(state),
+        "context_id": "qbatch-method-order-carryover-v1",
+        "context": load_context("qbatch-method-order-carryover-v1"),
     }
     logger = RunLogger(run_dir, workspace, manifest)
     try:
