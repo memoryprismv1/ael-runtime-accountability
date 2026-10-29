@@ -102,6 +102,17 @@ class LoggingContractTests(unittest.TestCase):
         self.assertIn("qbatch-method-order-carryover-v1", ids)
         self.assertIn("qbatch-instrumentation-preflight-v1", ids)
 
+    def test_manifest_context_snapshot_tampering_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "output"
+            run_rehearsal(root)
+            manifest_path = root / "run-a" / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["context"]["purpose"] = "silently rewritten history"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(LogValidationError, "context snapshot"):
+                validate_run(root / "run-a")
+
     def test_manifest_context_mismatch_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
