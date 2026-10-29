@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, utc_now
+from .context import load_context, ContextValidationError, validate_context
 from .preflight import run_rehearsal
 from .validate_log import EVENT_TYPES, STATUSES, LogValidationError, validate_pair, validate_run
 
@@ -76,7 +77,7 @@ class LoggingContractTests(unittest.TestCase):
             root = Path(tmp)
             workspace = root / "workspace"
             workspace.mkdir()
-            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none"}
+            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"qbatch-instrumentation-preflight-v1", "context":load_context("qbatch-instrumentation-preflight-v1")}
             with self.assertRaises(ValueError):
                 RunLogger(workspace / "logs", workspace, manifest)
 
@@ -91,6 +92,25 @@ class LoggingContractTests(unittest.TestCase):
             logger.finish()
             with self.assertRaises(FileExistsError):
                 RunLogger(out, workspace, manifest)
+
+    def test_context_catalog_entries_validate_and_are_unique(self):
+        from .context import CATALOG_PATH
+        catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+        entries = [validate_context(item) for item in catalog["contexts"]]
+        ids = [item["context_id"] for item in entries]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertIn("qbatch-method-order-carryover-v1", ids)
+        self.assertIn("qbatch-instrumentation-preflight-v1", ids)
+
+    def test_manifest_context_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            context = load_context("qbatch-instrumentation-preflight-v1")
+            manifest = {"run_id":"bad-context", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"wrong-id", "context":context}
+            with self.assertRaisesRegex(ValueError, "context_id does not match"):
+                RunLogger(root / "run", workspace, manifest)
 
     def test_schema_event_type_enum_matches_validator(self):
         schema_path = Path(__file__).with_name("log_schema.schema.json")
@@ -134,7 +154,7 @@ class LoggingContractTests(unittest.TestCase):
                 "task_brief_sha256": "0" * 64, "condition_config_sha256": "1" * 64,
                 "logger_version": LOGGER_VERSION, "schema_version": SCHEMA_VERSION,
                 "started_at_utc": utc_now(), "model": {"provider": "mock", "model_id": "sample"},
-                "environment": {}, "resource_limits": {}, "base_commit": "none",
+                "environment": {}, "resource_limits": {}, "base_commit": "none",\n                "context_id": "qbatch-instrumentation-preflight-v1", "context": load_context("qbatch-instrumentation-preflight-v1"),
             }
             logger = RunLogger(root / "run", workspace, manifest)
             try:
