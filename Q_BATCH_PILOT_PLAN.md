@@ -158,3 +158,39 @@ Q-Batch evidence should remain useful after its original experiment has finished
 This direction does not require changing the event logger into a comparison system, adopting Allure or another reporting product, adding DuckDB, introducing Parquet, or building a dashboard now. Existing tools may provide reusable mechanisms later, but Q-Batch should borrow individual mechanisms only when they solve a concrete need.
 
 The first practical exploration, when undertaken, should be a small Python post-processor over existing Q-Batch evidence to test a real historical question without modifying the source logs. No historical archive, scheduled baseline run, charting system, or new dependency is being introduced by this plan.
+
+
+## Context preservation: keep the question attached to the evidence (proposed design)
+
+This is a documentation-level design direction only. No context-object schema, logger change, or runtime behavior is implemented by this section.
+
+Q-Batch must preserve more than the bytes produced by a test. A future reader needs to recover why the test exists and what the evidence can legitimately establish. Git history can identify code and commits, but it does not reliably preserve the reasoning, incident, question, or decision that caused a test to be created.
+
+The proposed design introduces a durable **test context object** linked to test definitions and their executions. The producer is deliberately unspecified: a human, agent, runner, or later process may create or enrich it. The important requirement is that the context exists, has its own identity, and survives alongside the evidence.
+
+The object should be able to carry, at minimum:
+
+- a stable context identity;
+- a concise summary and fuller description;
+- the test's purpose or question;
+- the rationale or triggering concern;
+- an optional hypothesis or expected observation, where applicable;
+- references to origins such as issues, discussions, incidents, design decisions, specifications, and relevant Git commits;
+- authorship/provenance and creation/version information;
+- links to related test definitions or context revisions, where useful.
+
+These are candidate fields for discussion, not a frozen schema. Missing context should be represented as missing or unknown rather than filled with invented rationale. Exploratory tests need not have a predeclared hypothesis.
+
+Keep three layers distinct:
+
+1. **Test definition/context:** why the test exists, what it investigates, its scope and origin.
+2. **Execution evidence:** what actually happened in a particular run, with commit, configuration, environment, timestamps, outcomes and immutable evidence references.
+3. **Interpretation:** conclusions drawn later from one or more executions, with the source runs and method used to derive them.
+
+One context may be referenced by many executions. One investigation may involve multiple tests. Revisions to context must not silently erase what earlier readers were told; preserve prior versions or explicit revision links. An execution record should remain interpretable even if the person or agent that originally created it is no longer available.
+
+A manually assigned comparison/experiment UUID may later group executions for a particular comparison, but that is a separate relationship. It does not replace the context object, explain the purpose by itself, or prove that grouped runs are comparable. The context explains why the evidence exists; execution metadata establishes the conditions under which it was produced; downstream analysis determines whether and how runs can be compared.
+
+**Design principle:** preserve not only observations, but also the question that motivated them, the conditions needed to interpret them, and the boundary between observation and inference. This prevents intact data from becoming a misleading artefact after its context is lost.
+
+The next step is to review this concept before incorporating a concrete structure into the repository schema or runtime. Do not treat this section as authorisation to implement the context object, add fields to event logs, or change validation behavior.
