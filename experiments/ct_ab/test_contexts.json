@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "description": "Human- or agent-authored test context definitions. Run manifests embed an immutable snapshot so the reason for a test travels with its evidence.",
+  "contexts": [
+    {
+      "context_id": "ct-ab-skill-pilot",
+      "test_id": "ct-ab-real-model-skill-pilot",
+      "version": 1,
+      "summary": "Explore whether the pinned Critical Thinking skill changes performance on the fixed software-building task.",
+      "description": "A blinded skill-on/skill-off paired local-model experiment using the fixed client brief, starter workspace, tool policy, acceptance suite, and pinned skill revision.",
+      "purpose": "Investigate the effect of enabling the specified Critical Thinking skill under the declared task and execution conditions.",
+      "rationale": "The repository contains a real-model pilot intended to test this application question, but previous attempts failed before producing a valid scored pair. The pilot is exploratory and must not be treated as evidence of efficacy unless a valid pair and independent acceptance results are obtained.",
+      "hypothesis": "The skill-on condition may differ from the skill-off condition on the independent acceptance result and qualitative assessor ratings; one pair alone cannot establish general efficacy.",
+      "origin_refs": [
+        {
+          "kind": "repository_section",
+          "ref": "Q_BATCH_PILOT_PLAN.md#acceptance-gate-for-a-valid-pair",
+          "description": "Validity requirements and limits on claims."
+        },
+        {
+          "kind": "repository_section",
+          "ref": "experiments/ct_ab/README.md#client-task-runner-and-paired-skill-comparison",
+          "description": "Fixed task, runner, and blind comparison protocol."
+        },
+        {
+          "kind": "repository_section",
+          "ref": "experiments/ct_ab/README.md#first-real-pilot-result-and-recovery",
+          "description": "Historical failures that motivate careful evidence handling."
+        }
+      ],
+      "created_at": "2026-10-29",
+      "created_by": "AI-assisted documentation from the existing repository protocol; human authorship not asserted.",
+      "related_tests": [
+        "qbatch-instrumentation-preflight",
+        "qbatch-order-carryover-method-demo"
+      ]
+    },
+    {
+      "context_id": "qbatch-instrumentation-preflight",
+      "test_id": "qbatch-instrumentation-preflight",
+      "version": 1,
+      "summary": "Verify the Q-Batch logger and evidence-integrity workflow using synthetic runs.",
+      "description": "An unscored rehearsal exercises event logging, tool/model evidence capture, command failure and recovery, file-change tracking, checksums, artifact references, and pair validation without using a real model.",
+      "purpose": "Establish that instrumentation captures and validates the expected evidence types before any expensive or scored experiment is attempted.",
+      "rationale": "A logger-integrity check is distinct from a methodology demonstration and distinct from evidence about a model or skill's efficacy.",
+      "hypothesis": "The synthetic rehearsal should pass its instrumentation gate and detect tampered events, artifacts, or controlled manifest fields.",
+      "origin_refs": [
+        {
+          "kind": "repository_section",
+          "ref": "experiments/ct_ab/README.md#preflight-gate",
+          "description": "Preflight acceptance criteria."
+        },
+        {
+          "kind": "repository_section",
+          "ref": "experiments/ct_ab/README.md#known-limits",
+          "description": "Limits of integrity checks and execution capture."
+        }
+      ],
+      "created_at": "2026-10-29",
+      "created_by": "AI-assisted documentation from the existing repository protocol; human authorship not asserted.",
+      "related_tests": [
+        "ct-ab-real-model-skill-pilot",
+        "qbatch-order-carryover-method-demo"
+      ]
+    },
+    {
+      "context_id": "qbatch-order-carryover-method-demo",
+      "test_id": "qbatch-order-carryover-method-demo",
+      "version": 1,
+      "summary": "Demonstrate one known order/carryover confound and show how clean-baseline runs expose it.",
+      "description": "A deterministic stateful fixture executes A then B, B then A, and isolated A/B runs from clean baselines; all runs preserve initial-state identity and evidence.",
+      "purpose": "Test whether the Q-Batch evidence workflow exposes a specific sequential-comparison failure mode that a naive comparison can obscure.",
+      "rationale": "The method needs a cheap, deterministic test of a known confound before another expensive real-model pilot. This fixture tests only the stated carryover mechanism, not universal superiority over A/B testing.",
+      "hypothesis": "Sequential outcomes should depend on execution order because the second run inherits state, while isolated clean-baseline outcomes should be comparable.",
+      "origin_refs": [
+        {
+          "kind": "repository_section",
+          "ref": "Q_BATCH_PILOT_PLAN.md#deterministic-method-demonstration-implemented",
+          "description": "Implemented fixture and interpretation boundary."
+        },
+        {
+          "kind": "repository_section",
+          "ref": "experiments/ct_ab/README.md#run-the-deterministic-method-demonstration-no-model-required",
+          "description": "How to run the deterministic demonstration."
+        }
+      ],
+      "created_at": "2026-10-29",
+      "created_by": "AI-assisted documentation from the existing repository protocol; human authorship not asserted.",
+      "related_tests": [
+        "ct-ab-real-model-skill-pilot",
+        "qbatch-instrumentation-preflight"
+      ]
+    }
+  ]
+}

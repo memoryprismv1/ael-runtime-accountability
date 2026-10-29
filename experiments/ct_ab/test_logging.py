@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, utc_now
+from .context import load_context, validate_context
 from .preflight import run_rehearsal
 from .validate_log import EVENT_TYPES, STATUSES, LogValidationError, validate_pair, validate_run
 
@@ -45,6 +46,14 @@ class LoggingContractTests(unittest.TestCase):
             with self.assertRaises(LogValidationError):
                 validate_run(root / "run-a")
 
+    def test_missing_final_checksum_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "output"
+            run_rehearsal(root)
+            (root / "run-a" / "checksums.sha256").unlink()
+            with self.assertRaisesRegex(LogValidationError, "missing checksums"):
+                validate_run(root / "run-a")
+
     def test_changed_controlled_manifest_field_rejects_pair(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "output"
@@ -68,7 +77,7 @@ class LoggingContractTests(unittest.TestCase):
             root = Path(tmp)
             workspace = root / "workspace"
             workspace.mkdir()
-            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none"}
+            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"qbatch-instrumentation-preflight-v1", "context":load_context("qbatch-instrumentation-preflight-v1")}
             with self.assertRaises(ValueError):
                 RunLogger(workspace / "logs", workspace, manifest)
 
@@ -78,11 +87,41 @@ class LoggingContractTests(unittest.TestCase):
             workspace = root / "workspace"
             workspace.mkdir()
             out = root / "run"
-            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none"}
+            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"qbatch-instrumentation-preflight-v1", "context":load_context("qbatch-instrumentation-preflight-v1")}
             logger = RunLogger(out, workspace, manifest)
             logger.finish()
             with self.assertRaises(FileExistsError):
                 RunLogger(out, workspace, manifest)
+
+    def test_context_catalog_entries_validate_and_are_unique(self):
+        from .context import CATALOG_PATH
+        catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+        entries = [validate_context(item) for item in catalog["contexts"]]
+        ids = [item["context_id"] for item in entries]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertIn("qbatch-method-order-carryover-v1", ids)
+        self.assertIn("qbatch-instrumentation-preflight-v1", ids)
+
+    def test_manifest_context_snapshot_tampering_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "output"
+            run_rehearsal(root)
+            manifest_path = root / "run-a" / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["context"]["purpose"] = "silently rewritten history"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(LogValidationError, "context snapshot"):
+                validate_run(root / "run-a")
+
+    def test_manifest_context_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            context = load_context("qbatch-instrumentation-preflight-v1")
+            manifest = {"run_id":"bad-context", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"wrong-id", "context":context}
+            with self.assertRaisesRegex(ValueError, "context_id does not match"):
+                RunLogger(root / "run", workspace, manifest)
 
     def test_schema_event_type_enum_matches_validator(self):
         schema_path = Path(__file__).with_name("log_schema.schema.json")
@@ -96,7 +135,7 @@ class LoggingContractTests(unittest.TestCase):
             root = Path(tmp)
             workspace = root / "workspace"
             workspace.mkdir()
-            manifest = {"run_id":"model-test", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{"provider":"mock","model_id":"sample","version":"1"}, "environment":{}, "resource_limits":{}, "base_commit":"none"}
+            manifest = {"run_id":"model-test", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{"provider":"mock","model_id":"sample","version":"1"}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"qbatch-instrumentation-preflight-v1", "context":load_context("qbatch-instrumentation-preflight-v1")}
             logger = RunLogger(root / "run", workspace, manifest)
             try:
                 logger.record_model_exchange({"provider":"mock", "model_id":"sample", "request_id":"req-1", "latency_ms":12}, "exact prompt", "exact response", {"input_tokens":2, "output_tokens":2})
@@ -109,12 +148,56 @@ class LoggingContractTests(unittest.TestCase):
             self.assertEqual(sum(e["event_type"] == "model_request" for e in payloads), 1)
             self.assertEqual(sum(e["event_type"] == "model_response" for e in payloads), 1)
 
+    def test_failed_model_request_preserves_outbound_payload_without_fake_response(self):
+        from .agent_loop import AgentLoop, OllamaClient, RunnerError
+
+        class TimeoutClient:
+            timeout = 0.01
+            def chat(self, request_body):
+                raise TimeoutError("fixture timeout")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            manifest = {
+                "run_id": "timeout-test", "condition_label": "A",
+                "task_brief_sha256": "0" * 64, "condition_config_sha256": "1" * 64,
+                "logger_version": LOGGER_VERSION, "schema_version": SCHEMA_VERSION,
+                "started_at_utc": utc_now(), "model": {"provider": "mock", "model_id": "sample"},
+                "environment": {}, "resource_limits": {}, "base_commit": "none",
+                "context_id": "qbatch-instrumentation-preflight-v1", "context": load_context("qbatch-instrumentation-preflight-v1"),
+            }
+            logger = RunLogger(root / "run", workspace, manifest)
+            try:
+                loop = AgentLoop(workspace, logger, TimeoutClient(), "sample", "brief", "{}", None, "1" * 64, {}, max_turns=1)
+                with self.assertRaises(RunnerError):
+                    loop.run()
+                logger.finish("failed", "intentional timeout fixture")
+            finally:
+                logger.close()
+
+            rows = [json.loads(line) for line in (root / "run" / "events.jsonl").read_text().splitlines()]
+            started = next(e for e in rows if e["event_type"] == "model_request_started")
+            failed = next(e for e in rows if e["event_type"] == "model_request_failed")
+            self.assertEqual(started["payload"]["request_id"], failed["payload"]["request_id"])
+            refs = started["evidence_refs"]
+            self.assertEqual(len(refs), 1)
+            ref = refs[0]
+            payload_path = root / "run" / ref["path"]
+            payload = payload_path.read_bytes()
+            import hashlib
+            self.assertEqual(hashlib.sha256(payload).hexdigest(), ref["sha256"])
+            self.assertEqual(hashlib.sha256(payload).hexdigest(), started["payload"]["request_payload_sha256"])
+            self.assertFalse(any(e["event_type"] == "model_response" for e in rows))
+            self.assertTrue(any(e["event_type"] == "run_finished" and e["status"] == "failed" for e in rows))
+
     def test_unsafe_artifact_name_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             workspace = root / "workspace"
             workspace.mkdir()
-            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none"}
+            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"qbatch-instrumentation-preflight-v1", "context":load_context("qbatch-instrumentation-preflight-v1")}
             logger = RunLogger(root / "run", workspace, manifest)
             try:
                 with self.assertRaises(ValueError):

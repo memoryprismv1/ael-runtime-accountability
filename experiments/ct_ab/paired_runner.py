@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 from .acceptance import run_acceptance
 from .agent_loop import AgentLoop, OllamaClient, RunnerError
+from .context import load_context
 from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, sha256_bytes, sha256_file, utc_now
 from .validate_log import LogValidationError, validate_pair, validate_run
 
@@ -275,7 +276,9 @@ def _run_one(label: str, enabled: bool, workspace: Path, run_dir: Path, acceptan
         "acceptance_contract_version":"1.0",
         "skill_source":dict(skill_source) if enabled else None,
         "skill_file_sha256":skill_hash if enabled else None,
-        "skill_file_git_blob_sha1":skill_git_blob_sha1 if enabled else None
+        "skill_file_git_blob_sha1":skill_git_blob_sha1 if enabled else None,
+        "context_id":"ct-skill-on-off-kanban-v1",
+        "context":load_context("ct-skill-on-off-kanban-v1")
     })
     logger = RunLogger(run_dir,workspace,manifest)
     result: dict[str, Any] = {
@@ -325,7 +328,19 @@ def _run_one(label: str, enabled: bool, workspace: Path, run_dir: Path, acceptan
             result["errors"].append(f"acceptance runner failed: {type(exc).__name__}: {str(exc)[:2000]}")
             logger.emit("error","runner","verification","observed",{"kind":"acceptance_runner_error","error_type":type(exc).__name__,"message":str(exc)[:2000]})
     else:
-        logger.record_test_result(["independent_acceptance_suite"],1,None,None,[])
+        # The acceptance suite did not execute. Record it as skipped/not-run,
+        # not as a test failure with exit code 1 (which falsely implies a process ran).
+        logger.emit(
+            "test_result", "runner", "verification", "skipped",
+            {
+                "command": ["independent_acceptance_suite"],
+                "execution_status": "not_run",
+                "reason": "agent did not finish; acceptance suite was not executed",
+                "exit_code": None,
+                "passed": None,
+                "failed": None,
+            },
+        )
         result["acceptance_status"]="NOT_RUN_AGENT_FAILED"
     run_status="succeeded" if result["agent_status"]=="finished" and result["acceptance_status"]=="PASS" else "failed"
     result["source_tree_sha256"]=_folder_sha(workspace)
@@ -420,7 +435,7 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
         "note":"Controller-private. Keep separate from blind scoring packets until assessor scores are frozen."
     }
     key_path.write_text(json.dumps(key_doc,indent=2,sort_keys=True)+"\n",encoding="utf-8")
-    (output/"task-manifest.json").write_text(json.dumps({"pair_id":pair_id,"task_bundle_sha256":task_hash,"client_brief_sha256":_sha_text(brief),"api_contract_sha256":_sha_text(contract),"starter_sha256":starter_hash,"acceptance_suite_sha256":_sha_bytes((PACKAGE_DIR/"acceptance.py").read_bytes()),"acceptance_contract_version":"1.0","skill_source":effective_skill_source,"skill_file_sha256":skill_hash,"skill_file_git_blob_sha1":skill_git_sha1,"model":model,"model_digest":selected_model.get("digest"),"common_options":opts,"base_commit":"starter-sha256:"+starter_hash},indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    (output/"task-manifest.json").write_text(json.dumps({"pair_id":pair_id,"task_bundle_sha256":task_hash,"client_brief_sha256":_sha_text(brief),"api_contract_sha256":_sha_text(contract),"starter_sha256":starter_hash,"acceptance_suite_sha256":_sha_bytes((PACKAGE_DIR/"acceptance.py").read_bytes()),"acceptance_contract_version":"1.0","skill_source":effective_skill_source,"skill_file_sha256":skill_hash,"skill_file_git_blob_sha1":skill_git_sha1,"model":model,"model_digest":selected_model.get("digest"),"common_options":opts,"base_commit":"starter-sha256:"+starter_hash,"context_id":"ct-skill-on-off-kanban-v1","context":load_context("ct-skill-on-off-kanban-v1")},indent=2,sort_keys=True)+"\n",encoding="utf-8")
     labels_to_run=list(labels)
     # execution order is randomized separately from the A/B condition mapping.
     if secrets.randbelow(2):

@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, utc_now
+from .context import load_context
 from .validate_log import LogValidationError, validate_pair
 
 REHEARSAL_BRIEF = "Instrumentation rehearsal: submit a plan, change a file, record a failing command, recover, and capture a test result. No software product is being evaluated."
@@ -33,7 +34,9 @@ def _manifest(label: str, suffix: str, workspaces: Path, task_sha: str) -> dict[
         "model": {"provider": "synthetic-rehearsal", "model_id": "none", "version": "none"},
         "environment": {"runtime": f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}", "platform": sys.platform},
         "resource_limits": {"timeout_seconds_per_command": 10, "network": "not_used"},
-        "base_commit": "not-applicable-rehearsal"
+        "base_commit": "not-applicable-rehearsal",
+        "context_id": "qbatch-instrumentation-preflight-v1",
+        "context": load_context("qbatch-instrumentation-preflight-v1")
     }
 
 
