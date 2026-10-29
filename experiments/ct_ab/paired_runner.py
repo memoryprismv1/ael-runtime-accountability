@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 from .acceptance import run_acceptance
 from .agent_loop import AgentLoop, OllamaClient, RunnerError
+from .context import load_context
 from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, sha256_bytes, sha256_file, utc_now
 from .validate_log import LogValidationError, validate_pair, validate_run
 
@@ -275,7 +276,9 @@ def _run_one(label: str, enabled: bool, workspace: Path, run_dir: Path, acceptan
         "acceptance_contract_version":"1.0",
         "skill_source":dict(skill_source) if enabled else None,
         "skill_file_sha256":skill_hash if enabled else None,
-        "skill_file_git_blob_sha1":skill_git_blob_sha1 if enabled else None
+        "skill_file_git_blob_sha1":skill_git_blob_sha1 if enabled else None,
+        "context_id":"ct-skill-on-off-kanban-v1",
+        "context":load_context("ct-skill-on-off-kanban-v1")
     })
     logger = RunLogger(run_dir,workspace,manifest)
     result: dict[str, Any] = {
