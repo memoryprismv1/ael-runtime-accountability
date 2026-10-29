@@ -154,7 +154,8 @@ class LoggingContractTests(unittest.TestCase):
                 "task_brief_sha256": "0" * 64, "condition_config_sha256": "1" * 64,
                 "logger_version": LOGGER_VERSION, "schema_version": SCHEMA_VERSION,
                 "started_at_utc": utc_now(), "model": {"provider": "mock", "model_id": "sample"},
-                "environment": {}, "resource_limits": {}, "base_commit": "none",\n                "context_id": "qbatch-instrumentation-preflight-v1", "context": load_context("qbatch-instrumentation-preflight-v1"),
+                "environment": {}, "resource_limits": {}, "base_commit": "none",
+                "context_id": "qbatch-instrumentation-preflight-v1", "context": load_context("qbatch-instrumentation-preflight-v1"),
             }
             logger = RunLogger(root / "run", workspace, manifest)
             try:
