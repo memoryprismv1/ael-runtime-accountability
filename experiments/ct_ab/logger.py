@@ -90,7 +90,13 @@ class RunLogger:
         stored_manifest["written_at_utc"] = utc_now()
         stored_manifest["workspace"] = self.workspace.name
         (self.run_dir / "manifest.json").write_text(json.dumps(stored_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        self.emit("run_started", "runner", "setup", "succeeded", {"logger_version": LOGGER_VERSION, "schema_version": SCHEMA_VERSION})
+        context_hash = sha256_bytes(canonical_json(dict(manifest["context"])))
+        self.emit("run_started", "runner", "setup", "succeeded", {
+            "logger_version": LOGGER_VERSION,
+            "schema_version": SCHEMA_VERSION,
+            "context_id": manifest["context_id"],
+            "context_sha256": context_hash,
+        })
 
     def emit(self, event_type: str, actor: str, phase: str, status: str, payload: Mapping[str, Any] | None = None, evidence_refs: Iterable[Mapping[str, Any]] = ()) -> dict[str, Any]:
         event: dict[str, Any] = {
