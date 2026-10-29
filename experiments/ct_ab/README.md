@@ -159,22 +159,22 @@ Design boundaries:
 We may borrow individual mechanisms from existing tools when useful, but we are not adopting a reporting product or building a dashboard now. The next exploratory step, when prioritised, is to test a concrete historical query with a small Python processor against existing Q-Batch evidence without changing the source logs.
 
 
-## Context preservation: test purpose and origin (proposed design)
 
-This section records a design direction for review; it does not implement a context schema or change the logger.
+## Test context: implemented foundation
 
-An event stream can preserve every byte and still become misleading if future readers cannot recover why the test was run. Git history is useful provenance, but it does not necessarily explain the question, incident, uncertainty, or decision that prompted a test.
+New runs now carry a durable explanation of why their test exists. The source catalog is `context_catalog.json`, the context schema is `context_schema.schema.json`, and `context.py` loads and validates catalog entries. Three initial records cover the real skill-on/off pilot, the deterministic order/carryover method demonstration, and instrumentation preflight.
 
-The proposed solution is a durable **test context object**, with its own identity and links from test definitions and their executions. Who fills it is intentionally open: a human, agent, runner, or later process can supply the information. The requirement is to preserve the context, not to mandate a particular authoring workflow.
+A context record contains:
+- stable `context_id` and integer `version`;
+- `summary`, `description`, `purpose`, and `rationale`;
+- optional `hypothesis` (null when none is recorded);
+- `origin_refs` to repository files or other relevant source records;
+- `created_at`, `created_by`, and optional notes.
 
-Candidate content includes a short summary, description, purpose/question, rationale, optional hypothesis, origin references (issues, discussions, incidents, design notes, specifications and commits), provenance/version information, and links to related tests or context revisions. These fields remain a proposal until reviewed. Do not invent missing rationale merely to make a record look complete; hypotheses are optional when they do not fit the test.
+The producer is not fixed: a human, agent, runner, or later process may maintain the catalog. Missing rationale must not be invented just to fill a field.
 
-Keep these layers separate:
+Every newly created run manifest embeds `context_id` plus the full context snapshot. The logger writes the context ID and SHA-256 of the canonical snapshot into the first `run_started` event, binding the snapshot to the event hash chain. The validator checks this binding, and paired-run validation rejects runs whose context identities or snapshots differ. This makes silent manifest-only edits to context detectable.
 
-- **Context:** why the test exists and what question it addresses.
-- **Run evidence:** what happened in one execution and under which code, configuration, environment and data conditions.
-- **Interpretation:** conclusions drawn later, linked to their source runs and analysis method.
+The catalog provides current definitions; the manifest snapshot preserves the exact explanation associated with each run. When a context changes, increment its version and preserve the old version's meaning for historical evidence. Do not edit old manifests to match the latest catalog. Context is separate from execution evidence and later interpretation.
 
-A context may be reused across many executions; one investigation may refer to several tests. If context changes, retain its revision history instead of silently rewriting the historical explanation. A comparison UUID, if adopted, groups executions for a particular comparison; it is not a substitute for context and does not itself establish comparability.
-
-The guiding rule is to preserve the original question alongside the observations, preserve conditions needed to interpret those observations, and distinguish observed facts from later inference. Review this design before introducing a concrete schema, event fields, or runtime changes.
+Older manifests without context remain readable and are reported with `context_status: legacy_missing`; new `RunLogger` executions require a valid context snapshot. This is a context/provenance change only: the event logger still records what happened and does not perform comparisons or analysis. A comparison UUID, if added later, is a separate grouping relationship, not a substitute for context.
