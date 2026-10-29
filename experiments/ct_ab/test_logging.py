@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from .logger import LOGGER_VERSION, SCHEMA_VERSION, RunLogger, utc_now
-from .context import load_context, ContextValidationError, validate_context
+from .context import load_context, validate_context
 from .preflight import run_rehearsal
 from .validate_log import EVENT_TYPES, STATUSES, LogValidationError, validate_pair, validate_run
 
@@ -87,7 +87,7 @@ class LoggingContractTests(unittest.TestCase):
             workspace = root / "workspace"
             workspace.mkdir()
             out = root / "run"
-            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none"}
+            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"qbatch-instrumentation-preflight-v1", "context":load_context("qbatch-instrumentation-preflight-v1")}
             logger = RunLogger(out, workspace, manifest)
             logger.finish()
             with self.assertRaises(FileExistsError):
@@ -124,7 +124,7 @@ class LoggingContractTests(unittest.TestCase):
             root = Path(tmp)
             workspace = root / "workspace"
             workspace.mkdir()
-            manifest = {"run_id":"model-test", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{"provider":"mock","model_id":"sample","version":"1"}, "environment":{}, "resource_limits":{}, "base_commit":"none"}
+            manifest = {"run_id":"model-test", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{"provider":"mock","model_id":"sample","version":"1"}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"qbatch-instrumentation-preflight-v1", "context":load_context("qbatch-instrumentation-preflight-v1")}
             logger = RunLogger(root / "run", workspace, manifest)
             try:
                 logger.record_model_exchange({"provider":"mock", "model_id":"sample", "request_id":"req-1", "latency_ms":12}, "exact prompt", "exact response", {"input_tokens":2, "output_tokens":2})
@@ -185,7 +185,7 @@ class LoggingContractTests(unittest.TestCase):
             root = Path(tmp)
             workspace = root / "workspace"
             workspace.mkdir()
-            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none"}
+            manifest = {"run_id":"x", "condition_label":"A", "task_brief_sha256":"0"*64, "condition_config_sha256":"1"*64, "logger_version":LOGGER_VERSION, "schema_version":SCHEMA_VERSION, "started_at_utc":utc_now(), "model":{}, "environment":{}, "resource_limits":{}, "base_commit":"none", "context_id":"qbatch-instrumentation-preflight-v1", "context":load_context("qbatch-instrumentation-preflight-v1")}
             logger = RunLogger(root / "run", workspace, manifest)
             try:
                 with self.assertRaises(ValueError):
