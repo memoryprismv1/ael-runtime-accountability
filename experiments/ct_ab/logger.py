@@ -14,6 +14,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
+from .context import ContextValidationError, validate_manifest_context
 
 SCHEMA_VERSION = "1.0"
 LOGGER_VERSION = "0.1.0"
@@ -72,7 +73,7 @@ class RunLogger:
         self._seq = 0
         self._prev_hash: str | None = ZERO_HASH
         self._artifact_counter = 0
-        required_manifest = {"run_id", "condition_label", "task_brief_sha256", "condition_config_sha256", "logger_version", "schema_version", "started_at_utc", "model", "environment", "resource_limits", "base_commit"}
+        required_manifest = {"run_id", "condition_label", "task_brief_sha256", "condition_config_sha256", "logger_version", "schema_version", "started_at_utc", "model", "environment", "resource_limits", "base_commit", "context_id", "context"}
         missing = required_manifest - set(manifest)
         if missing:
             self._events.close()
@@ -80,6 +81,11 @@ class RunLogger:
         if manifest["condition_label"] not in {"A", "B", "REHEARSAL-A", "REHEARSAL-B"}:
             self._events.close()
             raise ValueError("condition_label must be blinded A/B or explicit rehearsal label")
+        try:
+            validate_manifest_context(manifest)
+        except ContextValidationError as exc:
+            self._events.close()
+            raise ValueError(f"invalid run context: {exc}") from exc
         stored_manifest = dict(manifest)
         stored_manifest["written_at_utc"] = utc_now()
         stored_manifest["workspace"] = self.workspace.name
