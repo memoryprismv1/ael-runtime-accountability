@@ -33,6 +33,8 @@ class MethodDemoTests(unittest.TestCase):
             def base_state(scenario, label):
                 path = output / "runs" / scenario / f"{scenario}-{label.lower()}" / "manifest.json"
                 manifest = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(manifest["context_id"], "qbatch-method-order-carryover-v1")
+                self.assertEqual(manifest["context"]["purpose"], "Test whether a Q-Batch evidence set can expose this specific sequential carryover confound and preserve enough evidence to inspect it.")
                 return manifest["base_commit"]
             self.assertNotEqual(base_state("sequential_ab", "A"),
                                 base_state("sequential_ab", "B"))
