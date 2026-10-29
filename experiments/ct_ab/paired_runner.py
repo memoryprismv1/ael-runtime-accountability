@@ -435,7 +435,7 @@ def run_pair(output_dir: str | Path, model: str, skill_file: str | Path, base_ur
         "note":"Controller-private. Keep separate from blind scoring packets until assessor scores are frozen."
     }
     key_path.write_text(json.dumps(key_doc,indent=2,sort_keys=True)+"\n",encoding="utf-8")
-    (output/"task-manifest.json").write_text(json.dumps({"pair_id":pair_id,"task_bundle_sha256":task_hash,"client_brief_sha256":_sha_text(brief),"api_contract_sha256":_sha_text(contract),"starter_sha256":starter_hash,"acceptance_suite_sha256":_sha_bytes((PACKAGE_DIR/"acceptance.py").read_bytes()),"acceptance_contract_version":"1.0","skill_source":effective_skill_source,"skill_file_sha256":skill_hash,"skill_file_git_blob_sha1":skill_git_sha1,"model":model,"model_digest":selected_model.get("digest"),"common_options":opts,"base_commit":"starter-sha256:"+starter_hash},indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    (output/"task-manifest.json").write_text(json.dumps({"pair_id":pair_id,"task_bundle_sha256":task_hash,"client_brief_sha256":_sha_text(brief),"api_contract_sha256":_sha_text(contract),"starter_sha256":starter_hash,"acceptance_suite_sha256":_sha_bytes((PACKAGE_DIR/"acceptance.py").read_bytes()),"acceptance_contract_version":"1.0","skill_source":effective_skill_source,"skill_file_sha256":skill_hash,"skill_file_git_blob_sha1":skill_git_sha1,"model":model,"model_digest":selected_model.get("digest"),"common_options":opts,"base_commit":"starter-sha256:"+starter_hash,"context_id":"ct-skill-on-off-kanban-v1","context":load_context("ct-skill-on-off-kanban-v1")},indent=2,sort_keys=True)+"\n",encoding="utf-8")
     labels_to_run=list(labels)
     # execution order is randomized separately from the A/B condition mapping.
     if secrets.randbelow(2):
