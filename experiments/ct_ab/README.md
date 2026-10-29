@@ -157,3 +157,24 @@ Design boundaries:
 - Comparisons must account for commit, test-suite/configuration and environment differences. Historical correlation alone does not prove causation.
 
 We may borrow individual mechanisms from existing tools when useful, but we are not adopting a reporting product or building a dashboard now. The next exploratory step, when prioritised, is to test a concrete historical query with a small Python processor against existing Q-Batch evidence without changing the source logs.
+
+
+## Context preservation: test purpose and origin (proposed design)
+
+This section records a design direction for review; it does not implement a context schema or change the logger.
+
+An event stream can preserve every byte and still become misleading if future readers cannot recover why the test was run. Git history is useful provenance, but it does not necessarily explain the question, incident, uncertainty, or decision that prompted a test.
+
+The proposed solution is a durable **test context object**, with its own identity and links from test definitions and their executions. Who fills it is intentionally open: a human, agent, runner, or later process can supply the information. The requirement is to preserve the context, not to mandate a particular authoring workflow.
+
+Candidate content includes a short summary, description, purpose/question, rationale, optional hypothesis, origin references (issues, discussions, incidents, design notes, specifications and commits), provenance/version information, and links to related tests or context revisions. These fields remain a proposal until reviewed. Do not invent missing rationale merely to make a record look complete; hypotheses are optional when they do not fit the test.
+
+Keep these layers separate:
+
+- **Context:** why the test exists and what question it addresses.
+- **Run evidence:** what happened in one execution and under which code, configuration, environment and data conditions.
+- **Interpretation:** conclusions drawn later, linked to their source runs and analysis method.
+
+A context may be reused across many executions; one investigation may refer to several tests. If context changes, retain its revision history instead of silently rewriting the historical explanation. A comparison UUID, if adopted, groups executions for a particular comparison; it is not a substitute for context and does not itself establish comparability.
+
+The guiding rule is to preserve the original question alongside the observations, preserve conditions needed to interpret those observations, and distinguish observed facts from later inference. Review this design before introducing a concrete schema, event fields, or runtime changes.
