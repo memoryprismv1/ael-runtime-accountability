@@ -28,7 +28,7 @@
         }
       ],
       "created_at": "2026-10-29",
-      "created_by": "repository-maintainer",
+      "created_by": "assistant-authored from project discussion and repository evidence",
       "notes": "A null hypothesis field means no specific directional hypothesis is recorded here; do not infer one from results."
     },
     {
@@ -57,7 +57,7 @@
         }
       ],
       "created_at": "2026-10-29",
-      "created_by": "repository-maintainer",
+      "created_by": "assistant-authored from project discussion and repository evidence",
       "notes": "Synthetic methodology demonstration only; not evidence of model or skill efficacy, and not proof that Q-Batch is universally superior to A/B testing."
     },
     {
@@ -86,7 +86,7 @@
         }
       ],
       "created_at": "2026-10-29",
-      "created_by": "repository-maintainer",
+      "created_by": "assistant-authored from project discussion and repository evidence",
       "notes": "Passing this preflight establishes instrumentation behavior only."
     }
   ]
