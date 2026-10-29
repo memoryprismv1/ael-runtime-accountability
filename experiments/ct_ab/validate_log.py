@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from .logger import SCHEMA_VERSION, LOGGER_VERSION, canonical_json, sha256_bytes, sha256_file
+from .context import ContextValidationError, validate_manifest_context
 
 PHASES = {"setup", "planning", "implementation", "debugging", "verification", "delivery", "preflight"}
 ACTORS = {"runner", "agent", "tool", "runtime", "reviewer", "logger"}
@@ -69,6 +70,10 @@ def validate_run(run_dir: str | Path, require_finished: bool = True) -> dict[str
         _fail(f"invalid manifest JSON: {exc}")
     if not isinstance(manifest, dict) or MANIFEST_FIELDS - set(manifest):
         _fail(f"manifest missing fields: {sorted(MANIFEST_FIELDS - set(manifest if isinstance(manifest, dict) else {}))}")
+    try:
+        context = validate_manifest_context(manifest)
+    except ContextValidationError as exc:
+        _fail(f"invalid manifest context: {exc}")
     if manifest["schema_version"] != SCHEMA_VERSION or manifest["logger_version"] != LOGGER_VERSION:
         _fail("unsupported schema/logger version")
     if manifest["condition_label"] not in {"A", "B", "REHEARSAL-A", "REHEARSAL-B"}:
@@ -133,7 +138,7 @@ def validate_run(run_dir: str | Path, require_finished: bool = True) -> dict[str
     first = checksum_path.read_text(encoding="ascii").split()
     if len(first) != 2 or first[1] != "events.jsonl" or first[0] != sha256_file(events_path):
         _fail("events.jsonl checksum missing, malformed, or mismatched")
-    return {"run_id": manifest["run_id"], "condition_label": manifest["condition_label"], "events": len(parsed), "event_types": sorted(event_types), "evidence_refs_verified": referenced, "events_sha256": sha256_file(events_path), "status": parsed[-1]["payload"].get("completion_status", parsed[-1]["status"])}
+    return {"run_id": manifest["run_id"], "condition_label": manifest["condition_label"], "context_id": context["context_id"] if context else None, "context_status": "present" if context else "legacy_missing", "events": len(parsed), "event_types": sorted(event_types), "evidence_refs_verified": referenced, "events_sha256": sha256_file(events_path), "status": parsed[-1]["payload"].get("completion_status", parsed[-1]["status"])}
 
 
 def validate_pair(run_a: str | Path, run_b: str | Path, required_event_types: set[str] | None = None) -> dict[str, Any]:
