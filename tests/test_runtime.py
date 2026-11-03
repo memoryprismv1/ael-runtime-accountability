@@ -851,4 +851,161 @@ class RuntimeV2Tests(unittest.TestCase):
             runtime.ensure_distinct_output_paths(self.root / 'same.json', self.root / '.' / 'same.json')
 
 
+
+    def test_workspace_artifact_reader_hashes_exact_crlf_bytes_and_rejects_escapes(self):
+        import hashlib
+        workspace = self.root / 'workspace'
+        workspace.mkdir()
+        payload = b'# Report\r\nOriginal text.\r\n'
+        (workspace / 'report.md').write_bytes(payload)
+        loaded = runtime.read_workspace_artifact(workspace, 'report.md')
+        self.assertEqual(loaded['content'], payload.decode('utf-8'))
+        self.assertEqual(loaded['sha256'], hashlib.sha256(payload).hexdigest())
+        self.assertEqual(loaded['byte_length'], len(payload))
+        self.assertEqual(loaded['relative_path'], 'report.md')
+        with self.assertRaises(ValueError):
+            runtime.read_workspace_artifact(workspace, '../report.md')
+        with self.assertRaises(ValueError):
+            runtime.read_workspace_artifact(workspace, r'C:\outside\report.md')
+
+        outside = self.root / 'outside.md'
+        outside.write_text('outside', encoding='utf-8')
+        escape = workspace / 'escape.md'
+        try:
+            escape.symlink_to(outside)
+        except (OSError, NotImplementedError):
+            self.skipTest('Symlink creation is unavailable on this platform')
+        with self.assertRaisesRegex(ValueError, 'outside the workspace root'):
+            runtime.read_workspace_artifact(workspace, 'escape.md')
+
+    def test_file_backed_revision_pins_source_and_verifies_same_rooted_bytes(self):
+        import hashlib
+        workspace = self.root / 'workspace'
+        workspace.mkdir()
+        base = b'# Report\r\nIntro v1.\r\n'
+        (workspace / 'report.md').write_bytes(base)
+        preview = runtime.propose_revision_from_file(
+            self.con, workspace_root=workspace, source_path='report.md',
+            account=self.account, project=self.project, chat=self.chat,
+            proposal_id='rev-file-backed-pass', artifact_id='report.md', base_version='v1',
+            original_request='Revise the report introduction.',
+            delta_summary='Update the introduction.',
+            impact_summary='Only the report introduction changes.',
+            changed_sections=['heading:Report'])
+        expected = hashlib.sha256(base).hexdigest()
+        self.assertEqual(preview['base_sha256'], expected)
+        self.assertEqual(preview['source_relative_path'], 'report.md')
+        self.assertEqual(preview['source_byte_length'], len(base))
+        self.assertEqual(preview['source_provenance']['validation'], 'pinned')
+        runtime.decide_revision(self.con, 'rev-file-backed-pass', 'accept',
+            account=self.account, project=self.project, chat=self.chat)
+        expanded = runtime.expand_revision_from_file(
+            self.con, 'rev-file-backed-pass', workspace_root=workspace,
+            artifact_version='v2', content='# Report\nIntro v2.\n',
+            account=self.account, project=self.project, chat=self.chat)
+        self.assertEqual(expanded['source_provenance']['validation'], 'matched')
+        report = runtime.verify_revision_output_from_file(
+            self.con, 'rev-file-backed-pass', workspace_root=workspace,
+            account=self.account, project=self.project, chat=self.chat)
+        self.assertEqual(report['status'], 'pass')
+        self.assertTrue(report['ready_for_release'])
+        self.assertEqual(report['source_provenance']['validation'], 'matched')
+        history = runtime.revision_history(self.con, 'rev-file-backed-pass',
+            account=self.account, project=self.project, chat=self.chat)
+        expanded_event = next(e for e in history if e['event_type'] == 'revision.expanded')
+        self.assertEqual(json.loads(expanded_event['metadata_json'])['source_provenance']['relative_path'], 'report.md')
+
+    def test_file_backed_expansion_refuses_changed_source_and_retains_failure(self):
+        workspace = self.root / 'workspace'
+        workspace.mkdir()
+        source = workspace / 'report.md'
+        source.write_bytes(b'# Report\nOriginal.\n')
+        runtime.propose_revision_from_file(
+            self.con, workspace_root=workspace, source_path='report.md',
+            account=self.account, project=self.project, chat=self.chat,
+            proposal_id='rev-file-backed-stale', artifact_id='report.md', base_version='v1',
+            original_request='Update the report.', delta_summary='Update one sentence.',
+            impact_summary='One sentence changes.', changed_sections=['heading:Report'])
+        runtime.decide_revision(self.con, 'rev-file-backed-stale', 'accept',
+            account=self.account, project=self.project, chat=self.chat)
+        source.write_bytes(b'# Report\nChanged after review.\n')
+        with self.assertRaisesRegex(ValueError, 'changed after proposal review'):
+            runtime.expand_revision_from_file(
+                self.con, 'rev-file-backed-stale', workspace_root=workspace,
+                artifact_version='v2', content='# Report\nExpanded.\n',
+                account=self.account, project=self.project, chat=self.chat)
+        self.assertEqual(runtime._revision_state(self.con, 'rev-file-backed-stale'), 'accepted_for_expansion')
+        self.assertEqual(self.con.execute(
+            'SELECT COUNT(*) FROM revision_outputs WHERE proposal_id=?',
+            ('rev-file-backed-stale',)).fetchone()[0], 0)
+        event = runtime.revision_history(self.con, 'rev-file-backed-stale',
+            account=self.account, project=self.project, chat=self.chat)[-1]
+        self.assertEqual(event['event_type'], 'revision.source_validation_failed')
+        metadata = json.loads(event['metadata_json'])
+        self.assertEqual(metadata['validation'], 'mismatch')
+        self.assertTrue(metadata['failed_closed'])
+
+    def test_file_backed_verification_fails_or_becomes_unverifiable_when_source_changes_or_disappears(self):
+        workspace = self.root / 'workspace'
+        workspace.mkdir()
+        source = workspace / 'report.md'
+        source.write_text('# Report\nOriginal.\n', encoding='utf-8')
+        runtime.propose_revision_from_file(
+            self.con, workspace_root=workspace, source_path='report.md',
+            account=self.account, project=self.project, chat=self.chat,
+            proposal_id='rev-file-backed-changed', artifact_id='report.md', base_version='v1',
+            original_request='Update the report.', delta_summary='Update one sentence.',
+            impact_summary='One sentence changes.', changed_sections=['heading:Report'])
+        runtime.decide_revision(self.con, 'rev-file-backed-changed', 'accept',
+            account=self.account, project=self.project, chat=self.chat)
+        runtime.expand_revision_from_file(
+            self.con, 'rev-file-backed-changed', workspace_root=workspace,
+            artifact_version='v2', content='# Report\nRevised.\n',
+            account=self.account, project=self.project, chat=self.chat)
+        source.write_text('# Report\nAltered after expansion.\n', encoding='utf-8')
+        changed = runtime.verify_revision_output_from_file(
+            self.con, 'rev-file-backed-changed', workspace_root=workspace,
+            account=self.account, project=self.project, chat=self.chat)
+        self.assertEqual(changed['status'], 'fail')
+        self.assertFalse(changed['ready_for_release'])
+        self.assertEqual(changed['source_provenance']['validation'], 'mismatch')
+        self.assertEqual(runtime._revision_state(self.con, 'rev-file-backed-changed'), 'rejected_reset')
+
+        runtime.propose_revision_from_file(
+            self.con, workspace_root=workspace, source_path='report.md',
+            account=self.account, project=self.project, chat=self.chat,
+            proposal_id='rev-file-backed-missing', artifact_id='report.md', base_version='v1',
+            original_request='Update the report again.', delta_summary='Change the conclusion.',
+            impact_summary='Conclusion only.', changed_sections=['heading:Report'])
+        runtime.decide_revision(self.con, 'rev-file-backed-missing', 'accept',
+            account=self.account, project=self.project, chat=self.chat)
+        runtime.expand_revision_from_file(
+            self.con, 'rev-file-backed-missing', workspace_root=workspace,
+            artifact_version='v2', content='# Report\nNew conclusion.\n',
+            account=self.account, project=self.project, chat=self.chat)
+        source.unlink()
+        missing = runtime.verify_revision_output_from_file(
+            self.con, 'rev-file-backed-missing', workspace_root=workspace,
+            account=self.account, project=self.project, chat=self.chat)
+        self.assertEqual(missing['status'], 'unverifiable')
+        self.assertFalse(missing['ready_for_release'])
+        self.assertEqual(missing['source_provenance']['validation'], 'unavailable')
+        self.assertEqual(runtime._revision_state(self.con, 'rev-file-backed-missing'), 'rejected_reset')
+
+    def test_revision_source_path_columns_migrate_existing_databases(self):
+        old_path = self.root / 'legacy-no-source-columns.sqlite3'
+        legacy_schema = runtime.SCHEMA.replace(
+            '  source_relative_path TEXT,\n  source_byte_length INTEGER,\n', '')
+        legacy = sqlite3.connect(old_path)
+        legacy.executescript(legacy_schema)
+        legacy.close()
+        migrated = runtime.connect(old_path)
+        try:
+            columns = {row['name'] for row in migrated.execute('PRAGMA table_info(revision_proposals)')}
+            self.assertIn('source_relative_path', columns)
+            self.assertIn('source_byte_length', columns)
+        finally:
+            migrated.close()
+
+
 if __name__ == '__main__': unittest.main()
