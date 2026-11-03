@@ -288,9 +288,9 @@ class LoggingContractTests(unittest.TestCase):
                 event["event_sha256"] = digest
                 previous = digest
                 serialized.append(json.dumps(event, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
-            stream = ("\\n".join(serialized) + "\\n").encode()
+            stream = ("\n".join(serialized) + "\n").encode()
             event_path.write_bytes(stream)
-            (run_dir / "checksums.sha256").write_text(hashlib.sha256(stream).hexdigest() + "  events.jsonl\\n", encoding="ascii")
+            (run_dir / "checksums.sha256").write_text(hashlib.sha256(stream).hexdigest() + "  events.jsonl\n", encoding="ascii")
 
             with self.assertRaisesRegex(LogValidationError, "capture_profile"):
                 validate_pair(output / "run-a", output / "run-b")
