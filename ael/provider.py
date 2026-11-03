@@ -124,6 +124,3 @@ def ollama_chat(model_input: dict, *, model: str, base_url: str = 'http://127.0.
         'sent_streaming': False,
         'api_token_used': False,
     }
-
-
-@dataclass
