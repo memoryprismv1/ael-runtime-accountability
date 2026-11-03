@@ -119,6 +119,8 @@ CREATE TABLE IF NOT EXISTS checkpoints (
   parent_revision_id TEXT,
   proposal_hash TEXT NOT NULL,
   source_ref TEXT,
+  source_relative_path TEXT,
+  source_byte_length INTEGER,
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_revision_scope ON revision_proposals(account_id, project_id, chat_id, created_at);
@@ -192,6 +194,11 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     candidate_cols = {r['name'] for r in con.execute('PRAGMA table_info(memory_candidates)').fetchall()}
     if 'usage_status' not in candidate_cols:
         con.execute("ALTER TABLE memory_candidates ADD COLUMN usage_status TEXT NOT NULL DEFAULT 'not_pertinent_now' CHECK(usage_status IN ('use_when_relevant','never_try_again','maybe_later','not_pertinent_now'))")
+    revision_cols = {r['name'] for r in con.execute('PRAGMA table_info(revision_proposals)').fetchall()}
+    if 'source_relative_path' not in revision_cols:
+        con.execute('ALTER TABLE revision_proposals ADD COLUMN source_relative_path TEXT')
+    if 'source_byte_length' not in revision_cols:
+        con.execute('ALTER TABLE revision_proposals ADD COLUMN source_byte_length INTEGER')
     mem_event_cols = {r['name'] for r in con.execute('PRAGMA table_info(memory_events)').fetchall()}
     for col in ('from_stage','to_stage','from_usage_status','to_usage_status'):
         if col not in mem_event_cols:

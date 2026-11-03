@@ -42,7 +42,7 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 - Project/account scoping and explicit applicability tags.
 - Checkpoint export to Markdown and JSON.
 - Bounded context packing: protected user content stays verbatim; protected overflow fails closed; optional events are included or omitted whole with IDs for retrieval.
-- Delta-first revision proposal, decision, reset/re-plan, base hash pinning, post-expansion textual conformance, and release-readiness checks.
+- Delta-first revision proposal, decision, reset/re-plan, and post-expansion textual conformance. New file-backed revisions use a shared workspace-rooted reader that hashes exact bytes and revalidates the pinned source during expansion and verification; existing caller-supplied APIs remain compatible.
 - Strict provider-input allowlist plus optional loopback-only local Ollama adapter.
 
 ## Tests
