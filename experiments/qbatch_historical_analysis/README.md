@@ -7,7 +7,7 @@ It is deliberately separate from `testing_logger/` and the CT A/B live runner. I
 ## Contents
 
 - `qbatch_historical_analysis.py` — historical run reader, integrity verification, observed recording-profile inference, normalisation, failure classification, cohort comparability and manual rerun recommendation policy.
-- `test_qbatch_historical_analysis.py` — ten deterministic tests, including four comparable failures, heterogeneous failure patterns, paired A/B counting, missing runner provenance, tampering and unknown formats.
+- `test_qbatch_historical_analysis.py` — fourteen deterministic tests, including the four observed historical failure signatures, cohort eligibility, paired A/B counting, missing runner provenance, tampering and unknown formats.
 - `reports/2026-11-03-ct-ab-failure-cohort.md` and `.json` — a read-only analysis of eight run logs from four archived CT A/B workflow attempts.
 
 ## Run tests
