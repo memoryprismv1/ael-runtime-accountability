@@ -243,6 +243,22 @@ class LoggingContractTests(unittest.TestCase):
             with self.assertRaisesRegex(LogValidationError, "capture profile hash mismatch"):
                 validate_run(output / "run-a")
 
+
+    def test_removing_manifest_provenance_does_not_bypass_validation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "output"
+            run_rehearsal(output)
+            path = output / "run-a" / "manifest.json"
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+            for field in (
+                "capture_profile", "capture_profile_sha256",
+                "runner_implementation_revision", "runner_worktree_clean",
+            ):
+                manifest.pop(field)
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(LogValidationError, "run provenance is incomplete"):
+                validate_run(output / "run-a")
+
     def test_pair_validator_rejects_different_capture_profiles(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "output"
