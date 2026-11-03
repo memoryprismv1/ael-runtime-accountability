@@ -50,7 +50,9 @@ def _runner_source_provenance() -> tuple[str | None, bool | None]:
         if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", candidate):
             revision = candidate
     except (OSError, subprocess.SubprocessError):
-        pass
+        candidate = os.environ.get("GITHUB_SHA", "").strip()
+        if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", candidate):
+            revision = candidate
     try:
         result = subprocess.run(
             ["git", "-C", str(repo_root), "status", "--porcelain", "--untracked-files=all"],
