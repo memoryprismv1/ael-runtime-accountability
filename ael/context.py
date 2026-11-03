@@ -5,8 +5,8 @@ import json
 import sqlite3
 from math import ceil
 from typing import Any
-from .ledger import scope_events, branch_statuses
-from .branches import branch_usage_statuses
+from .ledger import scope_events
+from .branches import branch_statuses, branch_usage_statuses
 from .memory import list_memories
 from .config import now
 
