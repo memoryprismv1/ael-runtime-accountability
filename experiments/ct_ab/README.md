@@ -177,4 +177,14 @@ Every newly created run manifest embeds `context_id` plus the full context snaps
 
 The catalog provides current definitions; the manifest snapshot preserves the exact explanation associated with each run. When a context changes, increment its version and preserve the old version's meaning for historical evidence. Do not edit old manifests to match the latest catalog. Context is separate from execution evidence and later interpretation.
 
-Older manifests without context remain readable and are reported with `context_status: legacy_missing`; new `RunLogger` executions require a valid context snapshot. This is a context/provenance change only: the event logger still records what happened and does not perform comparisons or analysis. A comparison UUID, if added later, is a separate grouping relationship, not a substitute for context.
+Older manifests without context remain readable and are reported with `context_status: legacy_missing`; new `RunLogger` executions require a valid context snapshot.
+
+New CT A/B runs also carry explicit producer provenance:
+- `capture_profile`: stable profile ID/version plus the capabilities supported by this runner/logger implementation;
+- `capture_profile_sha256`: hash of that canonical profile definition;
+- `runner_implementation_revision`: checked-out Git commit when available;
+- `runner_worktree_clean`: whether the source worktree had no tracked or untracked changes at run creation.
+
+The profile and runner values are copied into the first `run_started` event, so changing or removing the manifest fields alone is detectable. The validator checks the binding and requires the same provenance across A/B. If Git metadata is unavailable, revision/cleanliness are recorded as null; the run remains inspectable but cannot qualify for a fully comparable historical cohort. The capture profile describes supported capture capabilities, not proof that every capability was exercised in a particular run. When those capabilities change, update the profile version and preserve the old definition for historical interpretation.
+
+Old manifests with no provenance remain readable; their absent metadata is not backfilled or inferred. New runs use explicit provenance, while the event schema remains unchanged. This is a provenance improvement only: the event logger still records what happened and does not perform comparisons or analysis. A comparison UUID, if added later, is a separate grouping relationship, not a substitute for context.
