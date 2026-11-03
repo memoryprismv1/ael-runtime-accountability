@@ -10,6 +10,7 @@ from ael.provider import *
 from ael.sessions import *
 from ael.checkpoints import *
 from ael.revisions import *
+from ael.revisions import _revision_state  # compatibility for existing runtime callers
 from ael.paths import *
 from ael.cli import main
 
