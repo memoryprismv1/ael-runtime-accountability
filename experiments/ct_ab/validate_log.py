@@ -14,6 +14,8 @@ ACTORS = {"runner", "agent", "tool", "runtime", "reviewer", "logger"}
 EVENT_TYPES = {"run_started", "run_finished", "plan_submitted", "phase_started", "agent_note", "tool_call", "model_request_started", "model_request_succeeded", "model_request_failed", "model_request", "model_response", "command_started", "command_finished", "test_result", "requirement_check", "commit_created", "file_changed", "artifact_captured", "preflight_check", "error", "retry", "agent_recovery_attempt", "agent_loop_detected"}
 STATUSES = {"started", "succeeded", "failed", "observed", "declared", "skipped", "requested"}
 HASH_RE = re.compile(r"^[a-f0-9]{64}$")
+REVISION_RE = re.compile(r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+PROVENANCE_FIELDS = {"capture_profile", "capture_profile_sha256", "runner_implementation_revision", "runner_worktree_clean"}
 MANIFEST_FIELDS = {"run_id", "condition_label", "task_brief_sha256", "condition_config_sha256", "logger_version", "schema_version", "started_at_utc", "model", "environment", "resource_limits", "base_commit"}
 
 
@@ -56,6 +58,57 @@ def _hash_ref(run_dir: Path, ref: Any) -> None:
         _fail(f"evidence size mismatch: {ref['path']}")
     if sha256_file(path) != ref["sha256"]:
         _fail(f"evidence hash mismatch: {ref['path']}")
+
+
+def _validate_run_provenance(manifest: dict[str, Any], start_payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Validate optional provenance while retaining compatibility with old logs."""
+    present = PROVENANCE_FIELDS.intersection(manifest)
+    if not present:
+        return None
+    missing = PROVENANCE_FIELDS - set(manifest)
+    if missing:
+        _fail(f"run provenance is incomplete: {sorted(missing)}")
+    profile = manifest["capture_profile"]
+    if not isinstance(profile, dict) or set(profile) != {"id", "version", "capabilities"}:
+        _fail("capture profile must contain exactly id, version, and capabilities")
+    if not isinstance(profile["id"], str) or not profile["id"]:
+        _fail("capture profile id must be a non-empty string")
+    if not isinstance(profile["version"], int) or profile["version"] < 1:
+        _fail("capture profile version must be a positive integer")
+    capabilities = profile["capabilities"]
+    if (not isinstance(capabilities, list) or not capabilities
+            or any(not isinstance(item, str) or not item for item in capabilities)
+            or len(capabilities) != len(set(capabilities))):
+        _fail("capture profile capabilities must be unique non-empty strings")
+    profile_hash = manifest["capture_profile_sha256"]
+    if not isinstance(profile_hash, str) or not HASH_RE.fullmatch(profile_hash):
+        _fail("invalid capture profile SHA-256")
+    expected_hash = sha256_bytes(canonical_json(profile))
+    if profile_hash != expected_hash:
+        _fail("capture profile hash mismatch")
+    revision = manifest["runner_implementation_revision"]
+    if revision is not None and (not isinstance(revision, str) or not REVISION_RE.fullmatch(revision)):
+        _fail("invalid runner implementation revision")
+    clean = manifest["runner_worktree_clean"]
+    if clean is not None and not isinstance(clean, bool):
+        _fail("runner_worktree_clean must be boolean or null")
+    expected_binding = {
+        "capture_profile_id": profile["id"],
+        "capture_profile_version": profile["version"],
+        "capture_profile_sha256": profile_hash,
+        "runner_implementation_revision": revision,
+        "runner_worktree_clean": clean,
+    }
+    for field, expected in expected_binding.items():
+        if start_payload.get(field) != expected:
+            _fail(f"run provenance {field} does not match the value bound into run_started")
+    return {
+        "capture_profile_id": profile["id"],
+        "capture_profile_version": profile["version"],
+        "capture_profile_sha256": profile_hash,
+        "runner_implementation_revision": revision,
+        "runner_worktree_clean": clean,
+    }
 
 
 def validate_run(run_dir: str | Path, require_finished: bool = True) -> dict[str, Any]:
@@ -135,6 +188,8 @@ def validate_run(run_dir: str | Path, require_finished: bool = True) -> dict[str
         start_payload = parsed[0].get("payload", {})
         if start_payload.get("context_id") != context["context_id"] or start_payload.get("context_sha256") != expected_context_hash:
             _fail("run context snapshot does not match the context identity/hash bound into run_started")
+    start_payload = parsed[0].get("payload", {})
+    provenance = _validate_run_provenance(manifest, start_payload)
     if require_finished and parsed[-1]["event_type"] != "run_finished":
         _fail("last event must be run_finished")
     checksum_path = root / "checksums.sha256"
@@ -143,7 +198,7 @@ def validate_run(run_dir: str | Path, require_finished: bool = True) -> dict[str
     first = checksum_path.read_text(encoding="ascii").split()
     if len(first) != 2 or first[1] != "events.jsonl" or first[0] != sha256_file(events_path):
         _fail("events.jsonl checksum missing, malformed, or mismatched")
-    return {"run_id": manifest["run_id"], "condition_label": manifest["condition_label"], "context_id": context["context_id"] if context else None, "context_status": "present" if context else "legacy_missing", "events": len(parsed), "event_types": sorted(event_types), "evidence_refs_verified": referenced, "events_sha256": sha256_file(events_path), "status": parsed[-1]["payload"].get("completion_status", parsed[-1]["status"])}
+    return {"run_id": manifest["run_id"], "condition_label": manifest["condition_label"], "context_id": context["context_id"] if context else None, "context_status": "present" if context else "legacy_missing", "run_provenance": provenance, "events": len(parsed), "event_types": sorted(event_types), "evidence_refs_verified": referenced, "events_sha256": sha256_file(events_path), "status": parsed[-1]["payload"].get("completion_status", parsed[-1]["status"])}
 
 
 def validate_pair(run_a: str | Path, run_b: str | Path, required_event_types: set[str] | None = None) -> dict[str, Any]:
@@ -154,7 +209,7 @@ def validate_pair(run_a: str | Path, run_b: str | Path, required_event_types: se
         _fail("paired runs must have distinct run IDs")
     ma = json.loads((Path(run_a) / "manifest.json").read_text(encoding="utf-8"))
     mb = json.loads((Path(run_b) / "manifest.json").read_text(encoding="utf-8"))
-    shared = ["task_brief_sha256", "logger_version", "schema_version", "model", "environment", "resource_limits", "base_commit", "client_brief_sha256", "api_contract_sha256", "starter_sha256", "acceptance_suite_sha256", "acceptance_contract_version", "context_id"]
+    shared = ["task_brief_sha256", "logger_version", "schema_version", "model", "environment", "resource_limits", "base_commit", "client_brief_sha256", "api_contract_sha256", "starter_sha256", "acceptance_suite_sha256", "acceptance_contract_version", "context_id", "capture_profile", "capture_profile_sha256", "runner_implementation_revision", "runner_worktree_clean"]
     mismatches = [field for field in shared if ma.get(field) != mb.get(field)]
     if ma.get("context") != mb.get("context"):
         mismatches.append("context")
