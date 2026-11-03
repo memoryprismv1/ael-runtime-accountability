@@ -215,7 +215,7 @@ class HistoricalAnalysisTests(unittest.TestCase):
                     data = {"error": True, "message": "plan may be submitted only once"}
                     (artifacts / name).write_text(json.dumps(data), encoding="utf-8")
                     refs = [{"path": f"artifacts/{name}"}]
-                tool_name = "submit_plan" if index in {0, 3, 6, 9, 12, 15, 18} else (
+                tool_name = "submit_plan" if index in {0, 3, 6, 9, 12, 15, 18, 21} else (
                     "list_files" if index % 3 == 0 else "read_file"
                 )
                 events.append({
