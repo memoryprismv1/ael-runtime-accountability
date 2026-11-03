@@ -11,7 +11,14 @@ from qbatch_historical_analysis import (
 )
 
 def record(attempt, signature="same", condition="A", identity_complete=True):
-    identity = {"task_brief_sha256": "task", "runner_implementation_revision": "runner-v1"}
+    identity = {
+        "task_brief_sha256": "task",
+        "runner_implementation_revision": "a" * 40,
+        "runner_worktree_clean": True,
+        "capture_profile_id": "ct-ab-runner-capture",
+        "capture_profile_version": 1,
+        "capture_profile_sha256": "b" * 64,
+    }
     return {
         "attempt_id": attempt, "source_run_url": None, "run_id": attempt + "-" + condition.lower(),
         "condition_label": condition, "format_profile": {"profile": "profile-v1"},
@@ -22,7 +29,7 @@ def record(attempt, signature="same", condition="A", identity_complete=True):
         "failure": {"signature": signature},
     }
 
-def write_run(root, *, context=False, event_type="run_finished", evidence=False):
+def write_run(root, *, context=False, event_type="run_finished", evidence=False, provenance=False):
     root.mkdir()
     manifest = {
         "run_id": "fixture-run", "schema_version": "1.0", "logger_version": "0.1.0",
@@ -31,6 +38,26 @@ def write_run(root, *, context=False, event_type="run_finished", evidence=False)
         "model": {}, "environment": {}, "resource_limits": {}, "base_commit": "fixture",
     }
     payload = {"logger_version": "0.1.0", "schema_version": "1.0"}
+    if provenance:
+        capture_profile = {
+            "id": "ct-ab-runner-capture",
+            "version": 1,
+            "capabilities": ["append_only_jsonl_events", "artifact_sha256_and_size"],
+        }
+        profile_hash = sha256_bytes(canonical_bytes(capture_profile))
+        manifest.update(
+            capture_profile=capture_profile,
+            capture_profile_sha256=profile_hash,
+            runner_implementation_revision="a" * 40,
+            runner_worktree_clean=True,
+        )
+        payload.update(
+            capture_profile_id=capture_profile["id"],
+            capture_profile_version=capture_profile["version"],
+            capture_profile_sha256=profile_hash,
+            runner_implementation_revision="a" * 40,
+            runner_worktree_clean=True,
+        )
     if context:
         snapshot = {"context_id": "fixture", "version": 1, "purpose": "test"}
         manifest.update(context_id="fixture", context=snapshot)
@@ -111,6 +138,28 @@ class HistoricalAnalysisTests(unittest.TestCase):
             manifest["context"]["purpose"] = "tampered"
             (root / "manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError, "context snapshot"):
+                read_run(root, "attempt")
+
+
+    def test_explicit_capture_profile_and_runner_revision_are_bound(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = write_run(Path(tmp) / "run", provenance=True)
+            run = read_run(root, "attempt")
+            self.assertEqual(run["run_provenance"]["capture_profile_id"], "ct-ab-runner-capture")
+            self.assertEqual(run["run_provenance"]["runner_implementation_revision"], "a" * 40)
+            manifest = json.loads((root / "manifest.json").read_text())
+            manifest["runner_implementation_revision"] = "c" * 40
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "runner_implementation_revision is not bound"):
+                read_run(root, "attempt")
+
+    def test_capture_profile_hash_tampering_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = write_run(Path(tmp) / "run", provenance=True)
+            manifest = json.loads((root / "manifest.json").read_text())
+            manifest["capture_profile"]["capabilities"].append("invented_capability")
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "capture profile hash mismatch"):
                 read_run(root, "attempt")
 
     def test_artifact_tampering_is_rejected(self):
