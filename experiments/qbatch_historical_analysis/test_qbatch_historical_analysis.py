@@ -167,11 +167,12 @@ class HistoricalAnalysisTests(unittest.TestCase):
             # Sanitized event counts from run 39597455540: 21 no-tool responses,
             # three dispatched calls, then the 24-turn runner limit.
             events = [
-                {"event_type": "tool_call", "payload": {"tool_name": name}, "evidence_refs": []}
-                for name in ("list_files", "read_file", "read_file")
+                {"seq": n, "event_type": "tool_call", "payload": {"tool_name": name}, "evidence_refs": []}
+                for n, name in enumerate(("list_files", "read_file", "read_file"), 1)
             ]
             events.extend(
-                {"event_type": "error", "payload": {"kind": "model_response_without_tool_call", "turn": n},
+                {"seq": n + 3, "event_type": "error",
+                 "payload": {"kind": "model_response_without_tool_call", "turn": n},
                  "evidence_refs": []}
                 for n in range(1, 22)
             )
@@ -218,7 +219,14 @@ class HistoricalAnalysisTests(unittest.TestCase):
                 tool_name = "submit_plan" if index in {0, 3, 6, 9, 12, 15, 18, 21} else (
                     "list_files" if index % 3 == 0 else "read_file"
                 )
+                for ref in refs:
+                    artifact = root / ref["path"]
+                    ref.update(
+                        sha256=hashlib.sha256(artifact.read_bytes()).hexdigest(),
+                        size_bytes=artifact.stat().st_size,
+                    )
                 events.append({
+                    "seq": index + 1,
                     "event_type": "tool_call",
                     "payload": {"tool_name": tool_name},
                     "evidence_refs": refs,
