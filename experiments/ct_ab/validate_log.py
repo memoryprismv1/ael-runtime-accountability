@@ -63,11 +63,20 @@ def _hash_ref(run_dir: Path, ref: Any) -> None:
 def _validate_run_provenance(manifest: dict[str, Any], start_payload: dict[str, Any]) -> dict[str, Any] | None:
     """Validate optional provenance while retaining compatibility with old logs."""
     present = PROVENANCE_FIELDS.intersection(manifest)
-    if not present:
+    binding_fields = {
+        "capture_profile_id", "capture_profile_version", "capture_profile_sha256",
+        "runner_implementation_revision", "runner_worktree_clean",
+    }
+    start_present = binding_fields.intersection(start_payload)
+    if not present and not start_present:
         return None
     missing = PROVENANCE_FIELDS - set(manifest)
-    if missing:
-        _fail(f"run provenance is incomplete: {sorted(missing)}")
+    missing_bindings = binding_fields - set(start_payload)
+    if missing or missing_bindings:
+        _fail(
+            "run provenance is incomplete: "
+            f"manifest={sorted(missing)}, run_started={sorted(missing_bindings)}"
+        )
     profile = manifest["capture_profile"]
     if not isinstance(profile, dict) or set(profile) != {"id", "version", "capabilities"}:
         _fail("capture profile must contain exactly id, version, and capabilities")
