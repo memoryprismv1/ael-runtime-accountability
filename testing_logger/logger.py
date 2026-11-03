@@ -51,7 +51,7 @@ def _is_within(path: Path, root: Path) -> bool:
 class TestingLogger:
     """Single-writer event stream plus evidence/artifact capture."""
 
-    def __init__(self, run_dir: str | Path, workspace_root: str | Path, manifest: Mapping[str, Any]):
+    def __init__(self, run_dir: str | Path, workspace_root: str | Path, manifest: Mapping[str, Any], *, run_started_payload: Mapping[str, Any] | None = None):
         self.workspace = Path(workspace_root).resolve(strict=True)
         self.run_dir = Path(run_dir).resolve()
         if not self.workspace.is_dir():
@@ -79,7 +79,13 @@ class TestingLogger:
         stored_manifest["written_at_utc"] = utc_now()
         stored_manifest["workspace"] = self.workspace.name
         (self.run_dir / "manifest.json").write_text(json.dumps(stored_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        self.emit("run_started", "runner", "setup", "succeeded", {"logger_version": LOGGER_VERSION, "schema_version": SCHEMA_VERSION})
+        start_payload = {"logger_version": LOGGER_VERSION, "schema_version": SCHEMA_VERSION}
+        extra_start_payload = dict(run_started_payload or {})
+        reserved = set(start_payload).intersection(extra_start_payload)
+        if reserved:
+            raise ValueError(f"run_started_payload cannot override reserved fields: {sorted(reserved)}")
+        start_payload.update(extra_start_payload)
+        self.emit("run_started", "runner", "setup", "succeeded", start_payload)
 
     def emit(self, event_type: str, actor: str, phase: str, status: str, payload: Mapping[str, Any] | None = None, evidence_refs: Iterable[Mapping[str, Any]] = ()) -> dict[str, Any]:
         event: dict[str, Any] = {

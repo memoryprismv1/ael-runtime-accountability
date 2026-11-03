@@ -41,5 +41,25 @@ class TestingLoggerTests(unittest.TestCase):
                 records = [json.loads(line) for line in (root / f"run-{run_id}" / "events.jsonl").read_text(encoding="utf-8").splitlines()]
                 self.assertEqual(records[1]["event_type"], event_type)
 
+
+    def test_optional_run_started_payload_is_recorded_without_global_manifest_rules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            logger = TestingLogger(
+                root / "run", workspace, {"run_id": "generic-context-probe"},
+                run_started_payload={"context_id": "probe-v1", "context_sha256": "a" * 64},
+            )
+            try:
+                logger.finish("succeeded")
+            finally:
+                logger.close()
+            events = [json.loads(line) for line in (root / "run" / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(events[0]["payload"]["context_id"], "probe-v1")
+            self.assertEqual(events[0]["payload"]["context_sha256"], "a" * 64)
+            self.assertEqual(events[0]["payload"]["logger_version"], "0.1.0")
+
+
 if __name__ == "__main__":
     unittest.main()
