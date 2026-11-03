@@ -50,6 +50,7 @@ def infer_profile(manifest, events):
         "recovery_events": bool(types & {"agent_recovery_attempt", "agent_loop_detected"}),
         "tool_dispatch": "tool_call" in types,
         "model_exchange": {"model_request", "model_response"} <= types,
+        "model_transport_failure": ("model_request_failed" in types or any(e["event_type"] == "error" and e["payload"].get("kind") == "model_request_failed" for e in events)),
     }
     if unknown:
         profile = "unsupported-unknown-event-vocabulary"
@@ -59,6 +60,8 @@ def infer_profile(manifest, events):
         profile = "request-lifecycle-without-context"
     elif features["tool_dispatch"] and features["model_exchange"]:
         profile = "legacy-with-tool-dispatch"
+    elif features["model_transport_failure"]:
+        profile = "legacy-transport-failure-only"
     elif features["model_exchange"]:
         profile = "legacy-model-exchange-only"
     elif "model_request_failed" in types or any(
@@ -173,7 +176,7 @@ def classify_failure(run):
         if not isinstance(content, str):
             continue
         candidate = content.strip()
-        if candidate.startswith("\`\`\`json") and candidate.endswith("\`\`\`"):
+        if candidate.startswith(chr(96) * 3 + "json") and candidate.endswith(chr(96) * 3):
             candidate = candidate[7:-3].strip()
         try:
             obj = json.loads(candidate)
