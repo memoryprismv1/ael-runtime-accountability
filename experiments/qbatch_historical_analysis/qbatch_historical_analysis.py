@@ -17,6 +17,8 @@ KNOWN_EVENTS = {"run_started", "run_finished", "plan_submitted", "phase_started"
                 "requirement_check", "commit_created", "file_changed", "artifact_captured",
                 "preflight_check", "error", "retry", "agent_recovery_attempt", "agent_loop_detected"}
 HASH_RE = re.compile(r"^[a-f0-9]{64}$")
+REVISION_RE = re.compile(r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+PROVENANCE_FIELDS = {"capture_profile", "capture_profile_sha256", "runner_implementation_revision", "runner_worktree_clean"}
 
 def canonical_bytes(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -75,6 +77,54 @@ def infer_profile(manifest, events):
             "logger_version_label": manifest.get("logger_version"),
             "profile_inference": "inferred from recorded evidence; not an explicit producer identity"}
 
+
+def validate_optional_provenance(manifest, start_payload):
+    """Validate explicit provenance when present; old manifests remain readable."""
+    present = PROVENANCE_FIELDS.intersection(manifest)
+    if not present:
+        return None
+    missing = PROVENANCE_FIELDS - set(manifest)
+    if missing:
+        raise ValueError(f"incomplete run provenance: {sorted(missing)}")
+    profile = manifest["capture_profile"]
+    if not isinstance(profile, dict) or set(profile) != {"id", "version", "capabilities"}:
+        raise ValueError("capture profile must contain exactly id, version, and capabilities")
+    capabilities = profile["capabilities"]
+    if (not isinstance(profile["id"], str) or not profile["id"]
+            or not isinstance(profile["version"], int) or profile["version"] < 1
+            or not isinstance(capabilities, list) or not capabilities
+            or any(not isinstance(item, str) or not item for item in capabilities)
+            or len(capabilities) != len(set(capabilities))):
+        raise ValueError("invalid capture profile structure")
+    profile_hash = manifest["capture_profile_sha256"]
+    if not isinstance(profile_hash, str) or not HASH_RE.fullmatch(profile_hash):
+        raise ValueError("invalid capture profile hash")
+    if profile_hash != sha256_bytes(canonical_bytes(profile)):
+        raise ValueError("capture profile hash mismatch")
+    revision = manifest["runner_implementation_revision"]
+    if revision is not None and (not isinstance(revision, str) or not REVISION_RE.fullmatch(revision)):
+        raise ValueError("invalid runner implementation revision")
+    clean = manifest["runner_worktree_clean"]
+    if clean is not None and not isinstance(clean, bool):
+        raise ValueError("runner worktree clean state must be boolean or null")
+    expected = {
+        "capture_profile_id": profile["id"],
+        "capture_profile_version": profile["version"],
+        "capture_profile_sha256": profile_hash,
+        "runner_implementation_revision": revision,
+        "runner_worktree_clean": clean,
+    }
+    for field, value in expected.items():
+        if start_payload.get(field) != value:
+            raise ValueError(f"run provenance {field} is not bound to run_started")
+    return {
+        "capture_profile_id": profile["id"],
+        "capture_profile_version": profile["version"],
+        "capture_profile_sha256": profile_hash,
+        "runner_implementation_revision": revision,
+        "runner_worktree_clean": clean,
+    }
+
 def read_run(root, attempt_id):
     root = Path(root).resolve(strict=True)
     mp, ep = root / "manifest.json", root / "events.jsonl"
@@ -117,6 +167,7 @@ def read_run(root, attempt_id):
         start = events[0]["payload"]
         if manifest.get("context_id") != context.get("context_id") or start.get("context_id") != context.get("context_id") or start.get("context_sha256") != sha256_bytes(canonical_bytes(context)):
             raise ValueError("context snapshot is not bound to run_started")
+    run_provenance = validate_optional_provenance(manifest, events[0]["payload"])
     checksum = root / "checksums.sha256"
     checksum_status = "not_present"
     if checksum.exists():
@@ -128,6 +179,7 @@ def read_run(root, attempt_id):
     return {"root": root, "attempt_id": attempt_id, "manifest": manifest, "events": events,
             "condition_label": manifest.get("condition_label"), "run_id": manifest.get("run_id"),
             "event_types": {e["event_type"] for e in events}, "format_profile": profile,
+            "run_provenance": run_provenance,
             "integrity": {"status": "PASS" if checksum_status == "verified" else "PARTIAL",
                           "events": len(events), "evidence_refs_verified": refs,
                           "checksum": checksum_status, "events_sha256": sha256_file(ep)}}
@@ -210,6 +262,10 @@ def normalise(run, attempt_url=None):
         "api_contract_sha256": m.get("api_contract_sha256"), "starter_sha256": m.get("starter_sha256"),
         "acceptance_suite_sha256": m.get("acceptance_suite_sha256"), "acceptance_contract_version": m.get("acceptance_contract_version"),
         "base_commit": m.get("base_commit"), "runner_implementation_revision": m.get("runner_implementation_revision"),
+        "runner_worktree_clean": m.get("runner_worktree_clean"),
+        "capture_profile_id": (m.get("capture_profile") or {}).get("id") if isinstance(m.get("capture_profile"), dict) else None,
+        "capture_profile_version": (m.get("capture_profile") or {}).get("version") if isinstance(m.get("capture_profile"), dict) else None,
+        "capture_profile_sha256": m.get("capture_profile_sha256"),
         "model_id": model.get("model_id"), "model_digest": model.get("model_digest"), "provider": model.get("provider"),
         "ollama_version": env.get("ollama_version", model.get("ollama_version")), "temperature": opts.get("temperature"),
         "num_ctx": opts.get("num_ctx"), "num_predict": opts.get("num_predict"), "max_turns": limits.get("max_turns"),
@@ -217,10 +273,13 @@ def normalise(run, attempt_url=None):
         "request_timeout_seconds": limits.get("timeout_seconds_per_model_request"),
     }
     required = ["task_brief_sha256", "client_brief_sha256", "api_contract_sha256", "starter_sha256",
-                "acceptance_suite_sha256", "base_commit", "runner_implementation_revision", "model_id",
+                "acceptance_suite_sha256", "base_commit", "runner_implementation_revision",
+                "capture_profile_id", "capture_profile_version", "capture_profile_sha256", "model_id",
                 "model_digest", "ollama_version", "max_turns", "max_tool_calls", "temperature", "num_ctx",
                 "num_predict", "request_timeout_seconds"]
     missing = [k for k in required if identity.get(k) in (None, "")]
+    if identity["runner_worktree_clean"] is not True:
+        missing.append("runner_worktree_clean=true")
     failure = classify_failure(run)
     run_num = re.search(r"(\d{8,})", run["attempt_id"])
     url = attempt_url or (f"https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/{run_num.group(1)}" if run_num else None)
@@ -311,7 +370,7 @@ def main():
                   "Schema/logger labels were reused while capture capabilities evolved; recording profiles are inferred from observed events, not explicit producer IDs.",
                   "A missing event in an older profile is not proof that it did not occur.",
                   "A/B arms within one workflow attempt count as one independent attempt.",
-                  "Historical manifests omit runner implementation revision; comparability is incomplete.",
+                  "Historical manifests omit runner implementation revision and explicit capture-profile identity/worktree cleanliness; comparability is incomplete.",
                   "Failure signatures are observable symptoms, not proven root causes.",
                   "A rerun recommendation needs a targeted fix and passing regression test, and remains manual-approval-only."
               ]}
@@ -331,7 +390,7 @@ def main():
     lines += ["", "## Cohort results", "", "| Failure signature | Independent attempts | Result |", "|---|---:|---|"]
     for c in cohort["cohorts"]:
         lines.append(f"| {c['failure_signature']} | {c['independent_attempt_count']} | {c['status']} |")
-    lines += ["", "No eligible cohort reaches the four-attempt threshold. Historical manifests also omit runner implementation revision, so comparability remains incomplete. No batch diagnosis or rerun recommendation is authorised.", "", "## Interpretation limits", ""]
+    lines += ["", "No eligible cohort reaches the four-attempt threshold. Historical manifests also omit runner implementation revision and explicit capture-profile provenance, so comparability remains incomplete. No batch diagnosis or rerun recommendation is authorised.", "", "## Interpretation limits", ""]
     lines += [f"- {x}" for x in report["limitations"]]
     Path(args.markdown).write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(json.dumps({"status": "PASS" if records and not errors else "PARTIAL", "runs": len(records),
