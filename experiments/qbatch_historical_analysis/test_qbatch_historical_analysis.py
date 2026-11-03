@@ -7,7 +7,7 @@ from pathlib import Path
 
 from qbatch_historical_analysis import (
     analyse_cohorts, canonical_bytes, normalise, policy_for_cohort,
-    read_run, sha256_bytes,
+    read_run, sha256_bytes, classify_failure,
 )
 
 def record(attempt, signature="same", condition="A", identity_complete=True):
@@ -135,6 +135,99 @@ class HistoricalAnalysisTests(unittest.TestCase):
             (root / "manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError, "unsupported schema/logger labels"):
                 read_run(root, "attempt")
+
+
+    def test_real_failure_signature_text_encoded_tool_calls_not_dispatched(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifacts = root / "artifacts"
+            artifacts.mkdir()
+            # Sanitized shape observed in run 39592787189: Ollama content is JSON
+            # text, not structured tool_calls; the runner dispatches no tool calls.
+            content = json.dumps({"name": "submit_plan", "arguments": {"plan": "fixture"}})
+            for index in range(4):
+                payload = {"created_at": "fixture", "message": {"role": "assistant", "content": content}}
+                (artifacts / f"{index:04d}-model-response-fixture.txt").write_text(
+                    json.dumps(payload), encoding="utf-8"
+                )
+            events = [
+                {"event_type": "error", "payload": {"kind": "model_response_without_tool_call", "turn": n},
+                 "evidence_refs": []}
+                for n in range(1, 5)
+            ]
+            run = {"root": root, "events": events, "format_profile": {"unknown_event_types": []}}
+            result = classify_failure(run)
+            self.assertEqual(result["signature"], "text_encoded_tool_calls_not_dispatched")
+            self.assertEqual(result["observed"]["dispatched_tool_calls"], 0)
+            self.assertEqual(result["observed"]["json_encoded_tool_responses"], 4)
+
+    def test_real_failure_signature_repeated_no_tool_responses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            # Sanitized event counts from run 39597455540: 21 no-tool responses,
+            # three dispatched calls, then the 24-turn runner limit.
+            events = [
+                {"event_type": "tool_call", "payload": {"tool_name": name}, "evidence_refs": []}
+                for name in ("list_files", "read_file", "read_file")
+            ]
+            events.extend(
+                {"event_type": "error", "payload": {"kind": "model_response_without_tool_call", "turn": n},
+                 "evidence_refs": []}
+                for n in range(1, 22)
+            )
+            run = {"root": root, "events": events, "format_profile": {"unknown_event_types": []}}
+            result = classify_failure(run)
+            self.assertEqual(result["signature"], "repeated_no_tool_responses")
+            self.assertEqual(result["observed"]["no_tool_response_events"], 21)
+            self.assertEqual(result["observed"]["dispatched_tool_calls"], 3)
+
+    def test_real_failure_signature_first_request_timeout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            events = [
+                {"event_type": "error", "payload": {
+                    "kind": "model_request_failed", "turn": 1,
+                    "error_type": "TimeoutError", "message": "timed out"
+                }, "evidence_refs": []},
+                {"event_type": "error", "payload": {
+                    "kind": "agent_run_failed", "error_type": "RunnerError",
+                    "message": "model request failed on turn 1: timed out"
+                }, "evidence_refs": []},
+            ]
+            run = {"root": root, "events": events, "format_profile": {"unknown_event_types": []}}
+            result = classify_failure(run)
+            self.assertEqual(result["signature"], "first_request_timeout")
+            self.assertEqual(result["observed"]["failed_requests"], 1)
+            self.assertTrue(result["observed"]["first_turn_only"])
+
+    def test_real_failure_signature_rejected_plan_resubmission_loop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifacts = root / "artifacts"
+            artifacts.mkdir()
+            events = []
+            # Sanitized shape/count from run 41619488320: 24 dispatched tool
+            # calls, including seven rejected repeat submit_plan calls.
+            for index in range(24):
+                refs = []
+                if index in {3, 6, 9, 12, 15, 18, 21}:
+                    name = f"{index:04d}-tool-call-output.json"
+                    data = {"error": True, "message": "plan may be submitted only once"}
+                    (artifacts / name).write_text(json.dumps(data), encoding="utf-8")
+                    refs = [{"path": f"artifacts/{name}"}]
+                tool_name = "submit_plan" if index in {0, 3, 6, 9, 12, 15, 18} else (
+                    "list_files" if index % 3 == 0 else "read_file"
+                )
+                events.append({
+                    "event_type": "tool_call",
+                    "payload": {"tool_name": tool_name},
+                    "evidence_refs": refs,
+                })
+            run = {"root": root, "events": events, "format_profile": {"unknown_event_types": []}}
+            result = classify_failure(run)
+            self.assertEqual(result["signature"], "rejected_plan_resubmission_loop")
+            self.assertEqual(result["observed"]["tool_call_count"], 24)
+            self.assertEqual(result["observed"]["rejected_plan_submissions"], 7)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
