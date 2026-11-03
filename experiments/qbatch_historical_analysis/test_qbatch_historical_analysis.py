@@ -216,8 +216,10 @@ class HistoricalAnalysisTests(unittest.TestCase):
                     data = {"error": True, "message": "plan may be submitted only once"}
                     (artifacts / name).write_text(json.dumps(data), encoding="utf-8")
                     refs = [{"path": f"artifacts/{name}"}]
-                tool_name = "submit_plan" if index in {0, 3, 6, 9, 12, 15, 18, 21} else (
-                    "list_files" if index % 3 == 0 else "read_file"
+                tool_name = (
+                    "submit_plan" if index % 3 == 0 else
+                    "list_files" if index % 3 == 1 else
+                    "read_file"
                 )
                 for ref in refs:
                     artifact = root / ref["path"]
@@ -236,6 +238,10 @@ class HistoricalAnalysisTests(unittest.TestCase):
             self.assertEqual(result["signature"], "rejected_plan_resubmission_loop")
             self.assertEqual(result["observed"]["tool_call_count"], 24)
             self.assertEqual(result["observed"]["rejected_plan_submissions"], 7)
+            self.assertEqual(
+                result["observed"]["tool_name_counts"],
+                {"list_files": 8, "read_file": 8, "submit_plan": 8},
+            )
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
