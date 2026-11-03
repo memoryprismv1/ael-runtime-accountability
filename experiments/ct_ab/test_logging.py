@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hashlib
 import json
 import tempfile
 import unittest
@@ -204,6 +205,79 @@ class LoggingContractTests(unittest.TestCase):
                     logger.capture_artifact("../events.jsonl", "nope")
             finally:
                 logger.finish()
+
+
+    def test_new_run_records_bound_capture_and_runner_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "output"
+            run_rehearsal(output)
+            run_dir = output / "run-a"
+            manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+            rows = [json.loads(line) for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+            start = rows[0]["payload"]
+            profile = manifest["capture_profile"]
+            self.assertEqual(profile["id"], "ct-ab-runner-capture")
+            self.assertEqual(profile["version"], 1)
+            self.assertEqual(
+                manifest["capture_profile_sha256"],
+                hashlib.sha256(json.dumps(profile, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest(),
+            )
+            self.assertEqual(start["capture_profile_id"], profile["id"])
+            self.assertEqual(start["capture_profile_version"], profile["version"])
+            self.assertEqual(start["capture_profile_sha256"], manifest["capture_profile_sha256"])
+            self.assertEqual(start["runner_implementation_revision"], manifest["runner_implementation_revision"])
+            self.assertEqual(start["runner_worktree_clean"], manifest["runner_worktree_clean"])
+            revision = manifest["runner_implementation_revision"]
+            self.assertTrue(revision is None or (len(revision) in {40, 64} and all(c in "0123456789abcdef" for c in revision)))
+            self.assertTrue(manifest["runner_worktree_clean"] is None or isinstance(manifest["runner_worktree_clean"], bool))
+            self.assertEqual(validate_run(run_dir)["run_provenance"]["capture_profile_id"], profile["id"])
+
+    def test_manifest_capture_profile_tampering_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "output"
+            run_rehearsal(output)
+            path = output / "run-a" / "manifest.json"
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+            manifest["capture_profile"]["capabilities"].append("invented_capability")
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(LogValidationError, "capture profile hash mismatch"):
+                validate_run(output / "run-a")
+
+    def test_pair_validator_rejects_different_capture_profiles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "output"
+            run_rehearsal(output)
+            run_dir = output / "run-b"
+            manifest_path = run_dir / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["capture_profile"]["version"] = 2
+            profile_hash = hashlib.sha256(
+                json.dumps(manifest["capture_profile"], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+            ).hexdigest()
+            manifest["capture_profile_sha256"] = profile_hash
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            event_path = run_dir / "events.jsonl"
+            events = [json.loads(line) for line in event_path.read_text(encoding="utf-8").splitlines()]
+            events[0]["payload"]["capture_profile_version"] = 2
+            events[0]["payload"]["capture_profile_sha256"] = profile_hash
+            previous = None
+            serialized = []
+            for event in events:
+                event.pop("event_sha256", None)
+                event["prev_event_sha256"] = previous
+                digest = hashlib.sha256(
+                    json.dumps(event, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+                ).hexdigest()
+                event["event_sha256"] = digest
+                previous = digest
+                serialized.append(json.dumps(event, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
+            stream = ("\\n".join(serialized) + "\\n").encode()
+            event_path.write_bytes(stream)
+            (run_dir / "checksums.sha256").write_text(hashlib.sha256(stream).hexdigest() + "  events.jsonl\\n", encoding="ascii")
+
+            with self.assertRaisesRegex(LogValidationError, "capture_profile"):
+                validate_pair(output / "run-a", output / "run-b")
 
 if __name__ == "__main__":
     unittest.main()
