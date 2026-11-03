@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 from .config import new_id, now
+from .ledger import append_event
 
 def delta_preview(old_text: str, new_text: str, fromfile='current', tofile='proposed') -> dict:
     diff = list(difflib.unified_diff(old_text.splitlines(), new_text.splitlines(), fromfile=fromfile, tofile=tofile, lineterm=''))
