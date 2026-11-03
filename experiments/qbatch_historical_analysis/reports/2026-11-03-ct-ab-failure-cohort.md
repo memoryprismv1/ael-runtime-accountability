@@ -11,6 +11,7 @@
 - Committed analyser replay: **PASS** (8 runs read, 0 read failures)
 - Sanitized failure-signature regression cases: **4 added**
 - Eligible four-attempt cohorts: **0**
+- Future-run provenance fields added: **capture profile ID/version/hash, runner revision, worktree-clean state**
 - Decision: **INCONCLUSIVE — no eligible cohort reaches minimum**
 
 ## Replay verification
@@ -41,7 +42,7 @@ A and B are paired arms of one workflow attempt and count as **one** independent
 
 - The historical schema/logger labels remained 1.0 / 0.1.0 while recorded event capabilities changed. Recording profiles are inferred from observed evidence, not explicit producer identities.
 - Absence of an event in an older recording profile is not evidence that the event did not occur.
-- The old manifests omit the runner implementation revision. Comparability metadata is incomplete even where task and model details appear similar.
+- The old manifests omit the runner implementation revision, worktree-clean state, and explicit capture-profile identity/hash. Comparability metadata is incomplete even where task and model details appear similar. These fields are now recorded and bound to `run_started` for new CT A/B runs; the historical evidence was not modified or backfilled.
 - The analyser identifies observable failure signatures, not proven root causes.
 - Four comparable independent failures are a minimum eligibility threshold, not a guarantee of statistical certainty.
 - A rerun recommendation requires a targeted fix and a passing regression test, and still requires manual approval.
