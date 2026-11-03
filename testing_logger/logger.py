@@ -1,8 +1,8 @@
-"""A shared append-only JSONL event recorder for paired agent runs.
+"""Global append-only JSONL testing logger for AI-response experiments.
 
-The logger must write outside the agent's project workspace. It intentionally
-records observable tool/environment events and agent-declared summaries, not
-hidden chain-of-thought.
+The logger must write outside the agent's project workspace. It records
+observable test events and evidence, not hidden chain-of-thought. Each experiment
+chooses its own event vocabulary, call points and call frequency.
 """
 from __future__ import annotations
 
