@@ -8,8 +8,14 @@
 - Independent workflow attempts: **4**
 - Fully verified runs (event chain, referenced artifacts and checksum): **8 / 8**
 - Evidence references independently re-hashed: **920**
+- Committed analyser replay: **PASS** (8 runs read, 0 read failures)
+- Sanitized failure-signature regression cases: **4 added**
 - Eligible four-attempt cohorts: **0**
 - Decision: **INCONCLUSIVE — no eligible cohort reaches minimum**
+
+## Replay verification
+
+The committed analyser was executed against the four original GitHub Actions audit ZIPs after extracting both A and B arms. The replay verified each event chain, all referenced artifact sizes and SHA-256 hashes, each context binding where present, and each event-stream checksum. It produced the same four failure signatures recorded below, with 8/8 runs fully verified and 920 evidence references re-hashed. The raw archives were not modified. The short ZIP folder labels were mapped to their corresponding workflow run IDs only in the replay input directory.
 
 ## Run findings
 
