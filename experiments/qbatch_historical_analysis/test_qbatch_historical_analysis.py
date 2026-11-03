@@ -153,6 +153,31 @@ class HistoricalAnalysisTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "runner_implementation_revision is not bound"):
                 read_run(root, "attempt")
 
+
+    def test_removing_manifest_provenance_does_not_downgrade_new_run_to_legacy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = write_run(Path(tmp) / "run", provenance=True)
+            manifest_path = root / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            for field in (
+                "capture_profile", "capture_profile_sha256",
+                "runner_implementation_revision", "runner_worktree_clean",
+            ):
+                manifest.pop(field)
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "incomplete run provenance"):
+                read_run(root, "attempt")
+
+    def test_legacy_manifests_without_provenance_remain_readable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = write_run(Path(tmp) / "run")
+            run = read_run(root, "attempt")
+            self.assertIsNone(run["run_provenance"])
+            row = normalise(run)
+            self.assertFalse(row["identity_complete"])
+            self.assertIn("capture_profile_id", row["missing_identity_fields"])
+            self.assertIn("runner_implementation_revision", row["missing_identity_fields"])
+
     def test_capture_profile_hash_tampering_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = write_run(Path(tmp) / "run", provenance=True)
