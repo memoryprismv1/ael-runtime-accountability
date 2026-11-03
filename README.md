@@ -101,3 +101,10 @@ The original AEL writing remains the authoritative source and is linked, not rec
 ## Explicit non-goals
 
 No direct integration into ChatGPT or Claude websites; no paid/cloud API integration; no automatic materiality classifier; no automatic semantic-relevance classifier; no production concurrency service; no fully validated locale-tag service; no claim of automatic model-weight learning; no claim that all AEL mechanisms are complete. Locale Tags remain a documented hypothesis and are not overbuilt here.
+
+
+## Modular runtime layout
+
+The shared runtime is split into the `ael/` package: database and migrations, canonical AEL ledger, branches, memory, context assembly, provider transport, sessions, checkpoints and revisions. `runtime.py` remains the compatibility entry point for existing imports and CLI usage.
+
+The global `testing_logger/` package is separate from the AEL ledger. Experiments call it at the points and frequency their protocols require. Experiment-specific schemas, scoring and orchestration remain under `experiments/`. See [ARCHITECTURE_REFACTOR.md](ARCHITECTURE_REFACTOR.md).
