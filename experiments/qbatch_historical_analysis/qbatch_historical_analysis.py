@@ -81,11 +81,20 @@ def infer_profile(manifest, events):
 def validate_optional_provenance(manifest, start_payload):
     """Validate explicit provenance when present; old manifests remain readable."""
     present = PROVENANCE_FIELDS.intersection(manifest)
-    if not present:
+    binding_fields = {
+        "capture_profile_id", "capture_profile_version", "capture_profile_sha256",
+        "runner_implementation_revision", "runner_worktree_clean",
+    }
+    start_present = binding_fields.intersection(start_payload)
+    if not present and not start_present:
         return None
     missing = PROVENANCE_FIELDS - set(manifest)
-    if missing:
-        raise ValueError(f"incomplete run provenance: {sorted(missing)}")
+    missing_bindings = binding_fields - set(start_payload)
+    if missing or missing_bindings:
+        raise ValueError(
+            "incomplete run provenance: "
+            f"manifest={sorted(missing)}, run_started={sorted(missing_bindings)}"
+        )
     profile = manifest["capture_profile"]
     if not isinstance(profile, dict) or set(profile) != {"id", "version", "capabilities"}:
         raise ValueError("capture profile must contain exactly id, version, and capabilities")
