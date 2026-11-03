@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from .logger import SCHEMA_VERSION, LOGGER_VERSION, canonical_json, sha256_bytes, sha256_file
+from .context import ContextValidationError, validate_manifest_context
 
 PHASES = {"setup", "planning", "implementation", "debugging", "verification", "delivery", "preflight"}
 ACTORS = {"runner", "agent", "tool", "runtime", "reviewer", "logger"}
@@ -69,6 +70,10 @@ def validate_run(run_dir: str | Path, require_finished: bool = True) -> dict[str
         _fail(f"invalid manifest JSON: {exc}")
     if not isinstance(manifest, dict) or MANIFEST_FIELDS - set(manifest):
         _fail(f"manifest missing fields: {sorted(MANIFEST_FIELDS - set(manifest if isinstance(manifest, dict) else {}))}")
+    try:
+        context = validate_manifest_context(manifest)
+    except ContextValidationError as exc:
+        _fail(f"invalid manifest context: {exc}")
     if manifest["schema_version"] != SCHEMA_VERSION or manifest["logger_version"] != LOGGER_VERSION:
         _fail("unsupported schema/logger version")
     if manifest["condition_label"] not in {"A", "B", "REHEARSAL-A", "REHEARSAL-B"}:
@@ -125,14 +130,20 @@ def validate_run(run_dir: str | Path, require_finished: bool = True) -> dict[str
         parsed.append(event)
     if parsed[0]["event_type"] != "run_started":
         _fail("first event must be run_started")
+    if context is not None:
+        expected_context_hash = sha256_bytes(canonical_json(context))
+        start_payload = parsed[0].get("payload", {})
+        if start_payload.get("context_id") != context["context_id"] or start_payload.get("context_sha256") != expected_context_hash:
+            _fail("run context snapshot does not match the context identity/hash bound into run_started")
     if require_finished and parsed[-1]["event_type"] != "run_finished":
         _fail("last event must be run_finished")
     checksum_path = root / "checksums.sha256"
-    if checksum_path.exists():
-        first = checksum_path.read_text(encoding="ascii").split()
-        if len(first) < 2 or first[1] != "events.jsonl" or first[0] != sha256_file(events_path):
-            _fail("events.jsonl checksum mismatch")
-    return {"run_id": manifest["run_id"], "condition_label": manifest["condition_label"], "events": len(parsed), "event_types": sorted(event_types), "evidence_refs_verified": referenced, "events_sha256": sha256_file(events_path), "status": parsed[-1]["payload"].get("completion_status", parsed[-1]["status"])}
+    if not checksum_path.is_file():
+        _fail("missing checksums.sha256")
+    first = checksum_path.read_text(encoding="ascii").split()
+    if len(first) != 2 or first[1] != "events.jsonl" or first[0] != sha256_file(events_path):
+        _fail("events.jsonl checksum missing, malformed, or mismatched")
+    return {"run_id": manifest["run_id"], "condition_label": manifest["condition_label"], "context_id": context["context_id"] if context else None, "context_status": "present" if context else "legacy_missing", "events": len(parsed), "event_types": sorted(event_types), "evidence_refs_verified": referenced, "events_sha256": sha256_file(events_path), "status": parsed[-1]["payload"].get("completion_status", parsed[-1]["status"])}
 
 
 def validate_pair(run_a: str | Path, run_b: str | Path, required_event_types: set[str] | None = None) -> dict[str, Any]:
@@ -143,8 +154,10 @@ def validate_pair(run_a: str | Path, run_b: str | Path, required_event_types: se
         _fail("paired runs must have distinct run IDs")
     ma = json.loads((Path(run_a) / "manifest.json").read_text(encoding="utf-8"))
     mb = json.loads((Path(run_b) / "manifest.json").read_text(encoding="utf-8"))
-    shared = ["task_brief_sha256", "logger_version", "schema_version", "model", "environment", "resource_limits", "base_commit", "client_brief_sha256", "api_contract_sha256", "starter_sha256", "acceptance_suite_sha256", "acceptance_contract_version"]
+    shared = ["task_brief_sha256", "logger_version", "schema_version", "model", "environment", "resource_limits", "base_commit", "client_brief_sha256", "api_contract_sha256", "starter_sha256", "acceptance_suite_sha256", "acceptance_contract_version", "context_id"]
     mismatches = [field for field in shared if ma.get(field) != mb.get(field)]
+    if ma.get("context") != mb.get("context"):
+        mismatches.append("context")
     if mismatches:
         _fail(f"paired run manifests differ on controlled fields: {mismatches}")
     required = required_event_types or {"run_started", "run_finished", "plan_submitted", "tool_call", "model_request", "model_response", "command_started", "command_finished", "test_result", "file_changed"}

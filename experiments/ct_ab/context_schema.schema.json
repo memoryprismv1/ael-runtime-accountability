@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memoryprism.com/schemas/qbatch-test-context-1.0.json",
+  "title": "Q-Batch test context",
+  "description": "Versioned explanation of why a test exists, distinct from execution evidence and later interpretation.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["context_id", "version", "summary", "description", "purpose", "rationale", "hypothesis", "origin_refs", "created_at", "created_by"],
+  "properties": {
+    "context_id": {"type": "string", "minLength": 1},
+    "version": {"type": "integer", "minimum": 1},
+    "summary": {"type": "string", "minLength": 1},
+    "description": {"type": "string", "minLength": 1},
+    "purpose": {"type": "string", "minLength": 1},
+    "rationale": {"type": "string", "minLength": 1},
+    "hypothesis": {"type": ["string", "null"]},
+    "origin_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": {"type": "string", "minLength": 1},
+          "ref": {"type": "string", "minLength": 1},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "created_at": {"type": "string", "minLength": 1},
+    "created_by": {"type": "string", "minLength": 1},
+    "notes": {"type": "string"}
+  }
+}

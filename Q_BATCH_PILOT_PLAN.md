@@ -1,8 +1,20 @@
 # Q-Batch Pilot Plan — AEL Runtime Accountability
 
-**Status:** Protocol recovered; real-model execution still pending a valid pair  
+**Status:** Real-model skill-on/skill-off pilot has no valid pair; method demonstration should be tested separately  
 **Method:** Q-Batch of Evidence  
-**Purpose:** Preserve independently inspectable evidence for the Critical Thinking skill-on/skill-off software-task experiment, with offline comparison after evidence is frozen.
+**Purpose:** Preserve independently inspectable evidence in batches and enable comparison without requiring a fragile, expensive back-to-back model run. The Critical Thinking pilot is one possible application, not proof of the Q-Batch method itself.
+
+## Important distinction: the pilot is too heavy to test the method
+
+The existing real-model task has failed in both conditions in repeated attempts: tool-protocol/no-tool loops in earlier attempts, then a first-request timeout in both A and B. No valid pair reached independent acceptance scoring. This is evidence that the current task/model/runner combination is too heavy or brittle for a first demonstration—not evidence for or against Critical Thinking, and not a verdict on Q-Batch.
+
+Do not use another expensive real-model attempt as the first test of Q-Batch's value. First test the method with a small deterministic fixture whose expected result is known. The fixture should reproduce a specific sequential-comparison problem, such as order-dependent outcomes caused by shared mutable state, then compare that with independent runs from a clean recorded baseline. Q-Batch should preserve the run order, baseline/state identity, outcomes, and evidence needed to expose the confound.
+
+Keep three claims separate:
+
+- **Logger integrity:** event chains, checksums, and artifact references detect missing or changed evidence.
+- **Q-Batch methodology:** a frozen evidence batch makes independently executed conditions inspectable and reveals a known confound that a naive sequential comparison obscures.
+- **Real-model efficacy:** whether the Critical Thinking skill improves task performance. The current pilot has not established this.
 
 ## Plain-English status
 
@@ -95,3 +107,73 @@ Run [39730856613](https://github.com/memoryprismv1/ael-runtime-accountability/ac
 - Therefore this is not a scored pair and says nothing about the skill's effect.
 
 **Recovery action:** the workflow now passes a 600-second per-request timeout while keeping the model, pinned skill, task, temperature, context, prediction limit, turn/tool limits and blinded paired design unchanged. This is an operational allowance to test whether the hosted CPU runner can complete the first response, not a change to the task or rubric. The next attempt remains pending until a new workflow run is observed. It must be preserved as a new independent evidence batch; do not merge it with this failed batch.
+
+
+## Recommended next step: small method test before another model pilot
+
+Use a deterministic, low-cost fixture to show the distinction between (a) two conditions executed sequentially against shared state and (b) the same conditions run independently from clean, recorded baselines. Intentionally make the shared-state outcome order-dependent, then verify that the batch records enough evidence to identify that dependency and compare the isolated runs.
+
+The method test should complete without Ollama, model downloads, generated application code, or human scoring. Its report must say explicitly that it is synthetic and establishes only the demonstrated failure mode and evidence handling. It must not be described as proof that Q-Batch is universally better than A/B testing.
+
+Only return to the real-model skill pilot if the skill-effectiveness question is still worth its execution cost and a suitably lightweight, reliable model/task setup is available. Any new attempt remains a separate immutable evidence batch.
+
+
+## Deterministic method demonstration (implemented)
+
+The model-free demonstration is implemented in `experiments/ct_ab/method_demo.py` and tested by `experiments/ct_ab/test_method_demo.py`. CI runs the unit test and creates an evidence artifact named `ct-ab-method-demo-evidence`.
+
+It compares six logged runs:
+- A then B against shared state;
+- B then A against shared state;
+- A and B independently, each from a fresh baseline.
+
+The fixture is intentionally stateful: the first condition sees a clean baseline, and the next condition inherits the previous condition's state. The expected result is order dependence in the sequential comparisons and comparable clean-baseline outcomes in the isolated runs. Every run's event chain, checksum and evidence references are validated before the method report is marked PASS.
+
+**Interpretation boundary:** this is a deterministic demonstration that a particular sequential carryover confound can be exposed by clean-baseline runs and an evidence batch. It is not proof of universal superiority over A/B testing, and it says nothing about Critical Thinking skill efficacy.
+
+## Longer-term direction: historical evidence and retrospective analysis
+
+This is a future direction, not work to implement as part of the current method demonstration.
+
+Q-Batch evidence should remain useful after its original experiment has finished. In addition to comparing conditions for one experiment, accumulated run evidence may later support longitudinal questions such as:
+
+- How has `main`'s behaviour changed across weeks or months?
+- When did a runtime, failure rate, retry pattern, or other observed property begin to drift?
+- Does a development branch differ from the current baseline, and how does that difference compare with the longer-term history?
+- Is a change consistent with ordinary run-to-run variability, or does it warrant investigation?
+- Can old evidence answer a question that nobody thought to ask when those runs were collected?
+
+### Architectural boundary
+
+- The existing event log records observable events and references to evidence. It does not know whether downstream consumers will compare, aggregate, chart, or otherwise analyse those records.
+- Preserve original run evidence; do not replace detailed observations with averages or other irreversible summaries.
+- Historical analysis belongs in separate post-processing code. Start with Python and the existing JSONL/manifests/artifacts; introduce another dependency or storage format only if a demonstrated need arises.
+- Derived reports should identify the source runs and processing method so a finding can be traced back to its evidence.
+- Retain historical evidence beyond ordinary short-lived CI artifact windows if it is to serve as a longitudinal baseline. The archive/retention mechanism is a separate future decision.
+- Record enough run context to judge comparability, including source commit, test/suite identity, configuration, environment and relevant data/seed identity. Do not assume runs are comparable merely because their test names match.
+- Treat trends and correlations as investigative evidence, not automatic proof that a particular commit caused a change.
+
+### Scope boundary
+
+This direction does not require changing the event logger into a comparison system, adopting Allure or another reporting product, adding DuckDB, introducing Parquet, or building a dashboard now. Existing tools may provide reusable mechanisms later, but Q-Batch should borrow individual mechanisms only when they solve a concrete need.
+
+The first practical exploration, when undertaken, should be a small Python post-processor over existing Q-Batch evidence to test a real historical question without modifying the source logs. No historical archive, scheduled baseline run, charting system, or new dependency is being introduced by this plan.
+
+
+
+## Context object: implemented foundation
+
+Q-Batch now has a small context catalog and loader under `experiments/ct_ab/`. The catalog currently defines contexts for the Critical Thinking skill pilot, the deterministic order/carryover methodology demonstration, and instrumentation preflight.
+
+Each context records a stable `context_id`, version, summary, description, purpose, rationale, optional hypothesis, origin references, creation date/author, and optional notes. These records explain why evidence is collected; they are not run outcomes or conclusions. Missing hypotheses remain explicitly null rather than being invented.
+
+New runs must embed both `context_id` and an exact context snapshot in `manifest.json`. The logger binds the context ID and canonical snapshot SHA-256 into the first, hash-chained `run_started` event. Validation checks the snapshot against that event and paired-run validation requires the two runs to use the same context identity and snapshot. This detects silent edits to the embedded context without changing the logger into an analysis engine.
+
+The catalog is the source for context used by new runs; the embedded snapshot preserves the explanation that was true for that execution even if the catalog is revised later. Update a context by incrementing its version and preserving the old meaning for historical runs, rather than silently rewriting past explanations. Origin references can point to repository files, issues, discussions, incidents, design decisions, or other records; Git commits alone are not assumed to explain the original motivation.
+
+The context is separate from execution evidence and later interpretation:
+- Context says why the test exists and what question it addresses.
+- Run evidence records what happened and under which conditions.
+- Interpretation records conclusions and should point to source runs and analysis methods.
+
+Compatibility boundary: validation continues to accept older manifests with no context and reports them as `legacy_missing`; the current logger requires context for newly created runs. No new event fields, comparison UUID, dashboard, or external dependency is introduced. A comparison group, if later added, remains separate from context and does not establish that grouped runs are comparable.

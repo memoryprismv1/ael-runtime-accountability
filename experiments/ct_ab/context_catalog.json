@@ -1,0 +1,93 @@
+{
+  "catalog_version": "1.0",
+  "description": "Durable purpose and origin context for Q-Batch test definitions. Context records explain why evidence is collected; they are not execution results.",
+  "contexts": [
+    {
+      "context_id": "ct-skill-on-off-kanban-v1",
+      "version": 1,
+      "summary": "Explore whether the pinned Critical Thinking skill changes performance on a fixed software-building task.",
+      "description": "A blinded paired pilot runs the same fixed Kanban client task with the pinned Critical Thinking skill enabled in one condition and disabled in the other. The pair is exploratory and requires independent acceptance scoring.",
+      "purpose": "Investigate whether the skill-on and skill-off conditions differ on the defined task under controlled settings.",
+      "rationale": "The real-model pilot is an application experiment for the Q-Batch evidence workflow; it must not be mistaken for a validation of Q-Batch itself. Earlier attempts failed before producing a valid scored pair, so failed attempts are retained as harness evidence rather than efficacy results.",
+      "hypothesis": null,
+      "origin_refs": [
+        {
+          "kind": "repository_file",
+          "ref": "experiments/ct_ab/README.md",
+          "note": "Frozen protocol, blinding, and interpretation boundaries."
+        },
+        {
+          "kind": "repository_file",
+          "ref": "experiments/ct_ab/skill_source.json",
+          "note": "Pinned source identity for the Critical Thinking skill."
+        },
+        {
+          "kind": "repository_file",
+          "ref": ".github/workflows/ct-ab-real-model-pilot.yml",
+          "note": "Hosted workflow for the real-model pilot."
+        }
+      ],
+      "created_at": "2026-10-29",
+      "created_by": "assistant-authored from project discussion and repository evidence",
+      "notes": "A null hypothesis field means no specific directional hypothesis is recorded here; do not infer one from results."
+    },
+    {
+      "context_id": "qbatch-method-order-carryover-v1",
+      "version": 1,
+      "summary": "Demonstrate a known order/carryover confound and compare it with independent clean-baseline runs.",
+      "description": "A deterministic stateful fixture runs A then B, B then A, and isolated A/B runs from clean state. It records starting state identity and outcomes.",
+      "purpose": "Test whether a Q-Batch evidence set can expose this specific sequential carryover confound and preserve enough evidence to inspect it.",
+      "rationale": "A logger-integrity test alone does not demonstrate a methodological benefit. This fixture intentionally creates a known failure mode so the evidence workflow can be checked against expected outcomes.",
+      "hypothesis": "Sequential outcomes will depend on execution order when state carries over; isolated clean-baseline runs will not inherit the other condition's state.",
+      "origin_refs": [
+        {
+          "kind": "repository_file",
+          "ref": "experiments/ct_ab/method_demo.py",
+          "note": "Deterministic fixture and report."
+        },
+        {
+          "kind": "repository_file",
+          "ref": "experiments/ct_ab/test_method_demo.py",
+          "note": "Assertions for the demonstrated carryover effect."
+        },
+        {
+          "kind": "repository_file",
+          "ref": "Q_BATCH_PILOT_PLAN.md",
+          "note": "Methodological scope and claim boundaries."
+        }
+      ],
+      "created_at": "2026-10-29",
+      "created_by": "assistant-authored from project discussion and repository evidence",
+      "notes": "Synthetic methodology demonstration only; not evidence of model or skill efficacy, and not proof that Q-Batch is universally superior to A/B testing."
+    },
+    {
+      "context_id": "qbatch-instrumentation-preflight-v1",
+      "version": 1,
+      "summary": "Verify that the logger and evidence validation path preserve observable events and artifacts.",
+      "description": "A synthetic rehearsal exercises event capture, model/tool transport capture, command outcomes, file changes, failure/recovery events, artifact hashes, and validation.",
+      "purpose": "Check instrumentation integrity and expected evidence coverage before any scored experiment.",
+      "rationale": "The method experiment and real-model pilot depend on trustworthy logs. Instrumentation must be tested independently from claims about test methodology or model performance.",
+      "hypothesis": "Valid synthetic rehearsal runs should pass integrity checks, while tampered events, artifacts, checksums, or controlled fields should be rejected.",
+      "origin_refs": [
+        {
+          "kind": "repository_file",
+          "ref": "experiments/ct_ab/preflight.py",
+          "note": "Synthetic rehearsal implementation."
+        },
+        {
+          "kind": "repository_file",
+          "ref": "experiments/ct_ab/test_logging.py",
+          "note": "Positive and negative instrumentation tests."
+        },
+        {
+          "kind": "repository_file",
+          "ref": "experiments/ct_ab/validate_log.py",
+          "note": "Integrity and pair validation."
+        }
+      ],
+      "created_at": "2026-10-29",
+      "created_by": "assistant-authored from project discussion and repository evidence",
+      "notes": "Passing this preflight establishes instrumentation behavior only."
+    }
+  ]
+}
