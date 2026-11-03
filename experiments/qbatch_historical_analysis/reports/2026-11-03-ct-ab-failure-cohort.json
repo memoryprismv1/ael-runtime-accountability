@@ -1,0 +1,92 @@
+{
+  "report_version": "0.2.0",
+  "classification": "READ_ONLY_HISTORICAL_ANALYSIS_NOT_AUTOMATIC_RERUN_AUTHORITY",
+  "raw_evidence_modified": false,
+  "run_count": 8,
+  "independent_attempt_count": 4,
+  "fully_verified_runs": 8,
+  "evidence_references_rehashed": 920,
+  "decision": "INCONCLUSIVE_NO_ELIGIBLE_COHORT_REACHES_MINIMUM",
+  "attempts": [
+    {
+      "workflow_run_id": 39592787189,
+      "arms": [
+        "A",
+        "B"
+      ],
+      "format_profile": "legacy-model-exchange-only",
+      "failure_signature": "text_encoded_tool_calls_not_dispatched",
+      "observation": "24 JSON tool intents; 0 dispatched calls per arm",
+      "identity_complete": false,
+      "missing": [
+        "runner_implementation_revision"
+      ]
+    },
+    {
+      "workflow_run_id": 39597455540,
+      "arms": [
+        "A",
+        "B"
+      ],
+      "format_profile": "legacy-with-tool-dispatch",
+      "failure_signature": "repeated_no_tool_responses",
+      "observation": "21 no-tool responses; 3 dispatched calls per arm",
+      "identity_complete": false,
+      "missing": [
+        "runner_implementation_revision"
+      ]
+    },
+    {
+      "workflow_run_id": 39730856613,
+      "arms": [
+        "A",
+        "B"
+      ],
+      "format_profile": "legacy-transport-failure-only",
+      "failure_signature": "first_request_timeout",
+      "observation": "Both arms failed on the first model request",
+      "identity_complete": false,
+      "missing": [
+        "runner_implementation_revision"
+      ]
+    },
+    {
+      "workflow_run_id": 41619488320,
+      "arms": [
+        "A",
+        "B"
+      ],
+      "format_profile": "context-and-request-lifecycle",
+      "failure_signature": "rejected_plan_resubmission_loop",
+      "observation": "7 rejected repeat plans; 24 tool calls per arm",
+      "identity_complete": false,
+      "missing": [
+        "runner_implementation_revision"
+      ]
+    }
+  ],
+  "cohort_policy": {
+    "minimum_independent_attempts": 4,
+    "paired_arms_count_as_one_attempt": true,
+    "eligible_cohorts": 0,
+    "automatic_rerun": false,
+    "rerun_requires": [
+      "four comparable independent failed attempts",
+      "recorded targeted fix",
+      "passing regression test",
+      "manual approval"
+    ]
+  },
+  "limitations": [
+    "Recording profile is inferred from observed evidence because historical producer identity was not explicit.",
+    "Missing events in older profiles are not treated as evidence that they did not occur.",
+    "Historical manifests omit runner implementation revision.",
+    "Failure signatures are observed symptoms, not proven root causes."
+  ],
+  "source_urls": [
+    "https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/39592787189",
+    "https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/39597455540",
+    "https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/39730856613",
+    "https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41619488320"
+  ]
+}
