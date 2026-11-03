@@ -1,5 +1,5 @@
 {
-  "report_version": "0.2.0",
+  "report_version": "0.3.0",
   "classification": "READ_ONLY_HISTORICAL_ANALYSIS_NOT_AUTOMATIC_RERUN_AUTHORITY",
   "raw_evidence_modified": false,
   "run_count": 8,
@@ -88,5 +88,21 @@
     "https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/39597455540",
     "https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/39730856613",
     "https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41619488320"
-  ]
+  ],
+  "replay_execution": {
+    "status": "PASS",
+    "original_archives_replayed": 4,
+    "runs_read": 8,
+    "read_failures": 0,
+    "fully_verified_runs": 8,
+    "evidence_references_rehashed": 920,
+    "raw_evidence_modified": false,
+    "failure_signatures_detected": [
+      "text_encoded_tool_calls_not_dispatched",
+      "repeated_no_tool_responses",
+      "first_request_timeout",
+      "rejected_plan_resubmission_loop"
+    ],
+    "sanitized_classifier_regression_cases_added": 4
+  }
 }
