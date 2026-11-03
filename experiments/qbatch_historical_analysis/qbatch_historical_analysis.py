@@ -294,7 +294,7 @@ def normalise(run, attempt_url=None):
     url = attempt_url or (f"https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/{run_num.group(1)}" if run_num else None)
     return {"attempt_id": run["attempt_id"], "source_run_url": url, "run_id": run["run_id"],
             "condition_label": run["condition_label"], "format_profile": run["format_profile"],
-            "integrity": run["integrity"], "task_identity": identity,
+            "run_provenance": run.get("run_provenance"), "integrity": run["integrity"], "task_identity": identity,
             "task_identity_hash": sha256_bytes(canonical_bytes(identity)), "identity_complete": not missing,
             "missing_identity_fields": missing, "failure": failure}
 
@@ -368,7 +368,7 @@ def main():
         except Exception as exc:
             errors.append({"attempt_id": attempt_id, "run_path": str(root), "error": f"{type(exc).__name__}: {exc}"})
     cohort = analyse_cohorts(records)
-    report = {"report_version": "0.2.0", "classification": "READ_ONLY_HISTORICAL_ANALYSIS_NOT_AUTOMATIC_RERUN_AUTHORITY",
+    report = {"report_version": "0.3.0", "classification": "READ_ONLY_HISTORICAL_ANALYSIS_NOT_AUTOMATIC_RERUN_AUTHORITY",
               "raw_evidence_modified": False, "run_count": len(records),
               "attempt_count": len({r["attempt_id"] for r in records}),
               "integrity_pass_count": sum(r["integrity"]["status"] == "PASS" for r in records),
