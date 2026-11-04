@@ -3,18 +3,10 @@ name: CT A-B real local-model pilot
 # Q-Batch: each execution is an independent evidence batch. Preserve this run's
 # artifacts as-is; do not combine incomplete attempts or score invalid pairs.
 
+# Expensive, real-model execution is deliberately manual. Routine
+# stabilisation commits and PR merges must never download or run the model.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/ct-ab-real-model-pilot.yml"
-      - "experiments/ct_ab/agent_loop.py"
-      - "experiments/ct_ab/paired_runner.py"
-      - "experiments/ct_ab/acceptance.py"
-      - "experiments/ct_ab/skill_source.json"
-      - "experiments/ct_ab/client_task/**"
 
 permissions:
   contents: read

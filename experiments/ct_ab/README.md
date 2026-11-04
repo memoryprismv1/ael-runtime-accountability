@@ -2,7 +2,7 @@
 
 This package provides a shared JSONL logger, a versioned event contract, artifact integrity checks, and paired-run validation. Both conditions use the same code and schema; the model does not supply or modify the logger.
 
-> **Scope correction:** the heavyweight real-model skill-on/skill-off pilot is not the test of whether Q-Batch is useful. It is an attempted application experiment that has so far failed in both conditions before producing a valid pair: earlier runs hit tool-protocol/no-tool loops, and a later run timed out on the first model request. Those failures show that this task/model/runner combination is too expensive or brittle for a useful first test; they do not show that Q-Batch failed, that A/B is inherently inferior, or that the skill helps or hurts. Test Q-Batch's evidence workflow with small, deterministic, inexpensive fixtures first. Keep real-model efficacy testing separate.
+> **Scope correction:** the heavyweight real-model skill-on/skill-off pilot is not the test of whether Q-Batch is useful. It is an attempted application experiment that has so far failed in both conditions before producing a valid pair: earlier runs hit tool-protocol/no-tool loops, and a later run timed out on the first model request. Those failures show that this task/model/runner combination is too expensive or brittle for a useful first test; they do not show that Q-Batch failed, that A/B is inherently inferior, or that the skill helps or hurts. A later attempt also exposed repeated resubmission of an already accepted plan; this is a runner-control failure path, not efficacy evidence. Test Q-Batch's evidence workflow with small, deterministic, inexpensive fixtures first. Keep real-model efficacy testing separate.
 
 ## Layout
 
@@ -89,7 +89,7 @@ Have assessors score A and B independently before comparing or opening the key. 
 
 The A/B runner pins the input skill to commit d1f23e2ad9dafd323940fc6b7a00f1700275d885 in memoryprismv1/cognitive-interface-ai-skills, file critical-thinking/SKILL.md. It verifies the Git blob SHA-1 for exact bytes and records the file's SHA-256. A different revision is refused, not silently accepted. The pin lives in skill_source.json.
 
-A GitHub Actions workflow is provided at .github/workflows/ct-ab-real-model-pilot.yml. **Merging this PR automatically starts the pilot**: the workflow is triggered by a push to main that changes the workflow file itself. It installs Ollama on an ephemeral GitHub-hosted Linux VM, downloads the fixed local model qwen2.5-coder:7b, verifies the exact skill revision, then runs both conditions with the same settings. The model page describes Qwen2.5-Coder as a code-focused family and lists its 7B variant as 4.7 GB. See the [official Ollama model page](https://ollama.com/library/qwen2.5-coder). The same workflow can be rerun manually from Actions → CT A-B real local-model pilot → Run workflow.
+A GitHub Actions workflow is provided at .github/workflows/ct-ab-real-model-pilot.yml. **The real-model pilot is manual-dispatch only.** Routine pushes, PR updates, and merges do not launch it. To deliberately start the pilot, use Actions → CT A-B real local-model pilot → Run workflow. The workflow installs Ollama on an ephemeral GitHub-hosted Linux VM, downloads the fixed local model qwen2.5-coder:7b, verifies the exact skill revision, then runs both conditions with the same settings. The model page describes Qwen2.5-Coder as a code-focused family and lists its 7B variant as 4.7 GB. See the [official Ollama model page](https://ollama.com/library/qwen2.5-coder).
 
 Download **ct-ab-blind-score-packets** for blind assessment only. Keep **ct-ab-audit-evidence** away from assessors until their scorecards are frozen; those logs contain the actual model requests and so can reveal the condition. The controller key remains outside uploaded artifact paths. The skill/condition can be recovered from the enabled run's manifest and request trace only after scoring has been frozen.
 
@@ -104,7 +104,7 @@ The first real-model attempt (run 39592787189) did not produce a valid compariso
 
 Ticket #7 adds a deliberately narrow fallback: it accepts only one complete allowlisted {"name":...,"arguments":{...}} object, either raw or inside a single JSON code fence. It refuses arbitrary prose, unknown tool names, malformed JSON, non-object arguments, and extra fields. The raw response remains in audit evidence while the normalized call is what enters subsequent conversation history.
 
-Merging the parser fix automatically retriggers the real-model pilot. A valid attempt needs both runs to finish, produce observed tool/file/test events, pass the log validator, and generate independent acceptance reports. Until then, no skill-effectiveness claim is warranted.
+The parser fix no longer has any automatic real-model workflow side effect. The pilot can be started only through an explicit manual dispatch. A valid attempt needs both runs to finish, produce observed tool/file/test events, pass the log validator, and generate independent acceptance reports. Until then, no skill-effectiveness claim is warranted.
 
 
 ### Second real-pilot result: no-tool repetition loop
@@ -112,6 +112,18 @@ Merging the parser fix automatically retriggers the real-model pilot. A valid at
 The follow-up pilot (run 39597455540) passed pinned-skill verification and Ollama preflight but again did not produce a valid comparison. The model then repeatedly returned prose or echoed prior tool output without invoking a tool; both runs exhausted their 24-turn budgets. Acceptance was not run. This is a runner/model interaction failure, not evidence for or against the skill.
 
 Issue #8 adds an explicit recovery prompt, hash-based repeated-response detection, a bounded consecutive no-tool limit, and structured `agent_recovery_attempt` / `agent_loop_detected` events. The runner must stop with an auditable reason rather than spend the rest of the inference budget repeating the same instruction.
+
+
+
+### Fourth real-pilot attempt: duplicate plan resubmission
+
+Run [41619488320](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41619488320) failed to produce a valid pair. Both conditions submitted a plan successfully, then repeatedly called `submit_plan` again. The runner rejected each duplicate under the existing one-plan contract. Each arm recorded seven rejected repeat submissions and 24 dispatched tool calls before the 24-turn budget expired without a successful `finish`.
+
+This establishes an observed repeated-action failure, not the model's internal reason for repeating itself.
+
+**Stabilisation correction:** the runner now stops immediately after this exact duplicate-plan rejection, emits `agent_loop_detected` with reason `duplicate_plan_submission`, and returns an explicit runner error. The deterministic regression test verifies that the second model response is the stopping point, only one `plan_submitted` event is recorded, and the failed duplicate tool call remains in the audit log. This correction is on the draft Q-Batch PR branch and passed routine CI across Python 3.11, 3.12 and 3.13 in [run #351](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41791081760).
+
+No real-model rerun has been launched to test the correction. That is deliberate: routine CI is sufficient to verify the existing one-plan contract without another expensive model run.
 
 
 ## Separate question: what Q-Batch is meant to demonstrate
@@ -177,4 +189,14 @@ Every newly created run manifest embeds `context_id` plus the full context snaps
 
 The catalog provides current definitions; the manifest snapshot preserves the exact explanation associated with each run. When a context changes, increment its version and preserve the old version's meaning for historical evidence. Do not edit old manifests to match the latest catalog. Context is separate from execution evidence and later interpretation.
 
-Older manifests without context remain readable and are reported with `context_status: legacy_missing`; new `RunLogger` executions require a valid context snapshot. This is a context/provenance change only: the event logger still records what happened and does not perform comparisons or analysis. A comparison UUID, if added later, is a separate grouping relationship, not a substitute for context.
+Older manifests without context remain readable and are reported with `context_status: legacy_missing`; new `RunLogger` executions require a valid context snapshot.
+
+New CT A/B runs also carry explicit producer provenance:
+- `capture_profile`: stable profile ID/version plus the capabilities supported by this runner/logger implementation;
+- `capture_profile_sha256`: hash of that canonical profile definition;
+- `runner_implementation_revision`: checked-out Git commit when available;
+- `runner_worktree_clean`: whether the source worktree had no tracked or untracked changes at run creation.
+
+The profile and runner values are copied into the first `run_started` event, so changing or removing the manifest fields alone is detectable. The validator checks the binding and requires the same provenance across A/B. If Git metadata is unavailable, revision/cleanliness are recorded as null; the run remains inspectable but cannot qualify for a fully comparable historical cohort. The capture profile describes supported capture capabilities, not proof that every capability was exercised in a particular run. When those capabilities change, update the profile version and preserve the old definition for historical interpretation.
+
+Old manifests with no provenance remain readable; their absent metadata is not backfilled or inferred. New runs use explicit provenance, while the event schema remains unchanged. This is a provenance improvement only: the event logger still records what happened and does not perform comparisons or analysis. A comparison UUID, if added later, is a separate grouping relationship, not a substitute for context.
