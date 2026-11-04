@@ -21,7 +21,7 @@ No new features are in scope unless a minimal change is required to repair a dem
 1. Repeat the existing test suite from clean checkouts; record exact commits, commands, runtime versions, and test results.
 2. Preserve and verify the existing append-only ledger, context isolation, pivot/reset, retention/use, delta-first acceptance, and conformance contracts.
 3. Preserve and verify file-backed artifact source pinning, hash checks, same-rooted reads, and change/disappearance handling.
-4. Preserve and verify database reopen, context rehydration, and legacy migration behaviour.
+4. Preserve and verify database reopen, context rehydration, legacy migration, and checkpoint history behaviour. Checkpoint exports now use unique checkpoint IDs and contained filename components; regression tests verify historical hashes and output-root containment.
 5. Keep the loopback-only Ollama boundary and interactive shell covered by mock tests. Do not claim real inference without a captured real-model run.
 6. Reconcile docs with implemented code and test evidence.
 7. Conduct a focused threat-model and data-handling review before recommending use with sensitive content.
