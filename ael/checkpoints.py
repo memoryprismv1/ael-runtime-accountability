@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 from pathlib import Path
+from urllib.parse import quote
 from .config import new_id, now
 from .context import hydrate_payload, render_markdown
 
@@ -14,8 +15,12 @@ def checkpoint(con, *, account='default', project: str, chat: str, out_dir: str 
     # must therefore be unique: reusing project/chat-only paths would let a
     # later export overwrite the bytes (and hash) of an earlier checkpoint.
     checkpoint_id = new_id('CP')
-    md = out / f'checkpoint-{project}-{chat}-{checkpoint_id}.md'
-    js = out / f'checkpoint-{project}-{chat}-{checkpoint_id}.json'
+    # Project/chat are logical identifiers, not trusted path components.
+    # Quote separators and control characters so exports remain inside out_dir.
+    project_name = quote(str(project), safe="-_.")
+    chat_name = quote(str(chat), safe="-_.")
+    md = out / f'checkpoint-{project_name}-{chat_name}-{checkpoint_id}.md'
+    js = out / f'checkpoint-{project_name}-{chat_name}-{checkpoint_id}.json'
     md.write_text(render_markdown(payload), encoding='utf-8')
     raw = json.dumps(payload, ensure_ascii=False, indent=2)
     js.write_text(raw, encoding='utf-8')

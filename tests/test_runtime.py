@@ -237,6 +237,18 @@ class RuntimeV2Tests(unittest.TestCase):
         d=runtime.delta_preview('alpha\nbeta','alpha\ngamma')
         self.assertEqual(d['added_lines'],1); self.assertEqual(d['removed_lines'],1)
 
+    def test_checkpoint_identifiers_cannot_escape_output_directory(self):
+        self.ev('initial_brief','user','Keep checkpoint paths rooted.')
+        output_dir = self.root/'safe-checkpoints'
+        md, js = runtime.checkpoint(
+            self.con, account=self.account, project='project/../../outside',
+            chat='chat/../../outside', out_dir=output_dir,
+        )
+        self.assertEqual(md.parent.resolve(), output_dir.resolve())
+        self.assertEqual(js.parent.resolve(), output_dir.resolve())
+        self.assertTrue(md.is_file())
+        self.assertTrue(js.is_file())
+
     def test_repeated_checkpoints_preserve_each_snapshot_and_recorded_hash(self):
         self.ev('initial_brief','user','First checkpoint state')
         first_md, first_js = runtime.checkpoint(
