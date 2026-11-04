@@ -127,7 +127,8 @@
       "first_request_timeout",
       "rejected_plan_resubmission_loop"
     ],
-    "sanitized_classifier_regression_cases_added": 4
+    "sanitized_classifier_regression_cases_added": 4,
+    "current_reader_replay_status": "PASS"
   },
   "future_run_provenance": {
     "status": "implemented_on_experimental_branch",
@@ -141,5 +142,35 @@
       "runner_worktree_clean"
     ],
     "legacy_evidence_modified": false
+  },
+  "current_reader_replay": {
+    "recorded_at": "2026-11-04",
+    "branch": "qbatch/historical-cohort-analysis-prototype",
+    "reader_commit_before_runner_regression_fix": "f2171746d9b7043f293fa3f7f9ac6159c2ad2467",
+    "original_archives_replayed": 4,
+    "run_logs_read": 8,
+    "fully_verified_runs": 8,
+    "partial_integrity_runs": 0,
+    "read_failures": 0,
+    "evidence_references_rehashed": 920,
+    "raw_evidence_modified": false,
+    "cohort_decision": "INCONCLUSIVE_NO_ELIGIBLE_COHORT_REACHES_MINIMUM",
+    "failure_signatures": [
+      "text_encoded_tool_calls_not_dispatched",
+      "repeated_no_tool_responses",
+      "first_request_timeout",
+      "rejected_plan_resubmission_loop"
+    ],
+    "archive_sha256": {
+      "39592787189": "0482ab6ec6b762c8f1846389ba35d6ee0ec45159458a0393efcb71ed68d1868b",
+      "39597455540": "ae486cd157c04fc9a3b4cc440a06e8cfc9b4870d4c48f310149612dd608be838",
+      "39730856613": "b21156b434dbf9bfe4321f3b7d0b248f9f68447a8b7499c2692083472b9b213d",
+      "41619488320": "74f85769613e274f0352f3d0339a4eaf9aa0e43860ccaf79c434550b9ee15599"
+    },
+    "notes": [
+      "The current reader accepts all historical archives and preserves legacy missing-provenance limitations.",
+      "A/B arms remain one independent workflow attempt.",
+      "Historical provenance was not inferred or backfilled."
+    ]
   }
 }
