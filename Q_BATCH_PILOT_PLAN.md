@@ -52,7 +52,7 @@ Treat a real-model pair as **valid only if all** of these hold:
 4. Controlled manifest fields match; task and condition configuration hashes are preserved.
 5. The independent acceptance suite runs and produces a report for each condition.
 6. The blinded pair report and blind scoring packets are generated.
-7. Raw request/response audit evidence and the controller key remain withheld from assessors until their independent scorecards are frozen.
+7. Raw request/response audit evidence and the controller key must be access-controlled until independent scorecards are frozen. **The current repository is public, so its uploaded audit artifact is not access-controlled from assessors or repo readers. A truly blinded pilot is blocked until a private evidence destination is available.**
 
 The independent acceptance score is an objective task result. Human assessor ratings are additional qualitative evidence, not a substitute. Agreement between assessors is not proof of correctness. Do not infer skill effectiveness from one pair alone.
 
@@ -71,7 +71,7 @@ For each attempt, record:
 - names and hashes of uploaded artifacts;
 - explicit failure/incomplete reasons and any recovery code changes since the previous attempt.
 
-Keep blind scoring packets separate from full audit evidence. The audit traces contain raw model requests/responses and may reveal the condition. Do not expose the controller key or audit evidence before blind scoring is frozen.
+Keep blind scoring packets separate from full audit evidence in the experiment design. However, the current repository is public and the `ct-ab-audit-evidence` Actions artifact can be downloaded by anyone with repository read access; its raw model requests/responses may reveal the condition. Thus the existing public workflow does not preserve confidential blinding. A real blinded pilot is blocked until the raw evidence is stored in a private repository or equivalent restricted destination. Do not use sensitive inputs in the public workflow.
 
 ## Run history
 
