@@ -1,6 +1,6 @@
 # Q-Batch Pilot Plan — AEL Runtime Accountability
 
-**Status:** Real-model skill-on/skill-off pilot has no valid pair; method demonstration should be tested separately  
+**Status (4 November 2026):** No valid real-model skill-on/skill-off pair. Deterministic method demonstration is implemented. Current activity is stabilisation and historical compatibility verification; no new real-model attempt is planned in this cycle.  
 **Method:** Q-Batch of Evidence  
 **Purpose:** Preserve independently inspectable evidence in batches and enable comparison without requiring a fragile, expensive back-to-back model run. The Critical Thinking pilot is one possible application, not proof of the Q-Batch method itself.
 
@@ -81,16 +81,16 @@ Run `39592787189`: both conditions returned tool calls encoded in response text 
 ### Attempt 2 — invalid
 Run `39597455540`: after the text-tool-call fallback, both conditions fell into repeated no-tool responses/echoes and exhausted the 24-turn budget. Acceptance was not run. Issue #8 added bounded recovery and loop detection. Again, this is not efficacy evidence.
 
-### Attempt 3 — status
-The audit event schema was subsequently corrected to include the recovery-attempt and loop-detection events introduced by the fix. The latest commit visible during this review is `1b0ee8ad691a70165c7c211d3ba92c048619cd14`, which adds this Q-Batch plan. A new real-model run has **not been verified from this review**, so do not assume it ran or passed.
 
-## What happens next
+## Current work order — stabilisation only (4 November 2026)
 
-1. Routine CI and the synthetic preflight should pass on the current main branch.
-2. Run the existing **CT A-B real local-model pilot** workflow from GitHub Actions, or let its configured push trigger run when a relevant harness/workflow file changes. This downloads a multi-gigabyte model and can take a long time.
-3. Freeze the resulting workflow artifacts as one attempt.
-4. If the run is invalid, use its audit evidence to fix the specific harness failure, then create a new attempt; do not score an invalid pair.
-5. If valid, distribute only the blind scoring packets, collect independent scorecards, freeze those scorecards, and only then inspect the condition key/audit evidence and compare.
+1. The deterministic Q-Batch method demonstration is implemented and is covered by routine CI. Do not rebuild it or add methodology features during the current stabilisation window.
+2. The four original audit archives have now been replayed against the current historical reader. All eight logs passed integrity verification; 920 evidence references were re-hashed; there were zero read failures. See the current replay record in `experiments/qbatch_historical_analysis/reports/2026-11-03-ct-ab-failure-cohort.md`.
+3. Preserve the historical conclusion: four distinct observed failure signatures, one independent workflow attempt per signature, zero eligible diagnostic cohorts. Missing historical provenance remains missing; do not infer or backfill it.
+4. Stabilise the existing repeated-plan failure path with the smallest correction and a deterministic regression test. A duplicate `submit_plan` after a successful plan must stop the runner rather than consume the remaining turn budget.
+5. Run routine CI and reconcile documentation. Do not run the multi-gigabyte real-model workflow in this stabilisation cycle.
+
+No new Q-Batch features, analytics, storage mechanisms, dashboard, automatic reruns, or experiment redesign are in scope.
 
 ## Execution boundary
 
@@ -109,13 +109,11 @@ Run [39730856613](https://github.com/memoryprismv1/ael-runtime-accountability/ac
 **Recovery action:** the workflow now passes a 600-second per-request timeout while keeping the model, pinned skill, task, temperature, context, prediction limit, turn/tool limits and blinded paired design unchanged. This is an operational allowance to test whether the hosted CPU runner can complete the first response, not a change to the task or rubric. The next attempt remains pending until a new workflow run is observed. It must be preserved as a new independent evidence batch; do not merge it with this failed batch.
 
 
-## Recommended next step: small method test before another model pilot
+## Deterministic method test completed
 
-Use a deterministic, low-cost fixture to show the distinction between (a) two conditions executed sequentially against shared state and (b) the same conditions run independently from clean, recorded baselines. Intentionally make the shared-state outcome order-dependent, then verify that the batch records enough evidence to identify that dependency and compare the isolated runs.
+The no-model order/carryover demonstration described below is implemented and included in routine CI. It establishes one specific sequential carryover confound and verifies that independent clean-baseline runs expose it. It does not prove universal superiority over A/B testing and does not provide evidence about Critical Thinking skill efficacy.
 
-The method test should complete without Ollama, model downloads, generated application code, or human scoring. Its report must say explicitly that it is synthetic and establishes only the demonstrated failure mode and evidence handling. It must not be described as proof that Q-Batch is universally better than A/B testing.
-
-Only return to the real-model skill pilot if the skill-effectiveness question is still worth its execution cost and a suitably lightweight, reliable model/task setup is available. Any new attempt remains a separate immutable evidence batch.
+A real-model efficacy attempt is not part of the current stabilisation work. Any future decision to run one must be made separately; the current plan does not authorise a new expensive model workflow.
 
 
 ## Deterministic method demonstration (implemented)
@@ -177,3 +175,30 @@ The context is separate from execution evidence and later interpretation:
 - Interpretation records conclusions and should point to source runs and analysis methods.
 
 Compatibility boundary: validation continues to accept older manifests with no context and reports them as `legacy_missing`; the current logger requires context for newly created runs. No new event fields, comparison UUID, dashboard, or external dependency is introduced. A comparison group, if later added, remains separate from context and does not establish that grouped runs are comparable.
+
+
+### Attempt 4 — invalid: repeated rejected plan submissions
+
+Run [41619488320](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41619488320), commit `ff8339e306ab749f8f154a3580c073385a6f5737`:
+
+- Both A and B submitted a plan successfully, then repeatedly submitted `submit_plan` again.
+- The runner correctly rejected each duplicate with `plan may be submitted only once`.
+- Each arm recorded 7 rejected duplicate submissions and 24 dispatched tool calls before the runner exhausted its 24-turn budget without calling `finish`.
+- This is an observed repeated-action failure. The archive does not, by itself, establish the model's internal reason for repeating the plan.
+- A stabilisation correction now stops immediately when this specific existing one-plan contract is violated, records `agent_loop_detected` with reason `duplicate_plan_submission`, and raises an explicit runner error. A deterministic regression test verifies that only two model responses are needed, only one plan is recorded, and the duplicate is logged as failed.
+
+This correction and test are on the draft historical-analysis PR branch; see the current PR and CI record in the stabilisation update below. No real-model rerun has been launched to test the correction.
+
+
+## Stabilisation verification — 4 November 2026
+
+- Historical archives replayed against the current reader: **4 archives / 8 run logs**.
+- Integrity: **8/8** event chains, referenced evidence and final checksums verified; **920** evidence references re-hashed; **0** read failures.
+- Classification: the four original attempts retain four distinct signatures. Each has one independent attempt and lacks producer provenance required for a comparable diagnostic cohort. The conclusion remains inconclusive; no rerun is authorised by the evidence.
+- Current historical report: `experiments/qbatch_historical_analysis/reports/2026-11-03-ct-ab-failure-cohort.md` and matching JSON.
+- Draft PR: [#22](https://github.com/memoryprismv1/ael-runtime-accountability/pull/22), branch `qbatch/historical-cohort-analysis-prototype`.
+- Latest recorded CI for this correction: [run #351](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41791081760), commit `740d6ef1e138898302169531c44d77d647ba883b`; Python 3.11, 3.12 and 3.13 jobs all passed.
+- Python 3.11 test groups: 65 runtime/generic logger tests, 32 CT logging and paired-runner tests (including the new duplicate-plan regression), 2 order/carryover methodology tests, and 18 historical-analysis tests.
+- The PR remains draft and unmerged. The real-model pilot workflow was not triggered.
+
+This record verifies the current reader against historical archives and the minimal duplicate-plan guard. It does not declare either repository production-ready or declare the real-model experiment successful.
