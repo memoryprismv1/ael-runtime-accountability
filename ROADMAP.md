@@ -2,7 +2,7 @@
 
 This roadmap tracks implementation work, not changes to the author's AEL framework.
 
-## Current prototype
+## Current prototype baseline
 
 - [x] Append-only local event history and disposable active-context projection.
 - [x] Branch exposure primitives and structural pivot/reset.
@@ -12,15 +12,29 @@ This roadmap tracks implementation work, not changes to the author's AEL framewo
 - [x] Delta-first proposal/decision/reset and textual conformance checks.
 - [x] Loopback-only Ollama adapter and interactive shell, tested against a mock service.
 - [x] Automated tests in GitHub Actions workflow.
+- [x] Workspace-rooted file-backed artifact reader that pins and hashes source bytes and revalidates them during expansion/verification.
 
-## Next engineering steps
+## Current phase: stabilisation only
 
-1. Run a real local inference test on a machine with Ollama and a suitable local model.
-2. Make the runtime load/hash the actual artifact itself at proposal time and re-read it at expansion/verification.
-3. Add an independent semantic conformance check for output against an accepted delta; keep textual scope checks separate.
-4. Add the memory walk-back decay/reactivation job with explicit, tested defaults.
-5. Test restore and migration behavior on real process restarts and back up/restore cycles.
-6. Conduct threat-model and data-handling review before recommending use with sensitive content.
+No new features are in scope unless a minimal change is required to repair a demonstrated defect in existing behaviour.
+
+1. Repeat the existing test suite from clean checkouts; record exact commits, commands, runtime versions, and test results.
+2. Preserve and verify the existing append-only ledger, context isolation, pivot/reset, retention/use, delta-first acceptance, and conformance contracts.
+3. Preserve and verify file-backed artifact source pinning, hash checks, same-rooted reads, and change/disappearance handling.
+4. Preserve and verify database reopen, context rehydration, and legacy migration behaviour.
+5. Keep the loopback-only Ollama boundary and interactive shell covered by mock tests. Do not claim real inference without a captured real-model run.
+6. Reconcile docs with implemented code and test evidence.
+7. Conduct a focused threat-model and data-handling review before recommending use with sensitive content.
+
+## Deferred — not active work
+
+These items would add or expand capabilities and must not be started during the current stabilisation phase:
+
+- independent semantic conformance engine beyond existing checks;
+- memory walk-back decay/reactivation automation;
+- automatic lesson extraction or automatic promotion;
+- new UI or runtime bridge;
+- new storage, analytics, or dashboard components.
 
 ## Not planned without evidence
 
@@ -29,3 +43,5 @@ This roadmap tracks implementation work, not changes to the author's AEL framewo
 - Silent automatic promotion of local lessons into shared account context.
 - Automatic locale clustering beyond the author's documented scope.
 - A full UI unless a demonstrated use case warrants it.
+
+A stable, reproducible implementation of the current baseline is the deliverable. Do not expand the feature set to make the roadmap look active.
