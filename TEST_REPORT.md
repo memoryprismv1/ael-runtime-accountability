@@ -1,6 +1,6 @@
 # V2.8.1 Test Report — Conformance, Model Boundary, Local Interactive Bridge
 
-**Latest validation:** 57 unit tests passed using Python's standard `unittest`; `runtime.py` and `ael_chat.py` compile. Mock-server end-to-end tests cover the CLI adapter and the interactive chat shell.
+**Latest validation:** 67 runtime tests passed using Python's standard `unittest`; `runtime.py` and `ael_chat.py` compile. The same clean-checkout GitHub Actions run passed on Python 3.11, 3.12 and 3.13. The full repository CI also passed 32 CT logging/runner tests, 2 Q-Batch methodology tests, and 18 historical-analysis tests. See [CI run #365](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41794650716).
 
 ## V2.8.1 additions
 
@@ -16,6 +16,7 @@
 - Declared section changes pass; out-of-scope edits, vague locators, stale bases and no-op changes fail closed.
 - Model input allowlist contains only bounded working context and current user message.
 - Append-only history, rejected-branch isolation, pivot reset, circuit-breaker behavior, provenance/authority/truth/inference separation, source-linked memory review/promotion, separate retention/use disposition, applicability-tag matching, checkpoint recovery, bounded context and protected overflow.
+- Repeated checkpoint exports retain their own files and continue to match the snapshot hashes recorded in SQLite; path-like project/chat identifiers are encoded so exported files remain under the requested output directory.
 - Delta approval, base-hash pinning, post-expansion scope conformance and release-readiness checks.
 - Mocked Ollama request/response serialization, response parsing, persistence, token-free local connection and separate audit sidecar.
 
