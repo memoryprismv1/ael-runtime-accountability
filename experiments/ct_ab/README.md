@@ -2,7 +2,7 @@
 
 This package provides a shared JSONL logger, a versioned event contract, artifact integrity checks, and paired-run validation. Both conditions use the same code and schema; the model does not supply or modify the logger.
 
-> **Scope correction:** the heavyweight real-model skill-on/skill-off pilot is not the test of whether Q-Batch is useful. It is an attempted application experiment that has so far failed in both conditions before producing a valid pair: earlier runs hit tool-protocol/no-tool loops, and a later run timed out on the first model request. Those failures show that this task/model/runner combination is too expensive or brittle for a useful first test; they do not show that Q-Batch failed, that A/B is inherently inferior, or that the skill helps or hurts. Test Q-Batch's evidence workflow with small, deterministic, inexpensive fixtures first. Keep real-model efficacy testing separate.
+> **Scope correction:** the heavyweight real-model skill-on/skill-off pilot is not the test of whether Q-Batch is useful. It is an attempted application experiment that has so far failed in both conditions before producing a valid pair: earlier runs hit tool-protocol/no-tool loops, and a later run timed out on the first model request. Those failures show that this task/model/runner combination is too expensive or brittle for a useful first test; they do not show that Q-Batch failed, that A/B is inherently inferior, or that the skill helps or hurts. A later attempt also exposed repeated resubmission of an already accepted plan; this is a runner-control failure path, not efficacy evidence. Test Q-Batch's evidence workflow with small, deterministic, inexpensive fixtures first. Keep real-model efficacy testing separate.
 
 ## Layout
 
@@ -112,6 +112,18 @@ Merging the parser fix automatically retriggers the real-model pilot. A valid at
 The follow-up pilot (run 39597455540) passed pinned-skill verification and Ollama preflight but again did not produce a valid comparison. The model then repeatedly returned prose or echoed prior tool output without invoking a tool; both runs exhausted their 24-turn budgets. Acceptance was not run. This is a runner/model interaction failure, not evidence for or against the skill.
 
 Issue #8 adds an explicit recovery prompt, hash-based repeated-response detection, a bounded consecutive no-tool limit, and structured `agent_recovery_attempt` / `agent_loop_detected` events. The runner must stop with an auditable reason rather than spend the rest of the inference budget repeating the same instruction.
+
+
+
+### Fourth real-pilot attempt: duplicate plan resubmission
+
+Run [41619488320](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41619488320) failed to produce a valid pair. Both conditions submitted a plan successfully, then repeatedly called `submit_plan` again. The runner rejected each duplicate under the existing one-plan contract. Each arm recorded seven rejected repeat submissions and 24 dispatched tool calls before the 24-turn budget expired without a successful `finish`.
+
+This establishes an observed repeated-action failure, not the model's internal reason for repeating itself.
+
+**Stabilisation correction:** the runner now stops immediately after this exact duplicate-plan rejection, emits `agent_loop_detected` with reason `duplicate_plan_submission`, and returns an explicit runner error. The deterministic regression test verifies that the second model response is the stopping point, only one `plan_submitted` event is recorded, and the failed duplicate tool call remains in the audit log. This correction is on the draft Q-Batch PR branch and passed routine CI across Python 3.11, 3.12 and 3.13 in [run #351](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41791081760).
+
+No real-model rerun has been launched to test the correction. That is deliberate: routine CI is sufficient to verify the existing one-plan contract without another expensive model run.
 
 
 ## Separate question: what Q-Batch is meant to demonstrate
