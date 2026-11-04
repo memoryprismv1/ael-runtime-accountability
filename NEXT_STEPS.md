@@ -2,7 +2,7 @@
 
 **Current build:** V2.8.1 — source-reconciled local prototype with retention/use policy, memory-promotion stages, delta-first delivery and conformance checking, bounded model context, an optional loopback-only Ollama adapter, and an interactive local chat shell.  
 **Current phase:** Stabilisation of existing behaviour. No new features are in scope unless a minimal change is required to repair a demonstrated defect.  
-**Latest recorded CI:** PR #22 run [#351](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41791081760), commit `740d6ef1e138898302169531c44d77d647ba883b`; Python 3.11, 3.12 and 3.13 jobs passed. Python 3.11 groups: 65 runtime/generic logger tests, 32 CT logging and paired-runner tests, 2 Q-Batch method tests, and 18 historical-analysis tests.  
+**Latest recorded CI:** [run #365](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41794650716), commit `888398f7f5f0a156137f67a84396d1b9c0a5db65`; Python 3.11, 3.12 and 3.13 jobs passed. Python 3.11 groups: 67 AEL runtime tests, 32 CT logging and paired-runner tests, 2 Q-Batch method tests, and 18 historical-analysis tests.  
 **Ownership:** AEL and the source architecture belong to the user. This is an implementation handoff, not a new AEL specification.
 
 ## What V2.8.1 added
@@ -17,7 +17,7 @@
 
 1. **Reproducible baseline:** continue running the existing test suite from clean checkouts and record exact commits, commands, runtime versions, and results. Treat one successful run as a baseline observation, not proof of production readiness.
 2. **Existing artifact integration:** the runtime already uses a workspace-rooted file-backed reader that pins and hashes source bytes and revalidates them during expansion/verification. Existing tests cover changed/disappeared sources, exact CRLF bytes, path escapes, and same-rooted reads. This is implemented behaviour to preserve and stabilise, not an outstanding feature request.
-3. **Existing persistence and migration:** retain the current append-only ledger, database-reopen, context rehydration, and legacy migration tests. Investigate and fix only reproducible failures in these contracts.
+3. **Existing persistence and migration:** retain the current append-only ledger, database-reopen, context rehydration, legacy migration, and checkpoint-export contracts. Repeated checkpoint exports now retain unique files matching each stored snapshot hash; project/chat identifiers are encoded to keep exports inside the selected directory. Regression tests pass in CI.
 4. **Local model boundary:** the loopback-only Ollama adapter and interactive shell have mock-service coverage. A real local-model inference run remains unverified; it is not required to validate the current persistence, control-flow, or evidence contracts and is not part of this stabilisation cycle.
 5. **Documentation accuracy:** keep this handoff and `ROADMAP.md` aligned with code and tests. Clearly distinguish implementation that is tested with mocks from behaviour verified against a real local model.
 
