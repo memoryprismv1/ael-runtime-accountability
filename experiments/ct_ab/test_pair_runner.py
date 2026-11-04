@@ -279,6 +279,42 @@ class AcceptanceSuiteTests(unittest.TestCase):
             self.assertTrue(any("write_file" in prompt for prompt in recovery_prompts))
             self.assertTrue((root/"workspace"/"app.py").is_file())
 
+    def test_duplicate_plan_submission_stops_runner_immediately(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            duplicate_plan = json.dumps({
+                "name": "submit_plan",
+                "arguments": {"plan": "Inspect, implement, then verify."},
+            })
+            contents = [
+                duplicate_plan,
+                duplicate_plan,
+                json.dumps({
+                    "name": "finish",
+                    "arguments": {
+                        "summary": "This response must not be requested.",
+                        "known_issues": [],
+                        "checks_claimed": [],
+                    },
+                }),
+            ]
+            result, error, events, client, run_dir = self._run_scripted_agent(root, contents)
+
+            self.assertIsNone(result)
+            self.assertIn("duplicate_plan_submission", error)
+            self.assertEqual(len(client.requests), 2)
+            self.assertEqual(
+                sum(event["event_type"] == "plan_submitted" for event in events),
+                1,
+            )
+            tool_events = [event for event in events if event["event_type"] == "tool_call"]
+            self.assertEqual(len(tool_events), 2)
+            self.assertEqual([event["status"] for event in tool_events], ["succeeded", "failed"])
+            loop_events = [event for event in events if event["event_type"] == "agent_loop_detected"]
+            self.assertEqual(len(loop_events), 1)
+            self.assertEqual(loop_events[0]["payload"]["reason"], "duplicate_plan_submission")
+            self.assertTrue(loop_events[0]["payload"]["plan_already_accepted"])
+
     def test_text_encoded_tool_call_uses_explicit_user_tool_result(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
