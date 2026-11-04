@@ -8,7 +8,7 @@ It is deliberately separate from `testing_logger/` and the CT A/B live runner. I
 
 - `qbatch_historical_analysis.py` — historical run reader, integrity verification, observed recording-profile inference, normalisation, failure classification, cohort comparability and manual rerun recommendation policy.
 - `test_qbatch_historical_analysis.py` — eighteen deterministic tests, including the four observed historical failure signatures, explicit provenance binding, legacy compatibility, cohort eligibility, paired A/B counting, tampering and unknown formats.
-- `reports/2026-11-03-ct-ab-failure-cohort.md` and `.json` — a read-only analysis of eight run logs from four archived CT A/B workflow attempts.
+- `reports/2026-11-03-ct-ab-failure-cohort.md` and `.json` — a read-only analysis of eight run logs from four archived CT A/B workflow attempts, including the 4 November 2026 replay against the current reader.
 
 ## Run tests
 
@@ -31,7 +31,7 @@ python experiments/qbatch_historical_analysis/qbatch_historical_analysis.py \
   --markdown /path/to/cohort-report.md
 ```
 
-The reader verifies event sequence and hash chaining, referenced evidence sizes and SHA-256 hashes, context snapshot binding when present, explicit capture-profile/runner provenance binding when present, and the final event-stream checksum when present. Legacy manifests without provenance remain readable but cannot qualify for a comparable cohort. Removing provenance from a new manifest is detected because the values remain bound into its first event. A missing checksum is reported as partial integrity. Unknown schema/logger labels and unknown event vocabularies do not qualify for diagnosis.
+The reader verifies event sequence and hash chaining, referenced evidence sizes and SHA-256 hashes, context snapshot binding when present, explicit capture-profile/runner provenance binding when present, and the final event-stream checksum when present. Legacy manifests without provenance remain readable but cannot qualify for a comparable cohort. Removing provenance from a new manifest is detected because the values remain bound into its first event. A missing checksum is reported as partial integrity. Unknown schema/logger labels and unknown event vocabularies do not qualify for diagnosis. The four original archives were replayed against the current reader on 4 November 2026: all 8 run logs passed integrity verification, 920 evidence references were re-hashed, and there were zero read failures.
 
 ## Important limitations
 
@@ -43,4 +43,4 @@ The reader verifies event sequence and hash chaining, referenced evidence sizes 
 - A rerun recommendation requires a recorded targeted fix and a passing regression test, and remains manual-approval-only. This prototype never triggers a workflow.
 - The included historical report links to source GitHub Actions runs/artifacts. The report does not embed private raw audit traces or model prompt/response contents; source artifact retention is controlled by GitHub.
 
-This is an experimental post-processor, not yet integrated into Q-Batch's routine CI or live experiment controls.
+This is an experimental post-processor. Its deterministic tests are part of routine CI; the reader remains separate from the live logger, live experiment controls, and rerun automation.
