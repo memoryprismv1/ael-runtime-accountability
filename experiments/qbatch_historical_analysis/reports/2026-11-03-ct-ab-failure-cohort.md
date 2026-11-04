@@ -1,22 +1,34 @@
 # Q-Batch historical cohort analysis
 
-**Classification:** read-only retrospective analysis; not rerun authority.
+**Classification:** read-only retrospective analysis; not rerun authority.  
+**Replayed against current reader:** 4 November 2026.
 
 ## Summary
 
-- Runs inspected: **8**
+- Original audit archives inspected: **4**
 - Independent workflow attempts: **4**
-- Fully verified runs (event chain, referenced artifacts and checksum): **8 / 8**
-- Evidence references independently re-hashed: **920**
-- Committed analyser replay: **PASS** (8 runs read, 0 read failures)
-- Sanitized failure-signature regression cases: **4 added**
-- Eligible four-attempt cohorts: **0**
-- Future-run provenance fields added: **capture profile ID/version/hash, runner revision, worktree-clean state**
-- Decision: **INCONCLUSIVE — no eligible cohort reaches minimum**
+- Run logs inspected: **8 / 8**
+- Event chains and final event-stream checksums verified: **8 / 8**
+- Referenced evidence artifacts independently re-hashed: **920**
+- Read failures: **0**
+- Eligible four-attempt diagnostic cohorts: **0**
+- Raw source evidence modified: **No**
+- Decision: **INCONCLUSIVE — no eligible cohort reaches the minimum**
 
-## Replay verification
+## Current-reader replay
 
-The committed analyser was executed against the four original GitHub Actions audit ZIPs after extracting both A and B arms. The replay verified each event chain, all referenced artifact sizes and SHA-256 hashes, each context binding where present, and each event-stream checksum. It produced the same four failure signatures recorded below, with 8/8 runs fully verified and 920 evidence references re-hashed. The raw archives were not modified. The short ZIP folder labels were mapped to their corresponding workflow run IDs only in the replay input directory.
+The current code at the Q-Batch historical-analysis branch was run against the four original GitHub Actions audit ZIPs after extraction of both A and B arms. The replay verified the event sequence, per-event hash chain, referenced evidence size and SHA-256, context snapshot binding where present, and final event-stream checksum. All eight logs passed integrity verification. The replay returned zero read failures and independently re-hashed 920 evidence references.
+
+The same four distinct observable failure signatures were recovered. The old manifests remain readable, but the analyser correctly marks them ineligible for comparable-cohort diagnosis because they do not contain runner implementation revision, worktree cleanliness, and explicit capture-profile identity/hash. Those fields were not backfilled into historical evidence.
+
+The source archives were not modified. Their GitHub artifact ZIP SHA-256 values at retrieval were:
+
+| Workflow run | Artifact ID | ZIP SHA-256 |
+|---|---:|---|
+| [39592787189](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/39592787189) | `12343806764` | `0482ab6ec6b762c8f1846389ba35d6ee0ec45159458a0393efcb71ed68d1868b` |
+| [39597455540](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/39597455540) | `12346300690` | `ae486cd157c04fc9a3b4cc440a06e8cfc9b4870d4c48f310149612dd608be838` |
+| [39730856613](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/39730856613) | `12405213878` | `b21156b434dbf9bfe4321f3b7d0b248f9f68447a8b7499c2692083472b9b213d` |
+| [41619488320](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41619488320) | `13225155704` | `74f85769613e274f0352f3d0339a4eaf9aa0e43860ccaf79c434550b9ee15599` |
 
 ## Run findings
 
@@ -40,12 +52,12 @@ A and B are paired arms of one workflow attempt and count as **one** independent
 
 ## Interpretation limits
 
-- The historical schema/logger labels remained 1.0 / 0.1.0 while recorded event capabilities changed. Recording profiles are inferred from observed evidence, not explicit producer identities.
+- Schema/logger labels remained 1.0 / 0.1.0 while recorded event capabilities evolved. Recording profiles are inferred from observed evidence, not explicit producer identities.
 - Absence of an event in an older recording profile is not evidence that the event did not occur.
-- The old manifests omit the runner implementation revision, worktree-clean state, and explicit capture-profile identity/hash. Comparability metadata is incomplete even where task and model details appear similar. These fields are now recorded and bound to `run_started` for new CT A/B runs; the historical evidence was not modified or backfilled.
+- Historical manifests omit runner revision, worktree-clean state, and explicit capture-profile identity/hash. New CT A/B runs bind this provenance to `run_started`; historical evidence was not edited or backfilled.
 - The analyser identifies observable failure signatures, not proven root causes.
 - Four comparable independent failures are a minimum eligibility threshold, not a guarantee of statistical certainty.
 - A rerun recommendation requires a targeted fix and a passing regression test, and still requires manual approval.
 - No raw event stream or model prompt/response artifact is reproduced in this report. Original GitHub artifacts remain the evidence source.
 
-**Conclusion:** No batch diagnosis or rerun recommendation is authorised by this evidence.
+**Conclusion:** The current reader is backward-compatible with all four original archives and verifies their evidence. The evidence supports no batch diagnosis and authorises no rerun.
