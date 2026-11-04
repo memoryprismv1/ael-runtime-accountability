@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import sqlite3
 import subprocess
