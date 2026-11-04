@@ -202,3 +202,8 @@ This correction and test are on the draft historical-analysis PR branch; see the
 - The PR remains draft and unmerged. The real-model pilot workflow was not triggered.
 
 This record verifies the current reader against historical archives and the minimal duplicate-plan guard. It does not declare either repository production-ready or declare the real-model experiment successful.
+
+
+## Real-model workflow safety — 4 November 2026
+
+The expensive CT real-model pilot is now **manual-dispatch only**. The workflow no longer has a `push` trigger on `main`; routine merges and stabilisation commits cannot start the Ollama/model download job. A pilot can run only when a person deliberately selects Actions → CT A-B real local-model pilot → Run workflow. This is an execution-safety boundary, not a change to the experiment protocol. No real-model run was started during this stabilisation work.
