@@ -53,7 +53,7 @@ Run from this directory:
 python -m unittest discover -s tests -v
 ```
 
-**57 unit tests pass**, including an end-to-end CLI call and an interactive multi-turn shell test against a mocked local Ollama endpoint. `runtime.py` compiles. These tests establish local invariants and adapter serialization behavior; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
+**67 unit tests pass**, including end-to-end CLI and interactive shell tests against a mocked local Ollama endpoint, plus checkpoint history/hash retention and output-path containment checks. `runtime.py` compiles. These tests establish local invariants and adapter serialization behavior; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
 
 ## Quick start
 
