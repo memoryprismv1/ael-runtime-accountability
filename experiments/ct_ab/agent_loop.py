@@ -464,6 +464,25 @@ class AgentLoop:
                     outcome={"error":type(exc).__name__,"message":str(exc)[:1500]}
                     status="failed"
                 self.logger.record_tool_call(str(name),call_id,arguments,outcome,status=status,phase="implementation")
+                # A plan is a one-time declaration. Continuing after a rejected
+                # duplicate only burns the remaining model budget and obscures
+                # the failed one-plan contract in the eventual turn-limit error.
+                if (name == "submit_plan" and status == "failed"
+                        and outcome.get("message") == "plan may be submitted only once"):
+                    self.logger.emit(
+                        "agent_loop_detected","runner","implementation","failed",
+                        {
+                            "reason":"duplicate_plan_submission",
+                            "turn":turn,
+                            "tool_call_number":self.tool_calls,
+                            "tool_name":"submit_plan",
+                            "plan_already_accepted":True,
+                        },
+                    )
+                    raise RunnerError(
+                        "agent loop detected: duplicate_plan_submission; "
+                        f"the plan was already accepted and the runner stopped at turn {turn}"
+                    )
                 if before is not None:
                     self.logger.record_file_changes(before,self.logger.snapshot_workspace())
                 if name=="finish" and status=="succeeded" and self.finished:
