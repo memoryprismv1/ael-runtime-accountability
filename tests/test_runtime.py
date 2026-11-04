@@ -235,6 +235,41 @@ class RuntimeV2Tests(unittest.TestCase):
         self.assertEqual(p['schema_version'],2); self.assertTrue(md.exists())
         d=runtime.delta_preview('alpha\nbeta','alpha\ngamma')
         self.assertEqual(d['added_lines'],1); self.assertEqual(d['removed_lines'],1)
+
+    def test_repeated_checkpoints_preserve_each_snapshot_and_recorded_hash(self):
+        self.ev('initial_brief','user','First checkpoint state')
+        first_md, first_js = runtime.checkpoint(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            out_dir=self.root/'checkpoint-exports')
+        first_payload = json.loads(first_js.read_text(encoding='utf-8'))
+
+        self.ev('user_note','user','Second checkpoint state')
+        second_md, second_js = runtime.checkpoint(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            out_dir=self.root/'checkpoint-exports')
+        second_payload = json.loads(second_js.read_text(encoding='utf-8'))
+
+        self.assertNotEqual(first_md, second_md)
+        self.assertNotEqual(first_js, second_js)
+        self.assertTrue(first_md.is_file())
+        self.assertTrue(first_js.is_file())
+        self.assertTrue(second_md.is_file())
+        self.assertTrue(second_js.is_file())
+        self.assertLess(first_payload['last_event_seq'], second_payload['last_event_seq'])
+        self.assertNotIn('Second checkpoint state', json.dumps(first_payload))
+        self.assertIn('Second checkpoint state', json.dumps(second_payload))
+
+        rows = self.con.execute(
+            'SELECT json_path, snapshot_sha256 FROM checkpoints WHERE account_id=? AND project_id=? AND chat_id=?',
+            (self.account, self.project, self.chat),
+        ).fetchall()
+        hashes_by_path = {Path(row['json_path']): row['snapshot_sha256'] for row in rows}
+        for snapshot_path in (first_js, second_js):
+            self.assertEqual(
+                hashlib.sha256(snapshot_path.read_bytes()).hexdigest(),
+                hashes_by_path[snapshot_path],
+            )
+
     def test_bounded_model_context_preserves_user_events_verbatim(self):
         brief = self.ev('initial_brief','user','Keep the question exactly as asked: why does the system forget?')
         constraint = self.ev('constraint','user','Do not summarize this constraint; retain exact wording.')

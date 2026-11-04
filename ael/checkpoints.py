@@ -10,7 +10,12 @@ from .context import hydrate_payload, render_markdown
 def checkpoint(con, *, account='default', project: str, chat: str, out_dir: str | Path) -> tuple[Path, Path]:
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     payload = hydrate_payload(con, account=account, project=project, chat=chat)
-    md, js = out / f'checkpoint-{project}-{chat}.md', out / f'checkpoint-{project}-{chat}.json'
+    # A checkpoint row is a retained snapshot reference. Its exported files
+    # must therefore be unique: reusing project/chat-only paths would let a
+    # later export overwrite the bytes (and hash) of an earlier checkpoint.
+    checkpoint_id = new_id('CP')
+    md = out / f'checkpoint-{project}-{chat}-{checkpoint_id}.md'
+    js = out / f'checkpoint-{project}-{chat}-{checkpoint_id}.json'
     md.write_text(render_markdown(payload), encoding='utf-8')
     raw = json.dumps(payload, ensure_ascii=False, indent=2)
     js.write_text(raw, encoding='utf-8')
@@ -21,6 +26,6 @@ def checkpoint(con, *, account='default', project: str, chat: str, out_dir: str 
         raise RuntimeError('Checkpoint event sequence verification failed')
     sha = hashlib.sha256(saved_raw.encode('utf-8')).hexdigest()
     con.execute('''INSERT INTO checkpoints(checkpoint_id,created_at,account_id,project_id,chat_id,last_event_seq,markdown_path,json_path,snapshot_sha256)
-      VALUES(?,?,?,?,?,?,?,?,?)''', (new_id('CP'), now(), account, project, chat, payload['last_event_seq'], str(md), str(js), sha))
+      VALUES(?,?,?,?,?,?,?,?,?)''', (checkpoint_id, now(), account, project, chat, payload['last_event_seq'], str(md), str(js), sha))
     con.commit()
     return md, js
