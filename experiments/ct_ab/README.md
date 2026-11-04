@@ -89,7 +89,7 @@ Have assessors score A and B independently before comparing or opening the key. 
 
 The A/B runner pins the input skill to commit d1f23e2ad9dafd323940fc6b7a00f1700275d885 in memoryprismv1/cognitive-interface-ai-skills, file critical-thinking/SKILL.md. It verifies the Git blob SHA-1 for exact bytes and records the file's SHA-256. A different revision is refused, not silently accepted. The pin lives in skill_source.json.
 
-A GitHub Actions workflow is provided at .github/workflows/ct-ab-real-model-pilot.yml. **Merging this PR automatically starts the pilot**: the workflow is triggered by a push to main that changes the workflow file itself. It installs Ollama on an ephemeral GitHub-hosted Linux VM, downloads the fixed local model qwen2.5-coder:7b, verifies the exact skill revision, then runs both conditions with the same settings. The model page describes Qwen2.5-Coder as a code-focused family and lists its 7B variant as 4.7 GB. See the [official Ollama model page](https://ollama.com/library/qwen2.5-coder). The same workflow can be rerun manually from Actions → CT A-B real local-model pilot → Run workflow.
+A GitHub Actions workflow is provided at .github/workflows/ct-ab-real-model-pilot.yml. **The real-model pilot is manual-dispatch only.** Routine pushes, PR updates, and merges do not launch it. To deliberately start the pilot, use Actions → CT A-B real local-model pilot → Run workflow. The workflow installs Ollama on an ephemeral GitHub-hosted Linux VM, downloads the fixed local model qwen2.5-coder:7b, verifies the exact skill revision, then runs both conditions with the same settings. The model page describes Qwen2.5-Coder as a code-focused family and lists its 7B variant as 4.7 GB. See the [official Ollama model page](https://ollama.com/library/qwen2.5-coder).
 
 Download **ct-ab-blind-score-packets** for blind assessment only. Keep **ct-ab-audit-evidence** away from assessors until their scorecards are frozen; those logs contain the actual model requests and so can reveal the condition. The controller key remains outside uploaded artifact paths. The skill/condition can be recovered from the enabled run's manifest and request trace only after scoring has been frozen.
 
@@ -104,7 +104,7 @@ The first real-model attempt (run 39592787189) did not produce a valid compariso
 
 Ticket #7 adds a deliberately narrow fallback: it accepts only one complete allowlisted {"name":...,"arguments":{...}} object, either raw or inside a single JSON code fence. It refuses arbitrary prose, unknown tool names, malformed JSON, non-object arguments, and extra fields. The raw response remains in audit evidence while the normalized call is what enters subsequent conversation history.
 
-Merging the parser fix automatically retriggers the real-model pilot. A valid attempt needs both runs to finish, produce observed tool/file/test events, pass the log validator, and generate independent acceptance reports. Until then, no skill-effectiveness claim is warranted.
+The parser fix no longer has any automatic real-model workflow side effect. The pilot can be started only through an explicit manual dispatch. A valid attempt needs both runs to finish, produce observed tool/file/test events, pass the log validator, and generate independent acceptance reports. Until then, no skill-effectiveness claim is warranted.
 
 
 ### Second real-pilot result: no-tool repetition loop
