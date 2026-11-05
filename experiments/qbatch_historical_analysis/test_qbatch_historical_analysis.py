@@ -281,7 +281,7 @@ class HistoricalAnalysisTests(unittest.TestCase):
             run = {"root": root, "events": events, "format_profile": {"unknown_event_types": []}}
             result = classify_failure(run)
             self.assertEqual(result["signature"], "repeated_no_tool_responses")
-            self.assertEqual(result["observed"]["json_encoded_tool_responses"], 0)
+            self.assertNotIn("json_encoded_tool_responses", result["observed"])
 
     def test_real_failure_signature_repeated_no_tool_responses(self):
         with tempfile.TemporaryDirectory() as tmp:
