@@ -244,6 +244,7 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
                 dimension_rows[(pair_id, case_id, label, dimension)].append((assessor_id, score))
 
     response_summaries = []
+    response_summaries_by_case: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     case_rows: dict[tuple[str, str, str], list[tuple[str, str, int | None]]] = defaultdict(list)
     for (pair_id, case_id, label, dimension), rows in sorted(dimension_rows.items()):
         scores = [score for _, score in rows if score is not None]
@@ -270,6 +271,7 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
             "inter_assessor_disagreement_observed": multiple_ratings and len(distinct) > 1,
         }
         response_summaries.append(response_summary)
+        response_summaries_by_case[(case_id, label, dimension)].append(response_summary)
         case_rows[(case_id, label, dimension)].extend(
             (pair_id, assessor, score) for assessor, score in rows
         )
@@ -279,10 +281,7 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
         scores = [score for _, _, score in rows if score is not None]
         distinct = sorted(set(scores))
         counts = {str(n): scores.count(n) for n in range(1, 6)}
-        response_group = [
-            item for item in response_summaries
-            if (item["case_id"], item["blind_label"], item["dimension"]) == (case_id, label, dimension)
-        ]
+        response_group = response_summaries_by_case[(case_id, label, dimension)]
         agreement_count = sum(item["inter_assessor_agreement_observed"] for item in response_group)
         disagreement_count = sum(item["inter_assessor_disagreement_observed"] for item in response_group)
         summary.append({
@@ -301,6 +300,7 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
             "median": statistics.median(scores) if scores else None,
             "score_range": (max(scores) - min(scores)) if scores else None,
             "distinct_score_count": len(distinct),
+            "score_variation_across_responses_observed": len(distinct) > 1,
             "responses_with_multiple_applicable_ratings": sum(item["applicable_assessment_count"] >= 2 for item in response_group),
             "responses_with_observed_agreement": agreement_count,
             "responses_with_observed_disagreement": disagreement_count,

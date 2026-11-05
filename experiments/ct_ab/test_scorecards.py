@@ -181,6 +181,7 @@ class ScorecardTests(unittest.TestCase):
         summary = next(row for row in report["ratings_by_blind_label_case_dimension"]
                        if row["blind_label"] == "A" and row["dimension"] == "requirements_fidelity")
         self.assertEqual(summary["score_range"], 2)
+        self.assertTrue(summary["score_variation_across_responses_observed"])
         self.assertFalse(summary["inter_assessor_disagreement_observed"])
         self.assertEqual(summary["responses_with_observed_disagreement"], 0)
         self.assertEqual(summary["responses_with_single_applicable_rating"], 2)
