@@ -53,7 +53,7 @@ Run from this directory:
 python -m unittest discover -s tests -v
 ```
 
-**67 unit tests pass**, including end-to-end CLI and interactive shell tests against a mocked local Ollama endpoint, plus checkpoint history/hash retention and output-path containment checks. `runtime.py` compiles. These tests establish local invariants and adapter serialization behavior; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
+**72 runtime tests pass**, including end-to-end CLI and interactive shell tests against a mocked local Ollama endpoint, plus checkpoint history/hash retention and output-path containment checks. `runtime.py` and `ael_chat.py` compile. The full repository CI additionally runs 32 CT logging/paired-runner tests, 2 Q-Batch methodology tests, and 26 Q-Batch historical-analysis tests. The clean-checkout [CI run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) passed all four groups on Python 3.11, 3.12 and 3.13 (132 tests per Python version). These tests establish local invariants and adapter serialization behavior; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
 
 ## Quick start
 
@@ -97,6 +97,7 @@ The original AEL writing remains the authoritative source and is linked, not rec
 - [`MODEL_INPUT_BOUNDARY.md`](MODEL_INPUT_BOUNDARY.md) and [`LOCAL_MODEL_BRIDGE.md`](LOCAL_MODEL_BRIDGE.md) — model-input controls and local adapter.
 - [`OWNERSHIP_AND_LICENSE.md`](OWNERSHIP_AND_LICENSE.md) — authorship and licensing boundary.
 - [`AUTHORS_NOTE.md`](AUTHORS_NOTE.md) — biological origin of AEL, implementation provenance, verification limits, and zero expectations of maintenance.
+- [`EXECUTION_LOG_2026-11-05.md`](EXECUTION_LOG_2026-11-05.md) — dated clean-checkout verification and stabilisation closeout record.
 - [`SECURITY.md`](SECURITY.md) — current data-handling boundaries, public experiment-artifact exposure, and limits before sensitive-data use.
 
 ## Explicit non-goals

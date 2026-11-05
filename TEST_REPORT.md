@@ -1,6 +1,6 @@
 # V2.8.1 Test Report — Conformance, Model Boundary, Local Interactive Bridge
 
-**Latest validation:** 67 runtime tests passed using Python's standard `unittest`; `runtime.py` and `ael_chat.py` compile. The same clean-checkout GitHub Actions run passed on Python 3.11, 3.12 and 3.13. The full repository CI also passed 32 CT logging/runner tests, 2 Q-Batch methodology tests, and 18 historical-analysis tests. See [CI run #365](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41794650716).
+**Latest validation (5 November 2026):** 72 AEL runtime tests passed using Python's standard `unittest`; `runtime.py` and `ael_chat.py` compile. Clean-checkout [GitHub Actions run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) passed on Python 3.11, 3.12 and 3.13. Each version also passed 32 CT logging/paired-runner tests, 2 Q-Batch methodology tests and 26 historical-analysis tests (132 tests per version). The code baseline for this run is commit `67f83f1e0a8ed704246eef080c8e3950d092c845`.
 
 ## V2.8.1 additions
 
@@ -19,6 +19,7 @@
 - Repeated checkpoint exports retain their own files and continue to match the snapshot hashes recorded in SQLite; path-like project/chat identifiers are encoded so exported files remain under the requested output directory.
 - Delta approval, base-hash pinning, post-expansion scope conformance and release-readiness checks.
 - Mocked Ollama request/response serialization, response parsing, persistence, token-free local connection and separate audit sidecar.
+- SQLite failure-injection coverage: a rejected event insert leaves no phantom event, the connection accepts a later valid append, and the persisted event set remains correct after closing and reopening the database.
 
 ## Real-model status
 

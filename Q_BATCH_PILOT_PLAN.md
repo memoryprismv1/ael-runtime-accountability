@@ -1,6 +1,6 @@
 # Q-Batch Pilot Plan — AEL Runtime Accountability
 
-**Status (4 November 2026):** No valid real-model skill-on/skill-off pair. Deterministic method demonstration is implemented. Current activity is stabilisation and historical compatibility verification; no new real-model attempt is planned in this cycle.  
+**Status (5 November 2026):** No valid real-model skill-on/skill-off pair. Deterministic method demonstration is implemented. Current activity is stabilisation closeout and documentation reconciliation; no new real-model attempt is planned in this cycle.  
 **Method:** Q-Batch of Evidence  
 **Purpose:** Preserve independently inspectable evidence in batches and enable comparison without requiring a fragile, expensive back-to-back model run. The Critical Thinking pilot is one possible application, not proof of the Q-Batch method itself.
 
@@ -88,13 +88,13 @@ Run `39597455540`: after the text-tool-call fallback, both conditions fell into 
 2. The four original audit archives have now been replayed against the current historical reader. All eight logs passed integrity verification; 920 evidence references were re-hashed; there were zero read failures. See the current replay record in `experiments/qbatch_historical_analysis/reports/2026-11-03-ct-ab-failure-cohort.md`.
 3. Preserve the historical conclusion: four distinct observed failure signatures, one independent workflow attempt per signature, zero eligible diagnostic cohorts. Missing historical provenance remains missing; do not infer or backfill it.
 4. Stabilise the existing repeated-plan failure path with the smallest correction and a deterministic regression test. A duplicate `submit_plan` after a successful plan must stop the runner rather than consume the remaining turn budget.
-5. Run routine CI and reconcile documentation. Do not run the multi-gigabyte real-model workflow in this stabilisation cycle.
+5. Run routine CI and reconcile documentation. **Completed in the 5 November closeout below.** Do not run the multi-gigabyte real-model workflow in this stabilisation cycle.
 
 No new Q-Batch features, analytics, storage mechanisms, dashboard, automatic reruns, or experiment redesign are in scope.
 
 ## Execution boundary
 
-The GitHub repository connection used to prepare this document cannot itself start or observe a new Actions workflow run. The real-model workflow is already present and has a manual **Run workflow** option in GitHub Actions. No local Ollama installation on the user's computer is needed for that hosted workflow. A run still must actually occur before any result can be claimed.
+The repository review can inspect existing GitHub Actions runs; the 5 November closeout verified routine CI run #388. That run is the normal compile/test workflow, not the CT real-model pilot. The pilot remains manual-dispatch only, and no real-model run is claimed by this verification.
 
 
 ### Attempt 3 — invalid: first-turn model request timeout
@@ -187,7 +187,7 @@ Run [41619488320](https://github.com/memoryprismv1/ael-runtime-accountability/ac
 - This is an observed repeated-action failure. The archive does not, by itself, establish the model's internal reason for repeating the plan.
 - A stabilisation correction now stops immediately when this specific existing one-plan contract is violated, records `agent_loop_detected` with reason `duplicate_plan_submission`, and raises an explicit runner error. A deterministic regression test verifies that only two model responses are needed, only one plan is recorded, and the duplicate is logged as failed.
 
-This correction and test are on the draft historical-analysis PR branch; see the current PR and CI record in the stabilisation update below. No real-model rerun has been launched to test the correction.
+This correction and test were included in [PR #22](https://github.com/memoryprismv1/ael-runtime-accountability/pull/22), which merged into `main` on 4 November 2026 (merge commit `b87cb320cc53e59357fd334fbdd8b46fab899a2f`). No real-model rerun has been launched to test the correction.
 
 
 ## Stabilisation verification — 4 November 2026
@@ -196,10 +196,10 @@ This correction and test are on the draft historical-analysis PR branch; see the
 - Integrity: **8/8** event chains, referenced evidence and final checksums verified; **920** evidence references re-hashed; **0** read failures.
 - Classification: the four original attempts retain four distinct signatures. Each has one independent attempt and lacks producer provenance required for a comparable diagnostic cohort. The conclusion remains inconclusive; no rerun is authorised by the evidence.
 - Current historical report: `experiments/qbatch_historical_analysis/reports/2026-11-03-ct-ab-failure-cohort.md` and matching JSON.
-- Draft PR: [#22](https://github.com/memoryprismv1/ael-runtime-accountability/pull/22), branch `qbatch/historical-cohort-analysis-prototype`.
+- Historical-analysis PR: [#22](https://github.com/memoryprismv1/ael-runtime-accountability/pull/22), branch `qbatch/historical-cohort-analysis-prototype`; merged on 4 November 2026. Merge commit: `b87cb320cc53e59357fd334fbdd8b46fab899a2f`.
 - Latest recorded CI for this correction: [run #351](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41791081760), commit `740d6ef1e138898302169531c44d77d647ba883b`; Python 3.11, 3.12 and 3.13 jobs all passed.
 - Python 3.11 test groups: 65 runtime/generic logger tests, 32 CT logging and paired-runner tests (including the new duplicate-plan regression), 2 order/carryover methodology tests, and 18 historical-analysis tests.
-- The PR remains draft and unmerged. The real-model pilot workflow was not triggered.
+- PR #22 is now merged; the repository had zero open pull requests at the 5 November closeout. The real-model pilot workflow was not triggered.
 
 This record verifies the current reader against historical archives and the minimal duplicate-plan guard. It does not declare either repository production-ready or declare the real-model experiment successful.
 
@@ -207,3 +207,15 @@ This record verifies the current reader against historical archives and the mini
 ## Real-model workflow safety — 4 November 2026
 
 The expensive CT real-model pilot is now **manual-dispatch only**. The workflow no longer has a `push` trigger on `main`; routine merges and stabilisation commits cannot start the Ollama/model download job. A pilot can run only when a person deliberately selects Actions → CT A-B real local-model pilot → Run workflow. This is an execution-safety boundary, not a change to the experiment protocol. No real-model run was started during this stabilisation work.
+
+
+## Stabilisation closeout — 5 November 2026
+
+- Clean-checkout [routine CI run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) passed on Python 3.11, 3.12 and 3.13. Each job passed 72 AEL runtime tests, 32 CT logging/paired-runner tests, 2 Q-Batch methodology tests and 26 Q-Batch historical-analysis tests (132 per version; 396 test executions across the matrix).
+- The run compiled the runtime, chat shell, AEL package, logger, tests and experiment modules; the deterministic Q-Batch method demonstration and synthetic pair preflight also passed. These are instrumentation and conformance checks, not a real-model experiment.
+- The latest code commit `67f83f1e0a8ed704246eef080c8e3950d092c845` adds a deterministic SQLite failure-injection test. It confirms that a rejected event insert leaves no phantom row and that a later valid append persists through database reopen. The commit changes the test file only; no runtime feature was added.
+- Historical evidence remains unchanged: four prior attempts have four distinct failure signatures, and the replay record remains 4 archives / 8 logs / 920 evidence references re-hashed / 0 read failures. There are still zero eligible diagnostic cohorts; missing producer provenance has not been inferred or backfilled.
+- PR #22 is merged and there are zero open pull requests. [Issue #1](https://github.com/memoryprismv1/ael-runtime-accountability/issues/1) remains open and outside the current scope because it expands multi-assessor scorecard representation.
+- The `main` branch is not protected and no required status checks are configured. This was noted, not changed, during the documentation review.
+- No CT real-model pilot was dispatched, no model inference was performed, and no new experiment evidence was created. The pilot workflow remains manual-dispatch only.
+- Documentation reconciliation is complete. The current work boundary remains stabilisation only: no new Q-Batch features, analytics, dashboards, storage systems, automatic reruns or experiment redesign.

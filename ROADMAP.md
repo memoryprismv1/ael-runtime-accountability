@@ -18,7 +18,7 @@ This roadmap tracks implementation work, not changes to the author's AEL framewo
 
 No new features are in scope unless a minimal change is required to repair a demonstrated defect in existing behaviour.
 
-- [x] Repeat the existing test suite from clean checkouts; record exact commits, runtime versions, test counts, and results. Latest code verification: [CI #365](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41794650716), all Python 3.11/3.12/3.13 jobs green; latest documentation verification: [CI #374](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41795220717), all three green.
+- [x] Repeat the existing test suite from clean checkouts; record exact commits, runtime versions, test counts, and results. Latest verified code baseline: [CI #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) on `67f83f1e0a8ed704246eef080c8e3950d092c845`; Python 3.11/3.12/3.13 all green, each with 72 AEL runtime tests, 32 CT logging/paired-runner tests, 2 Q-Batch methodology tests and 26 historical-analysis tests (132 per version).
 - [x] Preserve and verify the existing append-only ledger, context isolation, pivot/reset, retention/use, delta-first acceptance, and conformance contracts through the existing AEL tests.
 - [x] Preserve and verify file-backed artifact source pinning, hash checks, same-rooted reads, and change/disappearance handling through the existing AEL tests.
 - [x] Preserve and verify database reopen, context rehydration, legacy migration, and checkpoint history behaviour. Checkpoint exports use unique checkpoint IDs and contained filename components; regression tests verify historical hashes and output-root containment.
@@ -51,3 +51,11 @@ These items would add or expand capabilities and must not be started during the 
 - A full UI unless a demonstrated use case warrants it.
 
 A stable, reproducible implementation of the current baseline is the deliverable. Do not expand the feature set to make the roadmap look active.
+
+
+## Closeout snapshot — 5 November 2026
+
+- The Q-Batch historical-analysis correction in [PR #22](https://github.com/memoryprismv1/ael-runtime-accountability/pull/22) was merged on 4 November (merge commit `b87cb320cc53e59357fd334fbdd8b46fab899a2f`). No pull requests are currently open.
+- [Issue #1](https://github.com/memoryprismv1/ael-runtime-accountability/issues/1), concerning independent assessor ratings, remains open and deferred; it would expand the evaluation scorecard schema and is not part of stabilisation.
+- The `main` branch is not protected and has no required status checks configured. This is recorded for visibility; no branch-protection change is included in this work.
+- No real-model CT pilot was run. The workflow remains manual-dispatch only.

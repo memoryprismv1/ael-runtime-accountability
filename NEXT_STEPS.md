@@ -1,9 +1,17 @@
 # AEL Runtime — Next Steps / Handoff
 
 **Current build:** V2.8.1 — source-reconciled local prototype with retention/use policy, memory-promotion stages, delta-first delivery and conformance checking, bounded model context, an optional loopback-only Ollama adapter, and an interactive local chat shell.  
-**Current phase:** Stabilisation of existing behaviour. No new features are in scope unless a minimal change is required to repair a demonstrated defect.  
-**Latest code CI:** [run #365](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41794650716), commit `888398f7f5f0a156137f67a84396d1b9c0a5db65`; Python 3.11, 3.12 and 3.13 jobs passed. Python 3.11 groups: 67 AEL runtime tests, 32 CT logging and paired-runner tests, 2 Q-Batch method tests, and 18 historical-analysis tests. **Latest documentation CI:** [run #374](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41795220717), commit `be346f03609ba99580bbe59de4e0b79c6395d274`, also passed all three Python versions.  
+**Current phase:** Final stabilisation closeout of existing behaviour. No new features are in scope unless a minimal change is required to repair a demonstrated defect.  
+**Latest clean-checkout CI baseline:** [run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810), code commit `67f83f1e0a8ed704246eef080c8e3950d092c845`; Python 3.11, 3.12 and 3.13 jobs all passed. Each version ran 72 AEL runtime tests, 32 CT logging/paired-runner tests, 2 Q-Batch methodology tests and 26 historical-analysis tests (132 tests per version).  
 **Ownership:** AEL and the source architecture belong to the user. This is an implementation handoff, not a new AEL specification.
+
+## Stabilisation closeout — 5 November 2026
+
+- The clean-checkout baseline above is confirmed on all three Python versions. The latest code change under test adds only deterministic SQLite failure-injection coverage: a rejected event insert leaves no phantom row, a later valid append succeeds, and the append survives a database reopen. No runtime feature was added in that commit.
+- Q-Batch historical-analysis PR [#22](https://github.com/memoryprismv1/ael-runtime-accountability/pull/22) was merged on 4 November 2026 (merge commit `b87cb320cc53e59357fd334fbdd8b46fab899a2f`). There are currently zero open pull requests.
+- One separate issue remains open: [#1 — Preserve independent assessor ratings in CT evaluation](https://github.com/memoryprismv1/ael-runtime-accountability/issues/1). It expands the scorecard schema and remains outside this stabilisation scope.
+- The `main` branch is currently unprotected (no required status checks configured). This was observed and not changed as part of the documentation handoff.
+- No real-model inference or CT pilot workflow was launched. The real-model workflow remains manual-dispatch only; routine CI is not pilot evidence.
 
 ## What V2.8.1 added
 
