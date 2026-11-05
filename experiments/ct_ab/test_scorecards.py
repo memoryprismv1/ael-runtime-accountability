@@ -106,6 +106,12 @@ class ScorecardTests(unittest.TestCase):
         self.assertTrue(any("blind_label" in error for error in errors))
         self.assertTrue(any("applicability" in error for error in errors))
 
+    def test_v1_validator_reports_unhashable_blind_label_without_crashing(self):
+        card = v1()
+        card["blind_label"] = []
+        errors = validate_scorecard(card)
+        self.assertTrue(any("blind_label" in error for error in errors))
+
     def test_v1_single_assessor_card_remains_valid(self):
         self.assertEqual(validate_scorecard(v1()), [])
 
