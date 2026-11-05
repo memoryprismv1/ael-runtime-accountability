@@ -237,6 +237,62 @@ class RuntimeV2Tests(unittest.TestCase):
         d=runtime.delta_preview('alpha\nbeta','alpha\ngamma')
         self.assertEqual(d['added_lines'],1); self.assertEqual(d['removed_lines'],1)
 
+    def test_checkpoint_removes_partial_exports_when_json_write_fails(self):
+        from unittest.mock import patch
+
+        self.ev('initial_brief', 'user', 'Checkpoint write failure must leave no orphan files.')
+        output_dir = self.root / 'failed-checkpoint-write'
+        original_write_text = Path.write_text
+
+        def fail_after_partial_json_write(target, data, *args, **kwargs):
+            if target.suffix == '.json':
+                original_write_text(target, data[:24], *args, **kwargs)
+                raise OSError('simulated interrupted JSON export')
+            return original_write_text(target, data, *args, **kwargs)
+
+        with patch.object(Path, 'write_text', new=fail_after_partial_json_write):
+            with self.assertRaisesRegex(OSError, 'simulated interrupted JSON export'):
+                runtime.checkpoint(
+                    self.con, account=self.account, project=self.project,
+                    chat=self.chat, out_dir=output_dir,
+                )
+
+        self.assertEqual(list(output_dir.iterdir()), [])
+        self.assertEqual(
+            self.con.execute(
+                'SELECT COUNT(*) FROM checkpoints WHERE account_id=? AND project_id=? AND chat_id=?',
+                (self.account, self.project, self.chat),
+            ).fetchone()[0],
+            0,
+        )
+
+    def test_checkpoint_removes_exports_when_database_index_insert_fails(self):
+        self.ev('initial_brief', 'user', 'Checkpoint index failure must leave no orphan files.')
+        output_dir = self.root / 'failed-checkpoint-index'
+        self.con.execute("""
+            CREATE TRIGGER reject_checkpoint_insert
+            BEFORE INSERT ON checkpoints
+            BEGIN
+                SELECT RAISE(ABORT, 'simulated checkpoint index failure');
+            END
+        """)
+        self.con.commit()
+
+        with self.assertRaisesRegex(sqlite3.IntegrityError, 'simulated checkpoint index failure'):
+            runtime.checkpoint(
+                self.con, account=self.account, project=self.project,
+                chat=self.chat, out_dir=output_dir,
+            )
+
+        self.assertEqual(list(output_dir.iterdir()), [])
+        self.assertEqual(
+            self.con.execute(
+                'SELECT COUNT(*) FROM checkpoints WHERE account_id=? AND project_id=? AND chat_id=?',
+                (self.account, self.project, self.chat),
+            ).fetchone()[0],
+            0,
+        )
+
     def test_checkpoint_cli_reports_verified_unique_exports(self):
         self.ev('initial_brief', 'user', 'First CLI checkpoint state')
         output_dir = self.root / 'cli-checkpoints'
