@@ -329,7 +329,12 @@ def _input_files(values: list[str]) -> list[Path]:
             files.append(path)
         elif path.is_dir():
             files.extend(sorted(p for p in path.rglob("*.json")
-                                if p.name.startswith("scorecard-") and p.name not in {"scorecard-template.json", "scorecard-report.json"}))
+                                if p.name.startswith("scorecard-") and p.name not in {
+                                    "scorecard-template.json",
+                                    "scorecard-report.json",
+                                    "scorecard-v1.schema.json",
+                                    "scorecard.schema.json",
+                                }))
         else:
             raise FileNotFoundError(value)
     unique = list(dict.fromkeys(p.resolve() for p in files))

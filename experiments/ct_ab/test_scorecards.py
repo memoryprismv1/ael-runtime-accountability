@@ -190,6 +190,7 @@ class ScorecardTests(unittest.TestCase):
             root = Path(tmp)
             (root / "scorecard-template.json").write_text("{}", encoding="utf-8")
             (root / "scorecard-report.json").write_text("{}", encoding="utf-8")
+            (root / "scorecard-v1.schema.json").write_text("{}", encoding="utf-8")
             (root / "scorecard-A.json").write_text(json.dumps(v2("A", [assessment("assessor-1")])), encoding="utf-8")
             output = root / "report.json"
             self.assertEqual(main(["report", str(root), "--out", str(output)]), 0)
