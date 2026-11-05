@@ -273,7 +273,7 @@ class HistoricalAnalysisTests(unittest.TestCase):
                     json.dumps(payload), encoding="utf-8"
                 )
             events = [
-                {"event_type": "error",
+                {"seq": n, "event_type": "error",
                  "payload": {"kind": "model_response_without_tool_call", "turn": n},
                  "evidence_refs": []}
                 for n in range(1, 5)
