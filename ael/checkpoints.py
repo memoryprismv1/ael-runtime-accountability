@@ -21,16 +21,31 @@ def checkpoint(con, *, account='default', project: str, chat: str, out_dir: str 
     chat_name = quote(str(chat), safe="-_.")
     md = out / f'checkpoint-{project_name}-{chat_name}-{checkpoint_id}.md'
     js = out / f'checkpoint-{project_name}-{chat_name}-{checkpoint_id}.json'
-    md.write_text(render_markdown(payload), encoding='utf-8')
-    raw = json.dumps(payload, ensure_ascii=False, indent=2)
-    js.write_text(raw, encoding='utf-8')
-    # Verify snapshot can be parsed and sequence/hash corresponds to ledger projection.
-    saved_raw = js.read_text(encoding='utf-8')
-    loaded = json.loads(saved_raw)
-    if loaded['last_event_seq'] != payload['last_event_seq']:
-        raise RuntimeError('Checkpoint event sequence verification failed')
-    sha = hashlib.sha256(saved_raw.encode('utf-8')).hexdigest()
-    con.execute('''INSERT INTO checkpoints(checkpoint_id,created_at,account_id,project_id,chat_id,last_event_seq,markdown_path,json_path,snapshot_sha256)
-      VALUES(?,?,?,?,?,?,?,?,?)''', (checkpoint_id, now(), account, project, chat, payload['last_event_seq'], str(md), str(js), sha))
-    con.commit()
+    try:
+        md.write_text(render_markdown(payload), encoding='utf-8')
+        raw = json.dumps(payload, ensure_ascii=False, indent=2)
+        js.write_text(raw, encoding='utf-8')
+        # Verify snapshot can be parsed and sequence/hash corresponds to ledger projection.
+        saved_raw = js.read_text(encoding='utf-8')
+        loaded = json.loads(saved_raw)
+        if loaded['last_event_seq'] != payload['last_event_seq']:
+            raise RuntimeError('Checkpoint event sequence verification failed')
+        sha = hashlib.sha256(saved_raw.encode('utf-8')).hexdigest()
+        con.execute('''INSERT INTO checkpoints(checkpoint_id,created_at,account_id,project_id,chat_id,last_event_seq,markdown_path,json_path,snapshot_sha256)
+          VALUES(?,?,?,?,?,?,?,?,?)''', (checkpoint_id, now(), account, project, chat, payload['last_event_seq'], str(md), str(js), sha))
+        con.commit()
+    except Exception:
+        # A retained checkpoint row is the index for both exported files.
+        # Do not leave partial/orphaned exports when either file creation,
+        # snapshot verification, or index insertion fails.
+        try:
+            con.rollback()
+        except sqlite3.Error:
+            pass
+        for artifact in (md, js):
+            try:
+                artifact.unlink()
+            except FileNotFoundError:
+                pass
+        raise
     return md, js
