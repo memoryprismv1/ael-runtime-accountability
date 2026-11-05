@@ -142,6 +142,9 @@ def read_run(root, attempt_id):
     manifest = json.loads(mp.read_text(encoding="utf-8"))
     if not isinstance(manifest, dict) or manifest.get("schema_version") != "1.0" or manifest.get("logger_version") != "0.1.0":
         raise ValueError("unsupported schema/logger labels")
+    manifest_run_id = manifest.get("run_id")
+    if not isinstance(manifest_run_id, str) or not manifest_run_id.strip():
+        raise ValueError("manifest run_id must be non-empty text")
     lines = ep.read_bytes().splitlines()
     if not lines:
         raise ValueError("empty event stream")
@@ -150,8 +153,14 @@ def read_run(root, attempt_id):
         event = json.loads(line.decode("utf-8"))
         if not isinstance(event, dict) or set(event) != EVENT_KEYS:
             raise ValueError(f"event {seq}: unsupported event envelope")
-        if event["seq"] != seq or event["run_id"] != manifest.get("run_id"):
-            raise ValueError(f"event {seq}: sequence or run identity mismatch")
+        if type(event["seq"]) is not int or event["seq"] != seq:
+            raise ValueError(f"event {seq}: sequence mismatch")
+        if not isinstance(event["run_id"], str) or not event["run_id"].strip():
+            raise ValueError(f"event {seq}: run_id must be non-empty text")
+        if event["run_id"] != manifest_run_id:
+            raise ValueError(f"event {seq}: run identity mismatch")
+        if not isinstance(event["event_type"], str) or not event["event_type"].strip():
+            raise ValueError(f"event {seq}: event_type must be non-empty text")
         if event["schema_version"] != manifest["schema_version"] or event["prev_event_sha256"] != previous:
             raise ValueError(f"event {seq}: schema or hash-chain mismatch")
         if not isinstance(event["payload"], dict) or not isinstance(event["evidence_refs"], list):
@@ -334,8 +343,10 @@ def analyse_cohorts(records, min_size=MIN_COHORT_SIZE):
         # the independent-attempt count.
         paired = (
             len(rows) == 2
+            and all(isinstance(value, str) for value in conditions)
             and sorted(conditions) == ["A", "B"]
-            and len(set(run_ids)) == 2
+            and all(isinstance(value, str) and value.strip() for value in run_ids)
+            and run_ids[0] != run_ids[1]
         )
         complete = all(r.get("identity_complete", False) for r in rows)
         coherent = len(signatures) == len(identities) == len(profiles) == 1 and paired
