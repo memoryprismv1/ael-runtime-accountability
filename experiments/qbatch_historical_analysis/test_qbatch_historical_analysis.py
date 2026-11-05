@@ -144,6 +144,26 @@ class HistoricalAnalysisTests(unittest.TestCase):
         self.assertEqual(report["attempts"][0]["status"], "inconclusive_pair")
         self.assertEqual(report["cohorts"], [])
 
+    def test_malformed_condition_values_do_not_crash_cohort_analysis(self):
+        rows = [
+            record("attempt-bad-condition", "same", "A"),
+            record("attempt-bad-condition", "same", "B"),
+        ]
+        rows[1]["condition_label"] = {"not": "a condition"}
+        report = analyse_cohorts(rows)
+        self.assertEqual(report["attempts"][0]["status"], "inconclusive_pair")
+        self.assertEqual(report["cohorts"], [])
+
+    def test_malformed_run_ids_do_not_crash_cohort_analysis(self):
+        rows = [
+            record("attempt-bad-run-id", "same", "A"),
+            record("attempt-bad-run-id", "same", "B"),
+        ]
+        rows[0]["run_id"] = {"not": "a run ID"}
+        report = analyse_cohorts(rows)
+        self.assertEqual(report["attempts"][0]["status"], "inconclusive_pair")
+        self.assertEqual(report["cohorts"], [])
+
     def test_rerun_requires_threshold_fix_and_regression(self):
         cohort = {"independent_attempt_count": 4, "threshold": 4}
         self.assertEqual(policy_for_cohort(cohort), "HOLD_NO_VERIFIED_TARGETED_FIX")
@@ -187,6 +207,42 @@ class HistoricalAnalysisTests(unittest.TestCase):
                 manifest.pop(field)
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "incomplete run provenance"):
+                read_run(root, "attempt")
+
+    def test_missing_event_checksum_is_reported_as_partial_integrity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = write_run(Path(tmp) / "run")
+            (root / "checksums.sha256").unlink()
+            run = read_run(root, "attempt")
+            self.assertEqual(run["integrity"]["status"], "PARTIAL")
+            self.assertEqual(run["integrity"]["checksum"], "not_present")
+            self.assertEqual(run["integrity"]["events"], 2)
+
+    def test_manifest_run_id_must_be_nonempty_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = write_run(Path(tmp) / "run")
+            manifest_path = root / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["run_id"] = {"malformed": "object"}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "manifest run_id must be non-empty text"):
+                read_run(root, "attempt")
+
+    def test_event_type_must_be_nonempty_text_even_when_hash_is_valid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = write_run(Path(tmp) / "run")
+            event_path = root / "events.jsonl"
+            events = [json.loads(line) for line in event_path.read_text(encoding="utf-8").splitlines()]
+            events[1]["event_type"] = {"malformed": "object"}
+            unhashed = dict(events[1])
+            unhashed.pop("event_sha256")
+            events[1]["event_sha256"] = sha256_bytes(canonical_bytes(unhashed))
+            stream = ("\n".join(json.dumps(event, sort_keys=True) for event in events) + "\n").encode("utf-8")
+            event_path.write_bytes(stream)
+            (root / "checksums.sha256").write_text(
+                hashlib.sha256(stream).hexdigest() + "  events.jsonl\n", encoding="ascii"
+            )
+            with self.assertRaisesRegex(ValueError, "event 2: event_type must be non-empty text"):
                 read_run(root, "attempt")
 
     def test_legacy_manifests_without_provenance_remain_readable(self):
