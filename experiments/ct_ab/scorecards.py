@@ -209,7 +209,7 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """Build descriptive blind-label/case/dimension summaries from valid cards."""
     response_assessors: dict[tuple[str, str, str], set[str]] = defaultdict(set)
     dimension_rows: dict[tuple[str, str, str], list[tuple[str, str, int | None]]] = defaultdict(list)
-    pair_preferences: dict[tuple[str, str, str], list[str]] = defaultdict(list)
+    pair_preferences: dict[tuple[str, str, str], dict[str, str]] = defaultdict(dict)
     pair_cases: set[tuple[str, str]] = set()
     legacy_count = 0
     v2_count = 0
@@ -237,7 +237,7 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
                     f"case {case_id!r}, blind label {label}"
                 )
             response_assessors[response_key].add(assessor_id)
-            pair_preferences[(pair_id, case_id, assessor_id)].append(assessment["overall_preference"])
+            pair_preferences[(pair_id, case_id, assessor_id)][label] = assessment["overall_preference"]
             for dimension in DIMENSIONS:
                 rating = assessment["dimensions"][dimension]
                 score = rating["score"] if rating["applicability"] == "applicable" else None
@@ -268,22 +268,37 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
         })
 
     preference_summary = []
-    grouped_preferences: dict[tuple[str, str], dict[str, list[str]]] = defaultdict(dict)
-    for (pair_id, case_id, assessor_id), values in pair_preferences.items():
-        grouped_preferences[(pair_id, case_id)][assessor_id] = values
+    grouped_preferences: dict[tuple[str, str], dict[str, dict[str, str]]] = defaultdict(dict)
+    for (pair_id, case_id, assessor_id), values_by_label in pair_preferences.items():
+        grouped_preferences[(pair_id, case_id)][assessor_id] = values_by_label
     for (pair_id, case_id), by_assessor in sorted(grouped_preferences.items()):
         counts = {preference: 0 for preference in PREFERENCES}
         conflicts = []
-        for assessor_id, values in sorted(by_assessor.items()):
-            observed = sorted(set(values))
-            if len(observed) != 1:
-                conflicts.append({"assessor_id": assessor_id, "observed_preferences": observed})
+        incomplete = []
+        for assessor_id, values_by_label in sorted(by_assessor.items()):
+            submitted_labels = sorted(values_by_label)
+            if submitted_labels != ["A", "B"]:
+                incomplete.append({
+                    "assessor_id": assessor_id,
+                    "submitted_labels": submitted_labels,
+                    "missing_labels": sorted({"A", "B"} - set(submitted_labels)),
+                })
+                continue
+            preference_a = values_by_label["A"]
+            preference_b = values_by_label["B"]
+            if preference_a != preference_b:
+                conflicts.append({
+                    "assessor_id": assessor_id,
+                    "observed_preferences": {"A": preference_a, "B": preference_b},
+                })
             else:
-                counts[observed[0]] += 1
+                counts[preference_a] += 1
         preference_summary.append({
             "pair_id": pair_id,
             "case_id": case_id,
             "assessor_count": sum(counts.values()),
+            "incomplete_assessor_count": len(incomplete),
+            "incomplete_assessments": incomplete,
             "preference_counts": counts,
             "conflicting_assessments": conflicts,
             "conflict_count": len(conflicts),
@@ -314,7 +329,7 @@ def _input_files(values: list[str]) -> list[Path]:
             files.append(path)
         elif path.is_dir():
             files.extend(sorted(p for p in path.rglob("*.json")
-                                if p.name.startswith("scorecard-") and p.name != "scorecard-template.json"))
+                                if p.name.startswith("scorecard-") and p.name not in {"scorecard-template.json", "scorecard-report.json"}))
         else:
             raise FileNotFoundError(value)
     unique = list(dict.fromkeys(p.resolve() for p in files))

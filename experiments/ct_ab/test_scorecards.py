@@ -131,6 +131,15 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(row["applicable_assessment_count"], 0)
         self.assertIsNone(row["mean"])
 
+    def test_pair_preference_requires_both_blind_submissions(self):
+        card_a = v2("A", [assessment("assessor-1", 3, "A")])
+        report = build_report([card_a])
+        preference = report["pair_preferences"][0]
+        self.assertEqual(preference["assessor_count"], 0)
+        self.assertEqual(preference["incomplete_assessor_count"], 1)
+        self.assertEqual(preference["incomplete_assessments"][0]["missing_labels"], ["B"])
+        self.assertEqual(preference["preference_counts"]["A"], 0)
+
     def test_pair_preference_conflicts_are_reported_not_averaged(self):
         card_a = v2("A", [assessment("assessor-1", 3, "A")])
         card_b = v2("B", [assessment("assessor-1", 3, "B")])
@@ -138,7 +147,7 @@ class ScorecardTests(unittest.TestCase):
         preference = report["pair_preferences"][0]
         self.assertEqual(preference["assessor_count"], 0)
         self.assertEqual(preference["conflict_count"], 1)
-        self.assertEqual(preference["conflicting_assessments"][0]["observed_preferences"], ["A", "B"])
+        self.assertEqual(preference["conflicting_assessments"][0]["observed_preferences"], {"A": "A", "B": "B"})
 
     def test_duplicate_assessor_across_files_for_same_response_is_rejected(self):
         card_1 = v2("A", [assessment("assessor-1", 2)])
@@ -159,10 +168,11 @@ class ScorecardTests(unittest.TestCase):
             report = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(report["input_counts"]["scorecard_files"], 2)
 
-    def test_cli_directory_search_excludes_blank_template(self):
+    def test_cli_directory_search_excludes_blank_template_and_prior_report(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "scorecard-template.json").write_text("{}", encoding="utf-8")
+            (root / "scorecard-report.json").write_text("{}", encoding="utf-8")
             (root / "scorecard-A.json").write_text(json.dumps(v2("A", [assessment("assessor-1")])), encoding="utf-8")
             output = root / "report.json"
             self.assertEqual(main(["report", str(root), "--out", str(output)]), 0)
