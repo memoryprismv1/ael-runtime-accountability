@@ -237,6 +237,60 @@ class RuntimeV2Tests(unittest.TestCase):
         d=runtime.delta_preview('alpha\nbeta','alpha\ngamma')
         self.assertEqual(d['added_lines'],1); self.assertEqual(d['removed_lines'],1)
 
+    def test_checkpoint_cli_reports_verified_unique_exports(self):
+        self.ev('initial_brief', 'user', 'First CLI checkpoint state')
+        output_dir = self.root / 'cli-checkpoints'
+        base = [
+            sys.executable, str(MODULE_PATH),
+            '--db', str(self.root / 'test.sqlite3'),
+            '--account', self.account,
+            'checkpoint', '--project', self.project, '--chat', self.chat,
+            '--out', str(output_dir),
+        ]
+        first = subprocess.run(base, text=True, capture_output=True, timeout=15)
+        self.assertEqual(first.returncode, 0, msg=first.stderr)
+        first_record = json.loads(first.stdout)
+        self.assertTrue(first_record['verified'])
+        first_md = Path(first_record['markdown'])
+        first_json = Path(first_record['json'])
+        self.assertEqual(first_md.parent.resolve(), output_dir.resolve())
+        self.assertEqual(first_json.parent.resolve(), output_dir.resolve())
+        first_payload = json.loads(first_json.read_text(encoding='utf-8'))
+
+        self.ev('user_note', 'user', 'Second CLI checkpoint state')
+        second = subprocess.run(base, text=True, capture_output=True, timeout=15)
+        self.assertEqual(second.returncode, 0, msg=second.stderr)
+        second_record = json.loads(second.stdout)
+        self.assertTrue(second_record['verified'])
+        second_md = Path(second_record['markdown'])
+        second_json = Path(second_record['json'])
+
+        self.assertNotEqual(first_md, second_md)
+        self.assertNotEqual(first_json, second_json)
+        self.assertTrue(first_md.is_file())
+        self.assertTrue(first_json.is_file())
+        self.assertTrue(second_md.is_file())
+        self.assertTrue(second_json.is_file())
+        second_payload = json.loads(second_json.read_text(encoding='utf-8'))
+        self.assertNotIn('Second CLI checkpoint state', json.dumps(first_payload))
+        self.assertIn('Second CLI checkpoint state', json.dumps(second_payload))
+
+        verify = runtime.connect(self.root / 'test.sqlite3')
+        try:
+            rows = verify.execute(
+                'SELECT json_path, snapshot_sha256 FROM checkpoints '
+                'WHERE account_id=? AND project_id=? AND chat_id=?',
+                (self.account, self.project, self.chat),
+            ).fetchall()
+            hashes_by_path = {Path(row['json_path']): row['snapshot_sha256'] for row in rows}
+            for snapshot_path in (first_json, second_json):
+                self.assertEqual(
+                    hashlib.sha256(snapshot_path.read_bytes()).hexdigest(),
+                    hashes_by_path[snapshot_path],
+                )
+        finally:
+            verify.close()
+
     def test_checkpoint_identifiers_cannot_escape_output_directory(self):
         self.ev('initial_brief','user','Keep checkpoint paths rooted.')
         output_dir = self.root/'safe-checkpoints'
@@ -813,6 +867,67 @@ class RuntimeV2Tests(unittest.TestCase):
         finally:
             server.shutdown(); server.server_close(); thread.join(timeout=5)
 
+
+    def test_ollama_cli_service_error_persists_failure_audit_without_assistant_turn(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        captured = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                size = int(self.headers.get('Content-Length', '0'))
+                captured['body'] = self.rfile.read(size).decode('utf-8')
+                self.send_response(503)
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+
+            def log_message(self, *args):
+                return
+
+        self.ev('initial_brief', 'user', 'Preserve the original request during provider failure.')
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        response_path = self.root / 'out' / 'response.json'
+        audit_path = self.root / 'audit' / 'failure.json'
+        cmd = [
+            sys.executable, str(MODULE_PATH), '--db', str(self.root / 'test.sqlite3'),
+            '--account', self.account, 'ollama-chat',
+            '--project', self.project, '--chat', self.chat,
+            '--current-user-message', 'Continue, but the local service will fail.',
+            '--model', 'mock-local-model',
+            '--endpoint', f'http://127.0.0.1:{server.server_port}',
+            '--timeout', '5', '--max-tokens', '12000',
+            '--out', str(response_path), '--audit-out', str(audit_path),
+        ]
+        try:
+            completed = subprocess.run(cmd, text=True, capture_output=True, timeout=15)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn('"model": "mock-local-model"', captured['body'])
+        self.assertFalse(response_path.exists())
+        self.assertTrue(audit_path.is_file())
+        audit = json.loads(audit_path.read_text(encoding='utf-8'))
+        self.assertEqual(audit['provider'], 'ollama-local')
+        self.assertEqual(audit['call_status'], 'failed')
+        self.assertEqual(audit['failure_type'], 'RuntimeError')
+        self.assertFalse(audit['api_token_used'])
+        self.assertIsInstance(audit['user_event_seq'], int)
+
+        verify = runtime.connect(self.root / 'test.sqlite3')
+        try:
+            events = runtime.scope_events(verify, self.account, self.project, self.chat)
+            self.assertTrue(any(
+                event['event_type'] == 'user_request'
+                and event['content'] == 'Continue, but the local service will fail.'
+                for event in events
+            ))
+            self.assertFalse(any(event['event_type'] == 'assistant_turn' for event in events))
+        finally:
+            verify.close()
 
     def test_ollama_cli_end_to_end_records_turn_and_keeps_audit_local(self):
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
