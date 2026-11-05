@@ -150,6 +150,15 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(preference["preference_counts"]["A"], 2)
         self.assertEqual(preference["conflict_count"], 0)
 
+    def test_report_marks_dimension_agreement_when_assessors_match(self):
+        card = v2("A", [assessment("assessor-1", 4), assessment("assessor-2", 4)])
+        report = build_report([card])
+        row = next(row for row in report["ratings_by_blind_label_case_dimension"]
+                   if row["blind_label"] == "A" and row["dimension"] == "requirements_fidelity")
+        self.assertEqual(row["distinct_score_count"], 1)
+        self.assertEqual(row["score_range"], 0)
+        self.assertFalse(row["disagreement_observed"])
+
     def test_assessor_count_is_unique_across_repeated_pairs(self):
         first_pair = v2("A", [assessment("assessor-1", 2)], pair_id="pair-1")
         second_pair = v2("A", [assessment("assessor-1", 3), assessment("assessor-2", 4)], pair_id="pair-2")
