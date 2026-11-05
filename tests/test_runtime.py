@@ -52,6 +52,42 @@ class RuntimeV2Tests(unittest.TestCase):
             self.con.execute('UPDATE events SET content=? WHERE seq=?',('rewritten',e['seq']))
         with self.assertRaises(Exception):
             self.con.execute('DELETE FROM events WHERE seq=?',(e['seq'],))
+
+    def test_failed_ledger_insert_leaves_no_event_and_connection_can_append(self):
+        self.ev('observation', 'user', 'Existing event before simulated database failure.')
+        self.con.execute("""
+            CREATE TRIGGER reject_selected_event_insert
+            BEFORE INSERT ON events
+            WHEN NEW.event_type = 'simulated_failure'
+            BEGIN
+                SELECT RAISE(ABORT, 'simulated ledger insert rejection');
+            END
+        """)
+        self.con.commit()
+
+        with self.assertRaisesRegex(sqlite3.IntegrityError, 'simulated ledger insert rejection'):
+            self.ev('simulated_failure', 'user', 'This event must not be retained.')
+
+        after_failure = runtime.scope_events(self.con, self.account, self.project, self.chat)
+        self.assertEqual(len(after_failure), 1)
+        self.assertFalse(any(
+            event['content'] == 'This event must not be retained.'
+            for event in after_failure
+        ))
+
+        self.con.execute('DROP TRIGGER reject_selected_event_insert')
+        self.con.commit()
+        appended = self.ev('observation', 'user', 'A later valid event still appends.')
+        self.assertEqual(appended['content'], 'A later valid event still appends.')
+
+        verify = runtime.connect(self.root / 'test.sqlite3')
+        try:
+            persisted = runtime.scope_events(verify, self.account, self.project, self.chat)
+            self.assertEqual(len(persisted), 2)
+            self.assertEqual(persisted[-1]['content'], 'A later valid event still appends.')
+            self.assertFalse(any(event['event_type'] == 'simulated_failure' for event in persisted))
+        finally:
+            verify.close()
     def test_user_and_ai_claim_dimensions_are_separate(self):
         e=self.ev('decision','user','Choose option B',authority='user_direct',inference_kind='decision',truth_status='not_applicable',source_ref='turn-5')
         self.assertEqual(e['provenance'],'user')
