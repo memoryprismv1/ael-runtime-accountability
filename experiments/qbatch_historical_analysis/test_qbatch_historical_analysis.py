@@ -123,6 +123,27 @@ class HistoricalAnalysisTests(unittest.TestCase):
         self.assertEqual(report["attempts"][0]["status"], "inconclusive_pair")
         self.assertEqual(report["cohorts"], [])
 
+    def test_duplicate_condition_rows_do_not_form_an_independent_pair(self):
+        rows = [
+            record("attempt-duplicate", "same", "A"),
+            record("attempt-duplicate", "same", "A"),
+            record("attempt-duplicate", "same", "B"),
+        ]
+        report = analyse_cohorts(rows)
+        self.assertEqual(report["attempts"][0]["status"], "inconclusive_pair")
+        self.assertEqual(report["attempts"][0]["run_count"], 3)
+        self.assertEqual(report["cohorts"], [])
+
+    def test_paired_conditions_must_have_distinct_run_ids(self):
+        rows = [
+            record("attempt-reused-run", "same", "A"),
+            record("attempt-reused-run", "same", "B"),
+        ]
+        rows[1]["run_id"] = rows[0]["run_id"]
+        report = analyse_cohorts(rows)
+        self.assertEqual(report["attempts"][0]["status"], "inconclusive_pair")
+        self.assertEqual(report["cohorts"], [])
+
     def test_rerun_requires_threshold_fix_and_regression(self):
         cohort = {"independent_attempt_count": 4, "threshold": 4}
         self.assertEqual(policy_for_cohort(cohort), "HOLD_NO_VERIFIED_TARGETED_FIX")
@@ -219,21 +240,48 @@ class HistoricalAnalysisTests(unittest.TestCase):
             # Sanitized shape observed in run 39592787189: Ollama content is JSON
             # text, not structured tool_calls; the runner dispatches no tool calls.
             content = json.dumps({"name": "submit_plan", "arguments": {"plan": "fixture"}})
+            events = []
             for index in range(4):
+                name = f"{index:04d}-model-response-fixture.txt"
                 payload = {"created_at": "fixture", "message": {"role": "assistant", "content": content}}
-                (artifacts / f"{index:04d}-model-response-fixture.txt").write_text(
-                    json.dumps(payload), encoding="utf-8"
-                )
-            events = [
-                {"event_type": "error", "payload": {"kind": "model_response_without_tool_call", "turn": n},
-                 "evidence_refs": []}
-                for n in range(1, 5)
-            ]
+                raw = json.dumps(payload).encode("utf-8")
+                (artifacts / name).write_bytes(raw)
+                events.append({
+                    "event_type": "error",
+                    "payload": {"kind": "model_response_without_tool_call", "turn": index + 1},
+                    "evidence_refs": [{
+                        "path": f"artifacts/{name}",
+                        "sha256": hashlib.sha256(raw).hexdigest(),
+                        "size_bytes": len(raw),
+                    }],
+                })
             run = {"root": root, "events": events, "format_profile": {"unknown_event_types": []}}
             result = classify_failure(run)
             self.assertEqual(result["signature"], "text_encoded_tool_calls_not_dispatched")
             self.assertEqual(result["observed"]["dispatched_tool_calls"], 0)
             self.assertEqual(result["observed"]["json_encoded_tool_responses"], 4)
+
+    def test_unreferenced_model_response_artifacts_do_not_affect_failure_classification(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifacts = root / "artifacts"
+            artifacts.mkdir()
+            content = json.dumps({"name": "submit_plan", "arguments": {"plan": "stray"}})
+            for index in range(4):
+                payload = {"message": {"role": "assistant", "content": content}}
+                (artifacts / f"{index:04d}-model-response-unreferenced.txt").write_text(
+                    json.dumps(payload), encoding="utf-8"
+                )
+            events = [
+                {"event_type": "error",
+                 "payload": {"kind": "model_response_without_tool_call", "turn": n},
+                 "evidence_refs": []}
+                for n in range(1, 5)
+            ]
+            run = {"root": root, "events": events, "format_profile": {"unknown_event_types": []}}
+            result = classify_failure(run)
+            self.assertEqual(result["signature"], "repeated_no_tool_responses")
+            self.assertEqual(result["observed"]["json_encoded_tool_responses"], 0)
 
     def test_real_failure_signature_repeated_no_tool_responses(self):
         with tempfile.TemporaryDirectory() as tmp:
