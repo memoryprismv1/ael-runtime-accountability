@@ -352,6 +352,13 @@ def _read_files(paths: list[Path]) -> tuple[list[dict[str, Any]], list[str]]:
             errors.extend(f"{path}: {message}" for message in validation)
         else:
             documents.append(document)
+    if not errors and documents:
+        try:
+            # Cross-file duplicate detection is part of validation too: one
+            # assessor must not be represented twice for the same response.
+            build_report(documents)
+        except ScorecardValidationError as exc:
+            errors.append(str(exc))
     return documents, errors
 
 

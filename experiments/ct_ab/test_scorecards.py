@@ -168,6 +168,15 @@ class ScorecardTests(unittest.TestCase):
             report = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(report["input_counts"]["scorecard_files"], 2)
 
+    def test_cli_validate_rejects_duplicate_assessor_across_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = root / "scorecard-A-first.json"
+            second = root / "scorecard-A-second.json"
+            first.write_text(json.dumps(v2("A", [assessment("same-assessor", 2)])), encoding="utf-8")
+            second.write_text(json.dumps(v2("A", [assessment("same-assessor", 4)])), encoding="utf-8")
+            self.assertEqual(main(["validate", str(first), str(second)]), 1)
+
     def test_cli_directory_search_excludes_blank_template_and_prior_report(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
