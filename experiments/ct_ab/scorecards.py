@@ -80,7 +80,7 @@ def _validate_dimensions(value: Any, path: str, version: str, errors: list[str])
         else:
             _keys_error(item, {"applicability", "score", "rationale", "evidence"}, item_path, errors)
             applicable = item.get("applicability") == "applicable"
-            if item.get("applicability") not in {"applicable", "not_applicable"}:
+            if item.get("applicability") not in ("applicable", "not_applicable"):
                 errors.append(f"{item_path}.applicability: expected 'applicable' or 'not_applicable'")
         score = item.get("score")
         rationale = item.get("rationale")
@@ -115,7 +115,7 @@ def validate_scorecard(document: Any) -> list[str]:
             errors.append("pair_id: expected non-empty text")
         if not _is_text(document.get("assessor_id")):
             errors.append("assessor_id: expected non-empty text")
-        if document.get("blind_label") not in {"A", "B"}:
+        if not isinstance(document.get("blind_label"), str) or document.get("blind_label") not in ("A", "B"):
             errors.append("blind_label: expected A or B")
         _timestamp_error(document.get("submitted_at_utc"), "submitted_at_utc", errors)
         _validate_dimensions(document.get("dimensions"), "dimensions", "1.0", errors)

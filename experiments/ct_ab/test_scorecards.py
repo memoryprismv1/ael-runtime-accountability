@@ -98,6 +98,14 @@ class ScorecardTests(unittest.TestCase):
         card["assessments"][0]["dimensions"]["requirements_fidelity"]["evidence"] = []
         self.assertTrue(any("at least one item" in error for error in validate_scorecard(card)))
 
+    def test_v2_validator_reports_unhashable_values_without_crashing(self):
+        card = v2("A", [assessment("assessor-1")])
+        card["blind_label"] = []
+        card["assessments"][0]["dimensions"]["requirements_fidelity"]["applicability"] = []
+        errors = validate_scorecard(card)
+        self.assertTrue(any("blind_label" in error for error in errors))
+        self.assertTrue(any("applicability" in error for error in errors))
+
     def test_v1_single_assessor_card_remains_valid(self):
         self.assertEqual(validate_scorecard(v1()), [])
 
