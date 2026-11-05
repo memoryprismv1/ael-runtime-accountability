@@ -33,6 +33,8 @@ jobs:
         run: python -m unittest experiments.ct_ab.test_logging experiments.ct_ab.test_pair_runner -v
       - name: Run Q-Batch order/carryover methodology tests
         run: python -m unittest experiments.ct_ab.test_method_demo -v
+      - name: Run multi-assessor scorecard validation and reporting tests
+        run: python -m unittest experiments.ct_ab.test_scorecards -v
       - name: Run Q-Batch historical cohort analysis tests
         run: python -m unittest discover -s experiments/qbatch_historical_analysis -p 'test_*.py' -v
       - name: Execute deterministic Q-Batch methodology demonstration
