@@ -134,7 +134,7 @@ def validate_scorecard(document: Any) -> list[str]:
         for key in ("pair_id", "case_id"):
             if not _is_text(document.get(key)):
                 errors.append(f"{key}: expected non-empty text")
-        if document.get("blind_label") not in {"A", "B"}:
+        if not isinstance(document.get("blind_label"), str) or document.get("blind_label") not in ("A", "B"):
             errors.append("blind_label: expected A or B")
         assessments = document.get("assessments")
         if not isinstance(assessments, list) or not assessments:
