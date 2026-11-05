@@ -1,4 +1,4 @@
-# Blind A/B scoring rubric — CT skill software task (v2.0; v1.0 scorecards remain supported)
+# Blind A/B scoring rubric — CT skill software task (v1.0)
 
 ## Scoring procedure
 
@@ -31,7 +31,7 @@ Do not score hidden reasoning. Score only the submitted plan, observable develop
 
 For every dimension, give a brief rationale and at least one concrete evidence pointer where possible: source path/function, acceptance check name, or event sequence. Distinguish missing evidence from poor quality. Use the preference value unable_to_judge only when the pair cannot fairly be compared; document why.
 
-The v2.0 scorecard stores an `assessments` array for each blind response. Each assessor completes one entry; assessor IDs must be unique within that response. Keep A and B ratings separate. Record the same pair-level overall preference (A, B, tie, or unable to judge) and confidence from 1 to 5 in that assessor's entry for both blind responses after reviewing both packets. The report tool counts a pair preference once per assessor when the A/B submissions agree; it flags conflicting submissions rather than choosing or averaging them. Do not silently reconcile independent scores. Preserve each assessor's original scorecard and report disagreements before any adjudication. Legacy v1.0 single-assessor scorecards remain valid inputs.
+After both packets have been scored separately, record overall preference as A, B, tie, or unable to judge, plus confidence from 1 to 5. Do not silently reconcile independent scores. Preserve each assessor's original scorecard and report disagreements before any adjudication.
 
 ## Interpretation
 
