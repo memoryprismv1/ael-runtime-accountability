@@ -229,7 +229,27 @@ def classify_failure(run):
                              "tool_name_counts": dict(sorted(tool_names.items()))},
                 "evidence_artifacts": rejected_evidence}
     no_tool = [p for p in errors if p.get("kind") == "model_response_without_tool_call"]
-    response_files = list((root / "artifacts").glob("*model-response*")) if (root / "artifacts").exists() else []
+    # A file merely being present in artifacts/ does not make it part of
+    # the recorded run. Only event-bound evidence references may contribute
+    # to a failure signature, and each referenced response is revalidated
+    # here so classify_failure remains fail-closed when called independently.
+    response_paths = set()
+    for event in events:
+        for ref in event.get("evidence_refs", []):
+            if not isinstance(ref, dict) or not isinstance(ref.get("path"), str):
+                continue
+            if "model-response" not in PurePosixPath(ref["path"]).name:
+                continue
+            artifact = safe_artifact(root, ref["path"])
+            if (
+                artifact.stat().st_size != ref.get("size_bytes")
+                or not isinstance(ref.get("sha256"), str)
+                or not HASH_RE.fullmatch(ref["sha256"])
+                or sha256_file(artifact) != ref["sha256"]
+            ):
+                raise ValueError(f"referenced model response evidence failed integrity check: {ref['path']}")
+            response_paths.add(artifact)
+    response_files = sorted(response_paths)
     encoded, encoded_refs = 0, []
     for path in response_files:
         data = _read_json(path)
@@ -307,7 +327,16 @@ def analyse_cohorts(records, min_size=MIN_COHORT_SIZE):
         signatures = sorted({r["failure"]["signature"] for r in rows})
         identities = {r["task_identity_hash"] for r in rows}
         profiles = {r["format_profile"]["profile"] for r in rows}
-        paired = {r["condition_label"] for r in rows} >= {"A", "B"}
+        conditions = [r.get("condition_label") for r in rows]
+        run_ids = [r.get("run_id") for r in rows]
+        # One workflow attempt is exactly one A arm and one B arm. Extra
+        # rows or reused run IDs are not a valid pair and must not increase
+        # the independent-attempt count.
+        paired = (
+            len(rows) == 2
+            and sorted(conditions) == ["A", "B"]
+            and len(set(run_ids)) == 2
+        )
         complete = all(r.get("identity_complete", False) for r in rows)
         coherent = len(signatures) == len(identities) == len(profiles) == 1 and paired
         sig = signatures[0] if coherent else "mixed_or_incomplete_pair"
