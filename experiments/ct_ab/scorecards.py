@@ -208,7 +208,7 @@ def _normalize(document: dict[str, Any]) -> dict[str, Any]:
 def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """Build descriptive blind-label/case/dimension summaries from valid cards."""
     response_assessors: dict[tuple[str, str, str], set[str]] = defaultdict(set)
-    dimension_rows: dict[tuple[str, str, str], list[tuple[str, str, int | None]]] = defaultdict(list)
+    dimension_rows: dict[tuple[str, str, str, str], list[tuple[str, int | None]]] = defaultdict(list)
     pair_preferences: dict[tuple[str, str, str], dict[str, str]] = defaultdict(dict)
     pair_cases: set[tuple[str, str]] = set()
     legacy_count = 0
@@ -241,13 +241,50 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
             for dimension in DIMENSIONS:
                 rating = assessment["dimensions"][dimension]
                 score = rating["score"] if rating["applicability"] == "applicable" else None
-                dimension_rows[(case_id, label, dimension)].append((pair_id, assessor_id, score))
+                dimension_rows[(pair_id, case_id, label, dimension)].append((assessor_id, score))
+
+    response_summaries = []
+    case_rows: dict[tuple[str, str, str], list[tuple[str, str, int | None]]] = defaultdict(list)
+    for (pair_id, case_id, label, dimension), rows in sorted(dimension_rows.items()):
+        scores = [score for _, score in rows if score is not None]
+        distinct = sorted(set(scores))
+        counts = {str(n): scores.count(n) for n in range(1, 6)}
+        multiple_ratings = len(scores) >= 2
+        response_summary = {
+            "pair_id": pair_id,
+            "case_id": case_id,
+            "blind_label": label,
+            "dimension": dimension,
+            "assessment_count": len(rows),
+            "assessor_count": len({assessor for assessor, _ in rows}),
+            "applicable_assessment_count": len(scores),
+            "not_applicable_count": len(rows) - len(scores),
+            "score_counts": counts,
+            "minimum": min(scores) if scores else None,
+            "maximum": max(scores) if scores else None,
+            "mean": round(statistics.mean(scores), 3) if scores else None,
+            "median": statistics.median(scores) if scores else None,
+            "score_range": (max(scores) - min(scores)) if scores else None,
+            "distinct_score_count": len(distinct),
+            "inter_assessor_agreement_observed": multiple_ratings and len(distinct) == 1,
+            "inter_assessor_disagreement_observed": multiple_ratings and len(distinct) > 1,
+        }
+        response_summaries.append(response_summary)
+        case_rows[(case_id, label, dimension)].extend(
+            (pair_id, assessor, score) for assessor, score in rows
+        )
 
     summary = []
-    for (case_id, label, dimension), rows in sorted(dimension_rows.items()):
+    for (case_id, label, dimension), rows in sorted(case_rows.items()):
         scores = [score for _, _, score in rows if score is not None]
         distinct = sorted(set(scores))
         counts = {str(n): scores.count(n) for n in range(1, 6)}
+        response_group = [
+            item for item in response_summaries
+            if (item["case_id"], item["blind_label"], item["dimension"]) == (case_id, label, dimension)
+        ]
+        agreement_count = sum(item["inter_assessor_agreement_observed"] for item in response_group)
+        disagreement_count = sum(item["inter_assessor_disagreement_observed"] for item in response_group)
         summary.append({
             "case_id": case_id,
             "blind_label": label,
@@ -264,7 +301,12 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
             "median": statistics.median(scores) if scores else None,
             "score_range": (max(scores) - min(scores)) if scores else None,
             "distinct_score_count": len(distinct),
-            "disagreement_observed": len(distinct) > 1,
+            "responses_with_multiple_applicable_ratings": sum(item["applicable_assessment_count"] >= 2 for item in response_group),
+            "responses_with_observed_agreement": agreement_count,
+            "responses_with_observed_disagreement": disagreement_count,
+            "responses_with_single_applicable_rating": sum(item["applicable_assessment_count"] == 1 for item in response_group),
+            "inter_assessor_agreement_observed": agreement_count > 0,
+            "inter_assessor_disagreement_observed": disagreement_count > 0,
         })
 
     preference_summary = []
@@ -317,6 +359,7 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
             "pair_case_count": len(pair_cases),
         },
         "ratings_by_blind_label_case_dimension": summary,
+        "ratings_by_response_case_dimension": response_summaries,
         "pair_preferences": preference_summary,
     }
 

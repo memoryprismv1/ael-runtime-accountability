@@ -145,7 +145,8 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(a_row["minimum"], 2)
         self.assertEqual(a_row["maximum"], 4)
         self.assertEqual(a_row["score_range"], 2)
-        self.assertTrue(a_row["disagreement_observed"])
+        self.assertTrue(a_row["inter_assessor_disagreement_observed"])
+        self.assertEqual(a_row["responses_with_observed_disagreement"], 1)
         preference = report["pair_preferences"][0]
         self.assertEqual(preference["preference_counts"]["A"], 2)
         self.assertEqual(preference["conflict_count"], 0)
@@ -157,7 +158,11 @@ class ScorecardTests(unittest.TestCase):
                    if row["blind_label"] == "A" and row["dimension"] == "requirements_fidelity")
         self.assertEqual(row["distinct_score_count"], 1)
         self.assertEqual(row["score_range"], 0)
-        self.assertFalse(row["disagreement_observed"])
+        self.assertTrue(row["inter_assessor_agreement_observed"])
+        self.assertFalse(row["inter_assessor_disagreement_observed"])
+        response = next(item for item in report["ratings_by_response_case_dimension"]
+                        if item["blind_label"] == "A" and item["dimension"] == "requirements_fidelity")
+        self.assertTrue(response["inter_assessor_agreement_observed"])
 
     def test_assessor_count_is_unique_across_repeated_pairs(self):
         first_pair = v2("A", [assessment("assessor-1", 2)], pair_id="pair-1")
@@ -168,6 +173,17 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(row["pair_count"], 2)
         self.assertEqual(row["assessment_count"], 3)
         self.assertEqual(row["assessor_count"], 2)
+
+    def test_different_single_assessor_scores_across_pairs_are_not_inter_assessor_disagreement(self):
+        first_pair = v2("A", [assessment("assessor-1", 2)], pair_id="pair-1")
+        second_pair = v2("A", [assessment("assessor-2", 4)], pair_id="pair-2")
+        report = build_report([first_pair, second_pair])
+        summary = next(row for row in report["ratings_by_blind_label_case_dimension"]
+                       if row["blind_label"] == "A" and row["dimension"] == "requirements_fidelity")
+        self.assertEqual(summary["score_range"], 2)
+        self.assertFalse(summary["inter_assessor_disagreement_observed"])
+        self.assertEqual(summary["responses_with_observed_disagreement"], 0)
+        self.assertEqual(summary["responses_with_single_applicable_rating"], 2)
 
     def test_report_excludes_not_applicable_dimensions_from_score_stats(self):
         card = v2("A", [assessment("assessor-1", 4)])
