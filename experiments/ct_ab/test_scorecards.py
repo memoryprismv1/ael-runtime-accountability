@@ -112,13 +112,28 @@ class ScorecardTests(unittest.TestCase):
         errors = validate_scorecard(card)
         self.assertTrue(any("blind_label" in error for error in errors))
 
+    def test_v2_rejects_missing_dimension_rating(self):
+        card = v2("A", [assessment("assessor-1")])
+        card["assessments"][0]["dimensions"].pop("functional_robustness")
+        errors = validate_scorecard(card)
+        self.assertTrue(any("missing keys" in error for error in errors))
+
+    def test_legacy_pairs_without_case_ids_are_not_pooled_together(self):
+        report = build_report([
+            v1(label="A", assessor_id="assessor-1"),
+            v1(label="B", assessor_id="assessor-1"),
+            {**v1(label="A", assessor_id="assessor-2"), "pair_id": "another-legacy-pair"},
+        ])
+        legacy_case_ids = {row["case_id"] for row in report["ratings_by_blind_label_case_dimension"]}
+        self.assertEqual(legacy_case_ids, {"legacy-unspecified:legacy-pair", "legacy-unspecified:another-legacy-pair"})
+
     def test_v1_single_assessor_card_remains_valid(self):
         self.assertEqual(validate_scorecard(v1()), [])
 
     def test_v1_is_normalized_into_legacy_case_without_inventing_case_id(self):
         report = build_report([v1()])
         self.assertEqual(report["input_counts"]["legacy_v1_files"], 1)
-        self.assertEqual(report["ratings_by_blind_label_case_dimension"][0]["case_id"], LEGACY_CASE_ID)
+        self.assertEqual(report["ratings_by_blind_label_case_dimension"][0]["case_id"], f"{LEGACY_CASE_ID}:legacy-pair")
 
     def test_report_aggregates_descriptive_ranges_by_label_case_dimension(self):
         card_a = v2("A", [assessment("assessor-1", 2, "A"), assessment("assessor-2", 4, "A")])

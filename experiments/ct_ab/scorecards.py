@@ -190,7 +190,9 @@ def _normalize(document: dict[str, Any]) -> dict[str, Any]:
             "notes": document["notes"],
         }
         assessments = [assessment]
-        case_id = LEGACY_CASE_ID
+        # v1.0 has no case identity. Scope the placeholder to its pair so
+        # unrelated legacy experiments are never silently pooled.
+        case_id = f"{LEGACY_CASE_ID}:{document['pair_id']}"
     else:
         assessments = document["assessments"]
         case_id = document["case_id"]
