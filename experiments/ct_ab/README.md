@@ -88,7 +88,7 @@ Have assessors score A and B independently before comparing or opening the key. 
 
 New packets include a v2.0 `scorecard-template.json` with an `assessments` array. Add one independent assessment object per assessor; do not combine ratings or reuse an assessor ID within the same blind response. Each packet's `case_id` is the exact task-bundle SHA-256, so repeated pairs for the same task can be grouped without inventing a case label. Dimension applicability is explicit: applicable dimensions require a 1–5 score and evidence; not-applicable dimensions require a null score and a rationale.
 
-The original v1.0 schema is included as `scorecard-v1.schema.json`, and existing single-assessor v1.0 scorecards remain readable. The validator/report tool uses only the Python standard library:
+The original v1.0 schema is included as `scorecard-v1.schema.json`, and existing single-assessor v1.0 scorecards remain readable. Because v1.0 has no case identifier, its reports use a clearly marked legacy placeholder scoped to the existing pair ID; unrelated old pairs are not silently grouped as one case. The validator/report tool uses only the Python standard library:
 
 ```bash
 python -m experiments.ct_ab.scorecards validate scorecard-A.json scorecard-B.json
