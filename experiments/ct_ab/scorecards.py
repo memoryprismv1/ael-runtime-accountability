@@ -88,8 +88,6 @@ def _validate_dimensions(value: Any, path: str, version: str, errors: list[str])
         if applicable:
             if not _is_int(score) or not 1 <= score <= 5:
                 errors.append(f"{item_path}.score: applicable dimensions require an integer from 1 to 5")
-            if version == "2.0" and item.get("applicability") != "applicable":
-                pass
         elif score is not None:
             errors.append(f"{item_path}.score: not_applicable dimensions must use null")
         if not _is_text(rationale):
@@ -254,7 +252,7 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
             "dimension": dimension,
             "pair_count": len({pair for pair, _, _ in rows}),
             "assessment_count": len(rows),
-            "assessor_count": len({(pair, assessor) for pair, assessor, _ in rows}),
+            "assessor_count": len({assessor for _, assessor, _ in rows}),
             "applicable_assessment_count": len(scores),
             "not_applicable_count": len(rows) - len(scores),
             "score_counts": counts,

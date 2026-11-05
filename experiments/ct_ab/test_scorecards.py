@@ -135,6 +135,16 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(preference["preference_counts"]["A"], 2)
         self.assertEqual(preference["conflict_count"], 0)
 
+    def test_assessor_count_is_unique_across_repeated_pairs(self):
+        first_pair = v2("A", [assessment("assessor-1", 2)], pair_id="pair-1")
+        second_pair = v2("A", [assessment("assessor-1", 3), assessment("assessor-2", 4)], pair_id="pair-2")
+        report = build_report([first_pair, second_pair])
+        row = next(row for row in report["ratings_by_blind_label_case_dimension"]
+                   if row["blind_label"] == "A" and row["dimension"] == "requirements_fidelity")
+        self.assertEqual(row["pair_count"], 2)
+        self.assertEqual(row["assessment_count"], 3)
+        self.assertEqual(row["assessor_count"], 2)
+
     def test_report_excludes_not_applicable_dimensions_from_score_stats(self):
         card = v2("A", [assessment("assessor-1", 4)])
         card["assessments"][0]["dimensions"]["process_discipline"] = dimension(3, "not_applicable")
