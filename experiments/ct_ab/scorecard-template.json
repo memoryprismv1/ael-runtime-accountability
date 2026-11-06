@@ -1,54 +1,65 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "pair_id": "<pair_id>",
-  "assessor_id": "<your assessor ID>",
+  "case_id": "<task_bundle_sha256>",
   "blind_label": "A",
-  "submitted_at_utc": "<ISO 8601 timestamp>",
-  "dimensions": {
-    "requirements_fidelity": {
-      "score": 3,
-      "rationale": "Replace with evidence-based assessment.",
-      "evidence": [
-        "path, acceptance check, or event sequence"
-      ]
-    },
-    "functional_robustness": {
-      "score": 3,
-      "rationale": "Replace with evidence-based assessment.",
-      "evidence": [
-        "path, acceptance check, or event sequence"
-      ]
-    },
-    "interface_usability": {
-      "score": 3,
-      "rationale": "Replace with evidence-based assessment.",
-      "evidence": [
-        "path, acceptance check, or event sequence"
-      ]
-    },
-    "maintainability_simplicity": {
-      "score": 3,
-      "rationale": "Replace with evidence-based assessment.",
-      "evidence": [
-        "path, acceptance check, or event sequence"
-      ]
-    },
-    "testing_documentation": {
-      "score": 3,
-      "rationale": "Replace with evidence-based assessment.",
-      "evidence": [
-        "path, acceptance check, or event sequence"
-      ]
-    },
-    "process_discipline": {
-      "score": 3,
-      "rationale": "Replace with evidence-based assessment.",
-      "evidence": [
-        "path, acceptance check, or event sequence"
-      ]
+  "assessments": [
+    {
+      "assessor_id": "<unique_assessor_id>",
+      "submitted_at_utc": "<ISO 8601 timestamp>",
+      "dimensions": {
+        "requirements_fidelity": {
+          "applicability": "applicable",
+          "score": 3,
+          "rationale": "Replace with evidence-based assessment.",
+          "evidence": [
+            "path, acceptance check, or event sequence"
+          ]
+        },
+        "functional_robustness": {
+          "applicability": "applicable",
+          "score": 3,
+          "rationale": "Replace with evidence-based assessment.",
+          "evidence": [
+            "path, acceptance check, or event sequence"
+          ]
+        },
+        "interface_usability": {
+          "applicability": "applicable",
+          "score": 3,
+          "rationale": "Replace with evidence-based assessment.",
+          "evidence": [
+            "path, acceptance check, or event sequence"
+          ]
+        },
+        "maintainability_simplicity": {
+          "applicability": "applicable",
+          "score": 3,
+          "rationale": "Replace with evidence-based assessment.",
+          "evidence": [
+            "path, acceptance check, or event sequence"
+          ]
+        },
+        "testing_documentation": {
+          "applicability": "applicable",
+          "score": 3,
+          "rationale": "Replace with evidence-based assessment.",
+          "evidence": [
+            "path, acceptance check, or event sequence"
+          ]
+        },
+        "process_discipline": {
+          "applicability": "applicable",
+          "score": 3,
+          "rationale": "Replace with evidence-based assessment.",
+          "evidence": [
+            "path, acceptance check, or event sequence"
+          ]
+        }
+      },
+      "overall_preference": "unable_to_judge",
+      "confidence": 1,
+      "notes": "Duplicate this assessment object once per independent assessor. Pair preference should be consistent across the A and B submissions."
     }
-  },
-  "overall_preference": "unable_to_judge",
-  "confidence": 1,
-  "notes": "Submit one scorecard for each blind packet. Preserve initial ratings unchanged."
+  ]
 }

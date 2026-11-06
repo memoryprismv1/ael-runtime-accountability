@@ -183,7 +183,7 @@ class AcceptanceSuiteTests(unittest.TestCase):
                 self.assertTrue(packet.is_file(),f"blind score packet missing: {packet}")
                 with zipfile.ZipFile(packet) as archive:
                     names=set(archive.namelist())
-                    self.assertTrue({"source/app.py","SCORING_RUBRIC.md","scorecard.schema.json","scorecard-template.json","observed-timeline.jsonl","acceptance-report.json"}.issubset(names))
+                    self.assertTrue({"source/app.py","SCORING_RUBRIC.md","scorecard.schema.json","scorecard-v1.schema.json","scorecard-template.json","observed-timeline.jsonl","acceptance-report.json"}.issubset(names))
                     contents="".join(archive.read(name).decode("utf-8",errors="replace") for name in names if not name.endswith(".zip"))
                     self.assertNotIn("TEST SKILL SENTINEL",contents)
                     self.assertNotIn("MOCK_INTERNAL_THOUGHT_SENTINEL",contents)
@@ -193,6 +193,9 @@ class AcceptanceSuiteTests(unittest.TestCase):
                     template=json.loads(archive.read("scorecard-template.json").decode("utf-8"))
                     self.assertEqual(template["blind_label"],label)
                     self.assertTrue(template["pair_id"].startswith("ctab-"))
+                    self.assertEqual(template["schema_version"],"2.0")
+                    self.assertEqual(template["case_id"],json.loads(archive.read("run-metadata.json").decode("utf-8"))["task_bundle_sha256"])
+                    self.assertEqual(len(template["assessments"]),1)
                     timeline=[json.loads(line) for line in archive.read("observed-timeline.jsonl").decode("utf-8").splitlines() if line.strip()]
                     self.assertFalse(any(e["event_type"] in {"model_request","model_response"} for e in timeline))
             blinded_report=json.loads((output/"blinded-pair-report.json").read_text(encoding="utf-8"))

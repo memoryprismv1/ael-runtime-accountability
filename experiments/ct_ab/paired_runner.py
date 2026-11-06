@@ -163,10 +163,12 @@ def _build_blind_score_packet(label: str, run_dir: Path, workspace: Path, accept
     rubric_path=PACKAGE_DIR/"SCORING_RUBRIC.md"
     schema_path=PACKAGE_DIR/"scorecard.schema.json"
     template_path=PACKAGE_DIR/"scorecard-template.json"
+    legacy_schema_path=PACKAGE_DIR/"scorecard-v1.schema.json"
     template_doc=json.loads(template_path.read_text(encoding="utf-8")) if template_path.is_file() else None
     if isinstance(template_doc,dict):
         template_doc["blind_label"]=label
         template_doc["pair_id"]=manifest["run_id"].rsplit("-",1)[0]
+        template_doc["case_id"]=manifest["task_brief_sha256"]
     with zipfile.ZipFile(target,"w",compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("blind-label.txt",f"Blind condition {label}\nDo not open the separate controller key. Score this artifact independently before comparing A/B.\n")
         archive.writestr("run-metadata.json",json.dumps(packet_meta,indent=2,sort_keys=True)+"\n")
@@ -178,6 +180,8 @@ def _build_blind_score_packet(label: str, run_dir: Path, workspace: Path, accept
             archive.write(rubric_path,"SCORING_RUBRIC.md")
         if schema_path.is_file():
             archive.write(schema_path,"scorecard.schema.json")
+        if legacy_schema_path.is_file():
+            archive.write(legacy_schema_path,"scorecard-v1.schema.json")
         if isinstance(template_doc,dict):
             archive.writestr("scorecard-template.json",json.dumps(template_doc,indent=2,sort_keys=True)+"\n")
         for path in sorted(p for p in workspace.rglob("*") if p.is_file()):
