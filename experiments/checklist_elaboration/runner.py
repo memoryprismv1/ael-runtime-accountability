@@ -149,3 +149,60 @@ def validate_outputs(workspace:str|Path)->dict[str,Any]:
             if not isinstance(item[field],str) or not item[field].strip(): raise ValueError(f"item {i}: {field} must be text")
     if total>1000000: raise ValueError("deliverables exceed total byte limit")
     return {"status":"PASS","files":results,"consideration_count":len(register["items"]),"total_bytes":total}
+
+
+def parse_args(value:Any)->dict[str,Any]:
+    if isinstance(value,dict): return dict(value)
+    if isinstance(value,str):
+        parsed=json.loads(value)
+        if isinstance(parsed,dict): return parsed
+    raise ValueError("tool arguments must be an object")
+
+def parse_text_call(value:Any)->list[dict[str,Any]]:
+    if not isinstance(value,str): return []
+    raw=value.strip()
+    if raw.startswith(chr(96)*3):
+        lines=raw.splitlines()
+        if len(lines)>=3 and lines[-1].strip()==chr(96)*3: raw="\n".join(lines[1:-1]).strip()
+    try: obj=json.loads(raw)
+    except json.JSONDecodeError: return []
+    if not isinstance(obj,dict) or set(obj)!={"name","arguments"} or obj["name"] not in ALLOWED or not isinstance(obj["arguments"],dict): return []
+    return [{"id":"text-call","function":{"name":obj["name"],"arguments":obj["arguments"]}}]
+
+class PlanningAgent:
+    def __init__(self,workspace:str|Path,logger:TestingLogger,client:Any,model:str,*,options:Mapping[str,Any]|None=None,
+                 max_turns:int=MAX_TURNS,max_tools:int=MAX_TOOLS,request_timeout:float=MAX_REQUEST_SECONDS,
+                 run_timeout:float=MAX_RUN_SECONDS,output_token_limit:int=MAX_OUTPUT_TOKENS):
+        self.root=Path(workspace).resolve(strict=True); self.logger=logger; self.client=client; self.model=model
+        self.options=dict(options or {"temperature":0.0,"num_ctx":16384,"num_predict":1200})
+        self.max_turns=max_turns; self.max_tools=max_tools; self.request_timeout=request_timeout
+        self.run_timeout=run_timeout; self.output_token_limit=output_token_limit
+        self.started=time.monotonic(); self.tool_count=0; self.output_tokens=0; self.usage_known=True
+        self.input_requests=set(); self.finished=False
+        self.messages=[
+            {"role":"system","content":SYSTEM},
+            {"role":"user","content":"Read task/TASK.md and supplied source-pack/. Any selected skill files are under skills/. Use the file tools, create the three deliverables, then finish."},
+        ]
+
+    def list_files(self,args:dict[str,Any])->dict[str,Any]:
+        raw=args.get("path",".")
+        target=self.root if raw in {"",".","./"} else safe_path(self.root,raw)
+        if not target.is_dir(): raise ValueError("directory does not exist")
+        files=[]
+        for p in sorted(target.rglob("*")):
+            if p.is_symlink(): raise ValueError("symlink in workspace")
+            if p.is_file():
+                files.append({"path":p.relative_to(self.root).as_posix(),"size_bytes":p.stat().st_size})
+                if len(files)>100: return {"files":files[:100],"truncated":True}
+        return {"files":files,"truncated":False}
+
+    def read_file(self,args:dict[str,Any])->dict[str,Any]:
+        p=safe_path(self.root,args.get("path"))
+        if not p.is_file(): raise FileNotFoundError("file not found")
+        raw=p.read_bytes()
+        if len(raw)>MAX_READ: raise ValueError(f"file exceeds read limit {MAX_READ}")
+        text=raw.decode("utf-8")
+        ref=self.logger.capture_artifact("read-"+hashlib.sha256(str(p.relative_to(self.root)).encode()).hexdigest()[:12]+".txt",raw,"text/plain; charset=utf-8")
+        self.logger.emit("agent_note","runner","planning","observed",{"note_type":"file_read","path":p.relative_to(self.root).as_posix(),"size_bytes":len(raw),"sha256":sha256_bytes(raw)},[ref])
+        return {"path":p.relative_to(self.root).as_posix(),"content":text,"size_bytes":len(raw),"sha256":sha256_bytes(raw)}
+
