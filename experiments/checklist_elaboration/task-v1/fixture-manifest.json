@@ -1,0 +1,13 @@
+{
+  "fixture_id": "qbatch-checklist-elaboration-task-v1",
+  "source_archive": "memoryprismv1/the-differential-library",
+  "source_path": "projects/ael-runtime-accountability/evidence/2026-11-06/checklist-elaboration/task-v1/",
+  "source_files": {
+    "README.md": "a85c338b6db44c6c16653e7c056b8f9e68a91c92",
+    "TASK.md": "bb899f076e3c3c6113c0e258779eb6f0b52545a6",
+    "source-pack/system-inventory.md": "aca00513123421de2143253ef079e239f3747397",
+    "source-pack/incident-samples.json": "0ae7b8045c8ff4eee5cdc67c6c509af93e26c238",
+    "source-pack/operating-boundaries.md": "5b28072874b3a5b87df941b6ff31d50559572fbc"
+  },
+  "note": "Expected Git blob SHA-1 identities for the exact frozen v1 task bytes."
+}
