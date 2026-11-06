@@ -331,3 +331,100 @@ class PlanningAgent:
         self.logger.emit("agent_note","runner","delivery","observed",{"note_type":"run_metrics",**metrics})
         return metrics
 
+
+
+def save_private(path:Path,data:Mapping[str,Any])->None:
+    path.parent.mkdir(parents=True,exist_ok=True)
+    fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    with os.fdopen(fd,"w",encoding="utf-8") as f:
+        json.dump(dict(data),f,ensure_ascii=False,indent=2,sort_keys=True); f.write("\n"); f.flush(); os.fsync(f.fileno())
+    try: path.chmod(0o600)
+    except OSError: pass
+
+def make_score_packet(label:str,workspace:Path,metrics:Mapping[str,Any],validation:Mapping[str,Any]|None,target:Path)->dict[str,Any]:
+    target.parent.mkdir(parents=True,exist_ok=True)
+    with zipfile.ZipFile(target,"w",zipfile.ZIP_DEFLATED) as z:
+        for name in REQUIRED:
+            p=workspace/"deliverables"/name
+            if p.is_file(): z.write(p,f"deliverables/{name}")
+        trace={"blind_label":label,"metrics":dict(metrics),"deliverables":dict(validation or {"status":"NOT_COMPLETE"}),
+               "raw_prompts_included":False,"skill_text_included":False,"condition_key_included":False}
+        z.writestr("observable-run-summary.json",json.dumps(trace,indent=2,sort_keys=True))
+    return {"path":str(target),"size_bytes":target.stat().st_size,"sha256":sha256_file(target)}
+
+def run_block(*,output_dir:str|Path,key_file:str|Path,task_dir:str|Path=DEFAULT_TASK,
+              mp_source:str|Path,ct_source:str|Path,model:str,base_url:str="http://127.0.0.1:11434",
+              client:Any|None=None,max_turns:int=MAX_TURNS,max_tools:int=MAX_TOOLS,
+              request_timeout:float=MAX_REQUEST_SECONDS,run_timeout:float=MAX_RUN_SECONDS,
+              output_token_limit:int=MAX_OUTPUT_TOKENS)->dict[str,Any]:
+    output=Path(output_dir).expanduser().resolve(); key=Path(key_file).expanduser().resolve()
+    if output==key or output in key.parents: raise ValueError("private condition key must be outside run output")
+    if output.exists() and any(output.iterdir()): raise FileExistsError("output directory must be new or empty")
+    if key.exists(): raise FileExistsError("private condition key already exists")
+    if not model: raise ValueError("exact model name required")
+    model_client=client or OllamaClient(base_url,timeout=request_timeout)
+    version=model_client.info(); models=model_client.list_models()
+    matches=[m for m in models if (m.get("name") or m.get("model"))==model]
+    if len(matches)!=1: raise ValueError("requested model is not installed under the exact name")
+    model_record={"provider":"ollama-local","name":model,"digest":matches[0].get("digest"),"ollama_version":version.get("version","unknown")}
+    mp_info=verify_source(mp_source,MP_COMMIT,MP_FILES); ct_info=verify_source(ct_source,CT_COMMIT,CT_FILES)
+    labels=["A","B","C","D"]; secrets.SystemRandom().shuffle(labels)
+    cells=["MP0_CT0","MP1_CT0","MP0_CT1","MP1_CT1"]; secrets.SystemRandom().shuffle(cells)
+    mapping=dict(zip(labels,cells)); reverse={v:k for k,v in mapping.items()}
+    task=Path(task_dir).resolve(strict=True); task_hash=tree_sha(task)
+    output.mkdir(parents=True,exist_ok=True)
+    runs=output/"runs"; workspaces=output/"workspaces"; packets=output/"score-packets"
+    for d in (runs,workspaces,packets): d.mkdir()
+    save_private(key,{"experiment_id":"qbatch-checklist-elaboration-v1","created_at_utc":utc_now(),
+        "blind_label_to_cell_id":mapping,"execution_order":cells,"task_sha256":task_hash,
+        "mp_source":mp_info,"ct_source":ct_info,"model":model_record,
+        "warning":"PRIVATE CONDITION KEY: withhold until blind scores are frozen."})
+    report={}
+    for cell in cells:
+        label=reverse[cell]; mp_on=cell.startswith("MP1"); ct_on=cell.endswith("CT1")
+        workspace=workspaces/label; run_dir=runs/("run-"+label.lower())
+        prepared=prepare_workspace(task,workspace,mp_source=mp_source,ct_source=ct_source,mp_enabled=mp_on,ct_enabled=ct_on)
+        condition={"mp_enabled":mp_on,"ct_enabled":ct_on,"task_sha256":prepared["task_sha256"],
+                   "visible_inputs_sha256":prepared["visible_inputs_sha256"],"skills":prepared["skills"]}
+        config_sha=sha256_bytes(canonical_json(condition)); run_id="checklist-"+secrets.token_hex(8)
+        revision="unknown"
+        try: revision=git(PACKAGE_DIR.parents[1],"rev-parse","HEAD")
+        except Exception: pass
+        manifest={
+            "run_id":run_id,"condition_label":label,"task_brief_sha256":task_hash,"condition_config_sha256":config_sha,
+            "logger_version":LOGGER_VERSION,"schema_version":SCHEMA_VERSION,"started_at_utc":utc_now(),
+            "model":model_record,"environment":{"python":platform.python_version(),"platform":platform.platform(),"runner_commit":revision},
+            "resource_limits":{"max_turns":max_turns,"max_tool_calls":max_tools,"max_request_seconds":request_timeout,
+                               "max_run_seconds":run_timeout,"max_output_tokens":output_token_limit},
+            "base_commit":revision,"cell_id_private":cell,"skill_source_private":prepared["skills"],
+        }
+        logger=TestingLogger(run_dir,workspace,manifest)
+        agent=PlanningAgent(workspace,logger,model_client,model,options={"temperature":0.0,"num_ctx":16384,"num_predict":1200},
+            max_turns=max_turns,max_tools=max_tools,request_timeout=request_timeout,
+            run_timeout=run_timeout,output_token_limit=output_token_limit)
+        try:
+            metrics=agent.run()
+            validation=validate_outputs(workspace) if metrics["status"]=="succeeded" else None
+            logger.emit("preflight_check","runner","verification","succeeded" if validation else "failed",
+                        {"check":"final_deliverables","result":validation or {"status":"NOT_COMPLETE"}})
+            logger.finish("succeeded" if validation else "failed",metrics["stop_reason"])
+        except Exception as exc:
+            metrics={"status":"failed","stop_reason":f"{type(exc).__name__}: {str(exc)[:1000]}","turns":0,
+                     "tool_calls":agent.tool_count,"simulated_input_requests":len(agent.input_requests),
+                     "elapsed_seconds":round(time.monotonic()-agent.started,3)}
+            validation=None
+            logger.emit("error","runner","delivery","observed",{"kind":"runner_exception","message":metrics["stop_reason"]})
+            logger.finish("failed",metrics["stop_reason"])
+        finally:
+            logger.close()
+        try: log_check=validate_run(run_dir)
+        except (LogValidationError,OSError) as exc: log_check={"status":"FAIL","error":str(exc)}
+        packet=make_score_packet(label,workspace,metrics,validation,packets/f"score-{label}.zip")
+        report[label]={"metrics":metrics,"deliverables":validation or {"status":"NOT_COMPLETE"},
+                       "log_validation":log_check,"score_packet":packet}
+    block={"report_version":"1.0","experiment_id":"qbatch-checklist-elaboration-v1","created_at_utc":utc_now(),
+           "status":"FEASIBILITY_BLOCK_COMPLETE","model":model_record,"task_sha256":task_hash,"runs":report,
+           "interpretation":"One run per factorial cell is a feasibility block only, not evidence of efficacy. Condition mapping is in a separate private key."}
+    (output/"blinded-block-report.json").write_text(json.dumps(block,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+    return block
+
