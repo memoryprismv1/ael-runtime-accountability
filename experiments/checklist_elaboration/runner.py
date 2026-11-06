@@ -112,7 +112,7 @@ def verify_task_fixture(task_dir:str|Path)->dict[str,Any]:
     verified={}
     for rel,want in expected.items():
         raw=(root/rel).read_bytes()
-        blob=hashlib.sha1(b"blob "+str(len(raw)).encode("ascii")+b"\\0"+raw).hexdigest()
+        blob=hashlib.sha1(b"blob "+str(len(raw)).encode("ascii")+bytes([0])+raw).hexdigest()
         if blob!=want:
             raise ValueError(f"task fixture Git blob mismatch: {rel}")
         verified[rel]={"git_blob_sha1":blob,"size_bytes":len(raw),"sha256":sha256_bytes(raw)}
