@@ -44,3 +44,13 @@ The reader verifies event sequence and hash chaining, referenced evidence sizes 
 - The included historical report links to source GitHub Actions runs/artifacts. The report does not embed private raw audit traces or model prompt/response contents; source artifact retention is controlled by GitHub.
 
 This is an experimental post-processor. Its deterministic tests are part of routine CI; the reader remains separate from the live logger, live experiment controls, and rerun automation.
+
+
+## Preserved historical reports
+
+- [Historical Q-Batch record, 5 November 2026](reports/2026-11-05-historical-record.md) and [machine-readable record](reports/2026-11-05-historical-record.json).
+- [Raw-log verification, 5 November 2026](reports/2026-11-05-raw-log-verification.md) and [machine-readable result](reports/2026-11-05-raw-log-verification.json).
+- [First-pass run behaviour](reports/2026-11-06-first-pass-run-behaviour.md).
+- [Kanban pair investigation](reports/2026-11-06-kanban-pair-investigation.md).
+
+These are descriptive records, not model-efficacy findings. See the reports for the scope and limitations of each analysis.
