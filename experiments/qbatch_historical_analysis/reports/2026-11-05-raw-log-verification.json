@@ -1,0 +1,104 @@
+{
+  "record_type": "qbatch_raw_log_verification",
+  "date": "2026-11-05",
+  "source": "GitHub Actions audit-evidence artifacts from memoryprismv1/ael-runtime-accountability",
+  "attempts": [
+    {
+      "workflow_run_id": 39592787189,
+      "artifact_id": 12343806764,
+      "A": {
+        "events": 127,
+        "error_events": 25,
+        "completion": "failed",
+        "event_chain_valid": true,
+        "checksum_valid": true,
+        "verified_evidence_refs": 99
+      },
+      "B": {
+        "events": 127,
+        "error_events": 25,
+        "completion": "failed",
+        "event_chain_valid": true,
+        "checksum_valid": true,
+        "verified_evidence_refs": 99
+      },
+      "pair_status": "RUN_INCOMPLETE"
+    },
+    {
+      "workflow_run_id": 39597455540,
+      "artifact_id": 12346300690,
+      "A": {
+        "events": 135,
+        "error_events": 22,
+        "completion": "failed",
+        "event_chain_valid": true,
+        "checksum_valid": true,
+        "verified_evidence_refs": 113
+      },
+      "B": {
+        "events": 135,
+        "error_events": 22,
+        "completion": "failed",
+        "event_chain_valid": true,
+        "checksum_valid": true,
+        "verified_evidence_refs": 113
+      },
+      "pair_status": "RUN_INCOMPLETE"
+    },
+    {
+      "workflow_run_id": 39730856613,
+      "artifact_id": 12405213878,
+      "A": {
+        "events": 8,
+        "error_events": 2,
+        "completion": "failed",
+        "event_chain_valid": true,
+        "checksum_valid": true,
+        "verified_evidence_refs": 3
+      },
+      "B": {
+        "events": 8,
+        "error_events": 2,
+        "completion": "failed",
+        "event_chain_valid": true,
+        "checksum_valid": true,
+        "verified_evidence_refs": 3
+      },
+      "pair_status": "RUN_INCOMPLETE"
+    },
+    {
+      "workflow_run_id": 41619488320,
+      "artifact_id": 13225155704,
+      "A": {
+        "events": 249,
+        "error_events": 1,
+        "completion": "failed",
+        "event_chain_valid": true,
+        "checksum_valid": true,
+        "verified_evidence_refs": 245
+      },
+      "B": {
+        "events": 249,
+        "error_events": 1,
+        "completion": "failed",
+        "event_chain_valid": true,
+        "checksum_valid": true,
+        "verified_evidence_refs": 245
+      },
+      "pair_status": "RUN_INCOMPLETE"
+    }
+  ],
+  "totals": {
+    "paired_attempts": 4,
+    "run_logs": 8,
+    "events": 1038,
+    "error_events": 100,
+    "event_chains_valid": 8,
+    "checksum_files_valid": 8,
+    "evidence_references": 920,
+    "evidence_references_verified": 920,
+    "missing_evidence_references": 0,
+    "hash_or_size_mismatches": 0
+  },
+  "interpretation": "Descriptive reporting only; no efficacy or causal claims. A/B are paired arms, so these are four attempts, not eight independent attempts."
+}
