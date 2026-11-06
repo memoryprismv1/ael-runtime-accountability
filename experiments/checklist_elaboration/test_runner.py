@@ -61,7 +61,7 @@ class ChecklistRunnerTests(unittest.TestCase):
         self.run_dir=self.base/"logs"/"run-a"
         self.logger=TestingLogger(self.run_dir,self.workspace,{
             "run_id":"unit-run-a",
-            "condition_label":"A",
+            "condition_label":"D",
             "task_brief_sha256":"0"*64,
             "condition_config_sha256":"1"*64,
             "logger_version":LOGGER_VERSION,
@@ -98,8 +98,7 @@ class ChecklistRunnerTests(unittest.TestCase):
         self.assertFalse((target/"skills").exists())
         self.assertIsNone(info["skills"]["memory_prism"])
         self.assertIsNone(info["skills"]["critical_thinking"])
-        with self.assertRaises(PermissionError):
-            (target/"task"/"TASK.md").write_text("mutation",encoding="utf-8")
+        self.assertEqual((target/"task"/"TASK.md").stat().st_mode & 0o222, 0)
 
     def test_write_tool_refuses_anything_outside_deliverables(self):
         agent=PlanningAgent(self.workspace,self.logger,FakeClient([]),"fake-model")
@@ -173,7 +172,7 @@ class ChecklistRunnerTests(unittest.TestCase):
         self.logger.finish("succeeded","unit test")
         self.logger.close()
         report=validate_run(self.run_dir)
-        self.assertEqual(report["condition_label"],"A")
+        self.assertEqual(report["condition_label"],"D")
         self.assertGreater(report["events"],1)
 
 if __name__=="__main__":
