@@ -260,3 +260,74 @@ class PlanningAgent:
         self.logger.record_tool_call(name,call_id,args,outcome,status=status,phase="planning")
         return {"name":name,"outcome":outcome,"status":status}
 
+
+    def run(self)->dict[str,Any]:
+        reason="agent did not finish"; status="failed"; turn=0
+        no_tool_fp=None; same_no_tool=0; consecutive_no_tool=0
+        for turn in range(1,self.max_turns+1):
+            if time.monotonic()-self.started>=self.run_timeout:
+                reason="run wall-clock limit reached"; break
+            if self.tool_count>=self.max_tools:
+                reason="tool-call limit reached"; break
+            opts=dict(self.options)
+            if self.usage_known and "num_predict" in opts:
+                remaining=self.output_token_limit-self.output_tokens
+                if remaining<=0: reason="generated-token limit reached"; break
+                opts["num_predict"]=min(int(opts["num_predict"]),remaining)
+            body={"model":self.model,"messages":self.messages,"tools":TOOLS,"stream":False,"options":opts,"think":False}
+            raw=json.dumps(body,ensure_ascii=False,sort_keys=True); req=f"{self.logger.run_id}-turn-{turn:03d}"
+            ref=self.logger.capture_artifact(f"model-request-{turn:03d}.json",raw,"application/json")
+            self.logger.emit("model_request_started","runner","planning","started",{"request_id":req,"turn":turn,"timeout_seconds":self.request_timeout,"model_id":self.model,"request_sha256":sha256_bytes(raw.encode())},[ref])
+            began=time.monotonic()
+            try:
+                if hasattr(self.client,"timeout"): self.client.timeout=self.request_timeout
+                response=self.client.chat(body)
+            except Exception as exc:
+                latency=round((time.monotonic()-began)*1000,3)
+                self.logger.emit("model_request_failed","runtime","planning","failed",{"request_id":req,"turn":turn,"elapsed_ms":latency,"error_type":type(exc).__name__,"message":str(exc)[:1000]})
+                reason=f"model request failed: {type(exc).__name__}"; break
+            latency=round((time.monotonic()-began)*1000,3)
+            self.logger.emit("model_request_succeeded","runtime","planning","succeeded",{"request_id":req,"turn":turn,"elapsed_ms":latency})
+            message=response.get("message",{})
+            safe={k:v for k,v in message.items() if k not in {"thinking","reasoning","analysis"}}
+            safe_response={k:v for k,v in response.items() if k not in {"thinking","reasoning","analysis"}}
+            safe_response["message"]=safe
+            prompt_tokens=response.get("prompt_eval_count"); completion_tokens=response.get("eval_count")
+            usage={"prompt_tokens":prompt_tokens if isinstance(prompt_tokens,int) else None,
+                   "completion_tokens":completion_tokens if isinstance(completion_tokens,int) else None}
+            if isinstance(completion_tokens,int) and completion_tokens>=0: self.output_tokens+=completion_tokens
+            else: self.usage_known=False
+            self.logger.record_model_exchange({"provider":"ollama-local","model_id":self.model,"request_id":req,"latency_ms":latency,"finish_reason":response.get("done_reason")},
+                raw,json.dumps(safe_response,ensure_ascii=False,sort_keys=True),usage,phase="planning")
+            if self.usage_known and self.output_tokens>self.output_token_limit:
+                reason="generated-token limit exceeded"; break
+            calls=safe.get("tool_calls") if isinstance(safe.get("tool_calls"),list) else []
+            if not calls: calls=parse_text_call(safe.get("content"))
+            if not calls:
+                content=str(safe.get("content") or ""); fp=hashlib.sha256(" ".join(content.split()).encode()).hexdigest()
+                same_no_tool=same_no_tool+1 if fp==no_tool_fp else 1; no_tool_fp=fp; consecutive_no_tool+=1
+                self.messages.append({"role":"assistant","content":content})
+                if same_no_tool>=2 or consecutive_no_tool>=4:
+                    reason="repeated no-tool response loop"
+                    self.logger.emit("agent_loop_detected","runner","planning","failed",{"reason":"repeated_no_tool_response","turn":turn,"identical_count":same_no_tool,"consecutive_count":consecutive_no_tool})
+                    break
+                self.messages.append({"role":"user","content":"Continue using one available tool. Do not repeat the previous response. Inspect, write a required deliverable, record a genuine simulated input request, or finish if all outputs are valid."})
+                continue
+            no_tool_fp=None; same_no_tool=0; consecutive_no_tool=0
+            assistant={"role":"assistant","content":safe.get("content") or ""}
+            if safe.get("tool_calls"): assistant["tool_calls"]=safe["tool_calls"]
+            self.messages.append(assistant)
+            for call in calls:
+                try: result=self._tool(call)
+                except RunnerError as exc: reason=str(exc); break
+                self.messages.append({"role":"tool","tool_name":result["name"],"content":json.dumps(result["outcome"],ensure_ascii=False)})
+                if result["name"]=="finish" and result["status"]=="succeeded" and result["outcome"].get("finished"):
+                    self.finished=True; status="succeeded"; reason="three deliverables validated"; break
+            if self.finished or status=="succeeded" or reason!="agent did not finish": break
+        metrics={"status":status,"stop_reason":reason,"turns":turn,"tool_calls":self.tool_count,
+                 "simulated_input_requests":len(self.input_requests),
+                 "output_tokens":self.output_tokens if self.usage_known else None,
+                 "token_usage_available":self.usage_known,"elapsed_seconds":round(time.monotonic()-self.started,3)}
+        self.logger.emit("agent_note","runner","delivery","observed",{"note_type":"run_metrics",**metrics})
+        return metrics
+
