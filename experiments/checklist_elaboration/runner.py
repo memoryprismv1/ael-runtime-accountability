@@ -100,6 +100,24 @@ def verify_source(root:str|Path,commit:str,files:Mapping[str,str])->dict[str,Any
         result[rel]={"git_blob_sha1":actual,"sha256":sha256_file(p),"size_bytes":p.stat().st_size}
     return {"commit":commit,"files":result}
 
+def verify_task_fixture(task_dir:str|Path)->dict[str,Any]:
+    root=Path(task_dir).resolve(strict=True)
+    manifest=json.loads((root/"fixture-manifest.json").read_text(encoding="utf-8"))
+    expected=manifest.get("source_files")
+    if not isinstance(expected,dict) or not expected:
+        raise ValueError("task fixture manifest has no source_files map")
+    actual_paths={p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file() and p.name!="fixture-manifest.json"}
+    if actual_paths!=set(expected):
+        raise ValueError("task fixture files differ from the pinned v1 inventory")
+    verified={}
+    for rel,want in expected.items():
+        raw=(root/rel).read_bytes()
+        blob=hashlib.sha1(b"blob "+str(len(raw)).encode("ascii")+b"\\0"+raw).hexdigest()
+        if blob!=want:
+            raise ValueError(f"task fixture Git blob mismatch: {rel}")
+        verified[rel]={"git_blob_sha1":blob,"size_bytes":len(raw),"sha256":sha256_bytes(raw)}
+    return {"fixture_id":manifest.get("fixture_id"),"files":verified,"tree_sha256":tree_sha(root)}
+
 def copy_readonly(src:Path,dst:Path)->None:
     if not src.is_file() or src.is_symlink(): raise ValueError(f"required source unavailable: {src}")
     dst.parent.mkdir(parents=True,exist_ok=True); shutil.copyfile(src,dst); dst.chmod(0o444)
@@ -390,13 +408,13 @@ def run_block(*,output_dir:str|Path,key_file:str|Path,task_dir:str|Path=DEFAULT_
     labels=["A","B","C","D"]; rng.shuffle(labels)
     cells=["MP0_CT0","MP1_CT0","MP0_CT1","MP1_CT1"]; rng.shuffle(cells)
     mapping=dict(zip(labels,cells)); reverse={v:k for k,v in mapping.items()}
-    task=Path(task_dir).resolve(strict=True); task_hash=tree_sha(task)
+    task=Path(task_dir).resolve(strict=True); task_pin=verify_task_fixture(task); task_hash=tree_sha(task)
     output.mkdir(parents=True,exist_ok=True); output.chmod(0o700)
     runs=output/"runs"; workspaces=output/"workspaces"; packets=output/"score-packets"
     for d in (runs,workspaces,packets): d.mkdir(mode=0o700); d.chmod(0o700)
     save_private(key,{"experiment_id":"qbatch-checklist-elaboration-v1","created_at_utc":utc_now(),
         "blind_label_to_cell_id":mapping,"execution_order":cells,"randomisation_seed":randomisation_seed,"randomisation_method":"Python random.Random seeded from private 128-bit secret","task_sha256":task_hash,
-        "mp_source":mp_info,"ct_source":ct_info,"model":model_record,
+        "mp_source":mp_info,"ct_source":ct_info,"task_fixture_pin":task_pin,"model":model_record,
         "warning":"PRIVATE CONDITION KEY: withhold until blind scores are frozen."})
     report={}
     for cell in cells:
