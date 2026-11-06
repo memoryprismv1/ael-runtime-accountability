@@ -87,6 +87,12 @@ For controlled memory promotion, see [`MEMORY_WORKFLOW.md`](MEMORY_WORKFLOW.md).
 
 Without a provider/local-model tokenizer, the CLI uses a rough UTF-8 estimate, not a guaranteed token limit for a particular model. The local adapter reserves room for its fixed prompt and the current user message using the same estimate. A model-specific token counter/context length should be added before treating the budget as exact.
 
+## Experiments and Q-Batch
+
+- [Checklist-elaboration experiment](experiments/checklist_elaboration/README.md) — four-condition MP × Critical Thinking planning study, protocol, scoring and runner.
+- [Q-Batch historical analysis](experiments/qbatch_historical_analysis/README.md) — historical run evidence, integrity checks and failure analysis.
+- [CT/A-B logging harness](experiments/ct_ab/README.md) — instrumentation, paired-run validation, preflight and method demonstration.
+
 ## Verification records
 
 - [AEL ledger verification, 5 November 2026](docs/verification/ael-ledger-verification-2026-11-05.md).
