@@ -2,6 +2,16 @@
 
 This experiment compares Memory Prism (MP) and Critical Thinking (CT) separately and together on a fixed planning task.
 
+## Canonical experiment documents
+
+- [Protocol v1.0](PROTOCOL-v1.0.md)
+- [Runner requirements](RUNNER-REQUIREMENTS-v1.0.md)
+- [Scoring rubric](SCORING-RUBRIC-v1.0.md)
+- [Condition manifest](CONDITION-MANIFEST-v1.0.json)
+- [Implementation status](IMPLEMENTATION-STATUS-2026-11-06.md)
+
+The frozen task fixture is in `task-v1/`. This repository is the canonical home for the runner, protocol, fixture, scoring design, condition manifest and implementation status. Private evaluator-only material remains in the private Differential archive.
+
 ## Conditions
 
 - MP off / CT off: ordinary planning baseline
