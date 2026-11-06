@@ -8,7 +8,7 @@ from testing_logger.logger import TestingLogger, LOGGER_VERSION, SCHEMA_VERSION,
 from experiments.ct_ab.validate_log import validate_run
 from .runner import (
     ALLOWED, REQUIRED, TOOLS, PlanningAgent, RunnerError, safe_path,
-    validate_outputs, prepare_workspace,
+    validate_outputs, prepare_workspace, verify_task_fixture, PACKAGE_DIR,
 )
 
 class FakeClient:
@@ -84,6 +84,11 @@ class ChecklistRunnerTests(unittest.TestCase):
     def test_path_traversal_and_absolute_paths_are_rejected(self):
         with self.assertRaises(ValueError): safe_path(self.workspace,"../outside.txt")
         with self.assertRaises(ValueError): safe_path(self.workspace,str(self.base/"outside.txt"))
+
+    def test_frozen_task_fixture_matches_manifest(self):
+        result=verify_task_fixture(PACKAGE_DIR/"task-v1")
+        self.assertEqual(result["fixture_id"],"qbatch-checklist-elaboration-task-v1")
+        self.assertEqual(len(result["files"]),5)
 
     def test_prepare_workspace_copies_task_and_no_skill_when_disabled(self):
         task=self.base/"task-fixture"
