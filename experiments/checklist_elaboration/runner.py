@@ -196,7 +196,7 @@ class PlanningAgent:
         self.options=dict(options or {"temperature":0.0,"num_ctx":16384,"num_predict":1200})
         self.max_turns=max_turns; self.max_tools=max_tools; self.request_timeout=request_timeout
         self.run_timeout=run_timeout; self.output_token_limit=output_token_limit
-        self.started=time.monotonic(); self.tool_count=0; self.output_tokens=0; self.usage_known=True
+        self.started=time.monotonic(); self.tool_count=0; self.output_tokens=0; self.prompt_tokens=0; self.usage_known=True; self.prompt_usage_known=True; self.failed_tool_calls=0
         self.input_requests=set(); self.input_request_records=[]; self.failed_calls={}; self.finished=False
         self.messages=[
             {"role":"system","content":SYSTEM},
@@ -286,6 +286,7 @@ class PlanningAgent:
             outcome={"error":type(exc).__name__,"message":str(exc)[:1200]}; status="failed"
         self.logger.record_tool_call(name,call_id,args,outcome,status=status,phase="planning")
         if status=="failed":
+            self.failed_tool_calls+=1
             fingerprint=sha256_bytes(canonical_json({"name":name,"arguments":args}))
             self.failed_calls[fingerprint]=self.failed_calls.get(fingerprint,0)+1
             if self.failed_calls[fingerprint]>=2:
@@ -328,6 +329,8 @@ class PlanningAgent:
             prompt_tokens=response.get("prompt_eval_count"); completion_tokens=response.get("eval_count")
             usage={"prompt_tokens":prompt_tokens if isinstance(prompt_tokens,int) else None,
                    "completion_tokens":completion_tokens if isinstance(completion_tokens,int) else None}
+            if isinstance(prompt_tokens,int) and prompt_tokens>=0: self.prompt_tokens+=prompt_tokens
+            else: self.prompt_usage_known=False
             if isinstance(completion_tokens,int) and completion_tokens>=0: self.output_tokens+=completion_tokens
             else: self.usage_known=False
             self.logger.record_model_exchange({"provider":"ollama-local","model_id":self.model,"request_id":req,"latency_ms":latency,"finish_reason":response.get("done_reason")},
@@ -351,6 +354,9 @@ class PlanningAgent:
             if safe.get("tool_calls"): assistant["tool_calls"]=safe["tool_calls"]
             self.messages.append(assistant)
             for call in calls:
+                if self.tool_count>=self.max_tools:
+                    reason="tool-call limit reached"
+                    break
                 try: result=self._tool(call)
                 except RunnerError as exc: reason=str(exc); break
                 self.messages.append({"role":"tool","tool_name":result["name"],"content":json.dumps(result["outcome"],ensure_ascii=False)})
@@ -358,6 +364,9 @@ class PlanningAgent:
                     self.finished=True; status="succeeded"; reason="three deliverables validated"; break
             if self.finished or status=="succeeded" or reason!="agent did not finish": break
         metrics={"status":status,"stop_reason":reason,"turns":turn,"tool_calls":self.tool_count,
+                 "failed_tool_calls":self.failed_tool_calls,
+                 "prompt_tokens":self.prompt_tokens if self.prompt_usage_known else None,
+                 "completion_tokens":self.output_tokens if self.usage_known else None,
                  "simulated_input_requests":len(self.input_request_records),
                  "unique_simulated_input_requests":len(self.input_requests),
                  "repeated_simulated_input_requests":sum(1 for x in self.input_request_records if x["repeated"]),
