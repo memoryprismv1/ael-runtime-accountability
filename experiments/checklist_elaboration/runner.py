@@ -428,3 +428,35 @@ def run_block(*,output_dir:str|Path,key_file:str|Path,task_dir:str|Path=DEFAULT_
     (output/"blinded-block-report.json").write_text(json.dumps(block,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
     return block
 
+
+
+def main()->int:
+    parser=argparse.ArgumentParser(description=__doc__)
+    sub=parser.add_subparsers(dest="command",required=True)
+    doctor=sub.add_parser("doctor"); doctor.add_argument("--base-url",default="http://127.0.0.1:11434")
+    run=sub.add_parser("run-block")
+    run.add_argument("--output",required=True)
+    run.add_argument("--key-file",required=True)
+    run.add_argument("--task-dir",default=str(DEFAULT_TASK))
+    run.add_argument("--mp-source",required=True)
+    run.add_argument("--ct-source",required=True)
+    run.add_argument("--model",required=True)
+    run.add_argument("--base-url",default="http://127.0.0.1:11434")
+    args=parser.parse_args()
+    try:
+        if args.command=="doctor":
+            client=OllamaClient(args.base_url)
+            info=client.info(); models=client.list_models()
+            result={"status":"PASS","ollama_version":info.get("version","unknown"),
+                    "models":[m.get("name") or m.get("model") for m in models],"note":"No prompt was sent."}
+        else:
+            result=run_block(output_dir=args.output,key_file=args.key_file,task_dir=args.task_dir,
+                mp_source=args.mp_source,ct_source=args.ct_source,model=args.model,base_url=args.base_url)
+        print(json.dumps(result,ensure_ascii=False,indent=2,sort_keys=True))
+        return 0 if result.get("status") in {"PASS","FEASIBILITY_BLOCK_COMPLETE"} else 1
+    except Exception as exc:
+        print(json.dumps({"status":"FAIL","error":f"{type(exc).__name__}: {exc}"},indent=2))
+        return 1
+
+if __name__=="__main__":
+    raise SystemExit(main())
