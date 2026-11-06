@@ -179,7 +179,7 @@ class PlanningAgent:
         self.max_turns=max_turns; self.max_tools=max_tools; self.request_timeout=request_timeout
         self.run_timeout=run_timeout; self.output_token_limit=output_token_limit
         self.started=time.monotonic(); self.tool_count=0; self.output_tokens=0; self.usage_known=True
-        self.input_requests=set(); self.input_request_records=[]; self.finished=False
+        self.input_requests=set(); self.input_request_records=[]; self.failed_calls={}; self.finished=False
         self.messages=[
             {"role":"system","content":SYSTEM},
             {"role":"user","content":"Read task/TASK.md and supplied source-pack/. Any selected skill files are under skills/. Use the file tools, create the three deliverables, then finish."},
@@ -266,6 +266,12 @@ class PlanningAgent:
         except Exception as exc:
             outcome={"error":type(exc).__name__,"message":str(exc)[:1200]}; status="failed"
         self.logger.record_tool_call(name,call_id,args,outcome,status=status,phase="planning")
+        if status=="failed":
+            fingerprint=sha256_bytes(canonical_json({"name":name,"arguments":args}))
+            self.failed_calls[fingerprint]=self.failed_calls.get(fingerprint,0)+1
+            if self.failed_calls[fingerprint]>=2:
+                self.logger.emit("agent_loop_detected","runner","planning","failed",{"reason":"repeated_identical_failed_tool_call","tool_name":name,"tool_call_number":self.tool_count,"arguments_sha256":fingerprint})
+                raise RunnerError("repeated identical failed tool call")
         return {"name":name,"outcome":outcome,"status":status}
 
 
