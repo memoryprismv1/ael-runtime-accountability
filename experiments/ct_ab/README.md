@@ -200,3 +200,11 @@ New CT A/B runs also carry explicit producer provenance:
 The profile and runner values are copied into the first `run_started` event, so changing or removing the manifest fields alone is detectable. The validator checks the binding and requires the same provenance across A/B. If Git metadata is unavailable, revision/cleanliness are recorded as null; the run remains inspectable but cannot qualify for a fully comparable historical cohort. The capture profile describes supported capture capabilities, not proof that every capability was exercised in a particular run. When those capabilities change, update the profile version and preserve the old definition for historical interpretation.
 
 Old manifests with no provenance remain readable; their absent metadata is not backfilled or inferred. New runs use explicit provenance, while the event schema remains unchanged. This is a provenance improvement only: the event logger still records what happened and does not perform comparisons or analysis. A comparison UUID, if added later, is a separate grouping relationship, not a substitute for context.
+
+
+## Preserved validation records
+
+- [Instrumentation preflight summary, 5 November 2026](reports/2026-11-05-instrumentation-preflight-summary.md).
+- [Synthetic method demonstration, 5 November 2026](reports/2026-11-05-method-demo-report.json).
+
+Both are harness/method validation evidence, not model-quality or skill-efficacy results.
