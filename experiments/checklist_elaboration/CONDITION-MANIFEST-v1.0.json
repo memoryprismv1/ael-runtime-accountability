@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "status": "runner_implemented_in_ael_pr_29_no_real_model_runs",
+  "status": "runner_merged_to_ael_main_no_real_model_runs",
   "experiment_id": "qbatch-checklist-elaboration-2026-11-06-v1",
   "design": "2x2 factorial",
   "factors": {
@@ -9,7 +9,7 @@
   },
   "task_fixture": {
     "repository": "memoryprismv1/ael-runtime-accountability",
-    "immutable_commit": "c171e4a913559185f9191876d757e78064e8b66b",
+    "immutable_commit": "26507b60b44030a9f6febc65658b287ba7cf3d73",
     "root": "experiments/checklist_elaboration/task-v1/",
     "files": [
       {
@@ -166,7 +166,7 @@
     "execution_order": "Randomise cell execution order within each block using a recorded seed."
   },
   "execution_workflow": {
-    "repository": "memoryprismv1/ael-runtime-accountability",
+    "repository": "memoryprismv1/the-differential-library",
     "workflow": ".github/workflows/qbatch-checklist-elaboration.yml",
     "trigger": "workflow_dispatch only",
     "evidence_destination": "projects/ael-runtime-accountability/evidence/checklist-elaboration-runs/<UTC-date>/<run-id>/",

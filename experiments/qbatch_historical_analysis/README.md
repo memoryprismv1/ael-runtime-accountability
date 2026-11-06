@@ -48,6 +48,8 @@ This is an experimental post-processor. Its deterministic tests are part of rout
 
 ## Preserved historical reports
 
+- [Q-Batch source-artifact archive inventory, 5 November 2026](reports/2026-11-05-archive-inventory.json) — source workflow artifact IDs, expiry metadata, file sizes and hashes. It records metadata only; the raw ZIP/TAR bytes are not stored in this repository.
+
 - [Historical Q-Batch record, 5 November 2026](reports/2026-11-05-historical-record.md) and [machine-readable record](reports/2026-11-05-historical-record.json).
 - [Raw-log verification, 5 November 2026](reports/2026-11-05-raw-log-verification.md) and [machine-readable result](reports/2026-11-05-raw-log-verification.json).
 - [First-pass run behaviour](reports/2026-11-06-first-pass-run-behaviour.md).
