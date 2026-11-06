@@ -118,6 +118,10 @@ class ChecklistRunnerTests(unittest.TestCase):
         metrics=agent.run()
         self.assertEqual(metrics["status"],"succeeded")
         self.assertEqual(metrics["simulated_input_requests"],1)
+        self.assertEqual(metrics["unique_simulated_input_requests"],1)
+        self.assertEqual(metrics["prompt_tokens"],12 * metrics["turns"])
+        self.assertEqual(metrics["completion_tokens"],3 * metrics["turns"])
+        self.assertEqual(metrics["failed_tool_calls"],0)
         self.assertTrue((self.workspace/"deliverables"/"plan.md").is_file())
         self.assertFalse(any("notification" in p.name for p in self.base.rglob("*")))
 
