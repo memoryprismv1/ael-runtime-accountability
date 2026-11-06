@@ -206,3 +206,57 @@ class PlanningAgent:
         self.logger.emit("agent_note","runner","planning","observed",{"note_type":"file_read","path":p.relative_to(self.root).as_posix(),"size_bytes":len(raw),"sha256":sha256_bytes(raw)},[ref])
         return {"path":p.relative_to(self.root).as_posix(),"content":text,"size_bytes":len(raw),"sha256":sha256_bytes(raw)}
 
+
+    def write_file(self,args:dict[str,Any])->dict[str,Any]:
+        rel=args.get("path"); data=args.get("content")
+        if not isinstance(rel,str) or not rel.startswith("deliverables/"): raise ValueError("writes are permitted only beneath deliverables/")
+        if not isinstance(data,str): raise ValueError("content must be text")
+        raw=data.encode("utf-8")
+        if len(raw)>MAX_WRITE: raise ValueError("file exceeds write size limit")
+        p=safe_path(self.root,rel); dest=(self.root/"deliverables").resolve(strict=True)
+        p.parent.mkdir(parents=True,exist_ok=True)
+        p=safe_path(self.root,rel); p.parent.resolve(strict=True).relative_to(dest)
+        tmp=p.with_name(p.name+".tmp-"+secrets.token_hex(4))
+        with tmp.open("xb") as f:
+            f.write(raw); f.flush(); os.fsync(f.fileno())
+        os.replace(tmp,p)
+        self.logger.emit("file_changed","runner","planning","observed",{"path":p.relative_to(self.root).as_posix(),"action":"created_or_replaced","sha256":sha256_bytes(raw),"size_bytes":len(raw)})
+        return {"status":"written","path":p.relative_to(self.root).as_posix(),"size_bytes":len(raw),"sha256":sha256_bytes(raw)}
+
+    def dispatch(self,name:str,args:dict[str,Any])->dict[str,Any]:
+        if name=="list_files": return self.list_files(args)
+        if name=="read_file": return self.read_file(args)
+        if name=="write_file": return self.write_file(args)
+        if name=="request_input":
+            q=args.get("question"); why=args.get("why_needed"); role=args.get("project_role")
+            if not all(isinstance(v,str) and v.strip() and len(v)<=2000 for v in (q,why,role)):
+                raise ValueError("question, why_needed and project_role must be non-empty text up to 2,000 chars")
+            fingerprint=hashlib.sha256(" ".join((q+" "+why+" "+role).casefold().split()).encode()).hexdigest()
+            if fingerprint in self.input_requests: raise RunnerError("repeated identical simulated input request")
+            self.input_requests.add(fingerprint)
+            return {"status":"captured_no_contact","response":None,"repeat":False,"instruction":"No human is available. Continue independently; record a genuinely unresolved decision and proceed with all independent work. No person was contacted."}
+        if name=="finish":
+            summary=args.get("summary"); known=args.get("known_limitations")
+            if not isinstance(summary,str) or not summary.strip() or not isinstance(known,list) or any(not isinstance(x,str) for x in known):
+                raise ValueError("finish requires summary text and known_limitations string array")
+            result=validate_outputs(self.root)
+            self.logger.capture_artifact("finish-summary.json",json.dumps({"summary":summary,"known_limitations":known},indent=2),"application/json")
+            self.logger.emit("preflight_check","runner","verification","succeeded",{"check":"deliverable_structure","result":result})
+            self.finished=True
+            return {"finished":True,"validation":result}
+        raise ValueError("unknown tool")
+
+    def _tool(self,call:Mapping[str,Any])->dict[str,Any]:
+        self.tool_count+=1; call_id=f"call-{self.tool_count:03d}"
+        fn=call.get("function",{}); name=fn.get("name","unknown"); args=parse_args(fn.get("arguments",{}))
+        if name not in ALLOWED: raise ValueError("tool is not allowlisted")
+        try:
+            outcome=self.dispatch(name,args); status="succeeded"
+        except RunnerError:
+            self.logger.record_tool_call(name,call_id,args,{"error":"RunnerError","message":"repeated input request"},status="failed",phase="planning")
+            raise
+        except Exception as exc:
+            outcome={"error":type(exc).__name__,"message":str(exc)[:1200]}; status="failed"
+        self.logger.record_tool_call(name,call_id,args,outcome,status=status,phase="planning")
+        return {"name":name,"outcome":outcome,"status":status}
+
