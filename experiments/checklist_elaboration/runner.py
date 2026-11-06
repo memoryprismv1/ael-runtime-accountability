@@ -273,12 +273,14 @@ class PlanningAgent:
         if name not in ALLOWED:
             outcome={"error":"unknown_tool","message":"tool is not allowlisted"}
             self.logger.record_tool_call(str(name),call_id,args,outcome,status="failed",phase="planning")
+            self.failed_tool_calls+=1
             self.logger.emit("error","runner","planning","observed",{"kind":"unknown_tool_attempt","tool_name":str(name)})
             raise RunnerError("unknown tool attempted")
         try:
             outcome=self.dispatch(name,args); status="succeeded"
         except RunnerError as exc:
             self.logger.record_tool_call(name,call_id,args,{"error":"RunnerError","message":str(exc)},status="failed",phase="planning")
+            self.failed_tool_calls+=1
             reason="repeated_identical_input_request" if name=="request_input" else "runner_guard_stop"
             self.logger.emit("agent_loop_detected","runner","planning","failed",{"reason":reason,"tool_name":name,"tool_call_number":self.tool_count})
             raise
