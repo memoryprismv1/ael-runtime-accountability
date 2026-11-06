@@ -1,23 +1,28 @@
-# Runtime and experiment separation
+# AEL runtime boundary
 
-## Shared base
+## AEL owns
 
 - `ael/database.py` owns the shared SQLite schema, connection setup and backward-compatible database migrations.
 - `ael/ledger.py` owns the global, canonical AEL event ledger.
-- `testing_logger/logger.py` owns the global testing logger. Its event stream is separate from the AEL ledger. The caller chooses the event vocabulary, call points and call frequency.
-- `ael/` contains shared AEL runtime mechanisms: branches, memory, context, sessions, provider transport, checkpoints and revisions.
+- `ael/` contains AEL runtime mechanisms: branches, memory, context, sessions, provider transport, checkpoints and revisions.
 - `runtime.py` remains a compatibility façade for existing imports and command-line calls.
+- `tests/` contains AEL runtime and mocked local-bridge tests.
 
-## Experiments
+## Q-Batch is separate
 
-Experiments remain under `experiments/`. They can call the global testing logger once or many times at whatever stages their protocol requires. Experiment-specific schemas, scoring, paired-run orchestration, task definitions, dependency pins and interpretation remain inside the experiment.
+[Q-Batch of Evidence](https://github.com/memoryprismv1/q-batch-of-evidence) owns the shared testing logger, event schemas, experiment runners, capture/validation code, scoring, methodology demonstrations, historical analysis and Q-Batch CI.
 
-The CT adapter in `experiments/ct_ab/logger.py` preserves the existing `RunLogger` API while delegating to the shared logger engine.
+A test may exercise AEL and emit two receipt streams:
+
+- The AEL ledger records AEL runtime activity and decision authority.
+- Q-Batch records experimental execution, conditions, observed model/tool activity and evidence.
+
+These are distinct records. Q-Batch logs do not become AEL events, and AEL ledger events do not replace Q-Batch run records.
 
 ## Non-negotiable boundary
 
-The AEL ledger records AEL runtime activity. The testing logger records experimental observations about AI responses and their test conditions. Testing records do not automatically become AEL events, and experiments do not get their own copies of the AEL base.
+AEL is the system under examination. Q-Batch is the test and evidence machinery. Keep each project's implementation and tests in its own repository. Do not duplicate Q-Batch logger code in AEL or AEL ledger code in Q-Batch.
 
-## Compatibility and migration
+## Compatibility
 
-The initial modularisation preserves the old `runtime.py` import surface. Existing database tables and migrations remain in the shared database module. Existing tests and Q-Batch contract tests are retained as regression coverage.
+The existing `runtime.py` import surface and AEL database schema/migrations remain within this repository. Q-Batch may consume AEL-generated receipts as test evidence but does not own or modify the canonical AEL ledger.

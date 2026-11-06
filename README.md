@@ -53,7 +53,7 @@ Run from this directory:
 python -m unittest discover -s tests -v
 ```
 
-**72 runtime tests pass**, including end-to-end CLI and interactive shell tests against a mocked local Ollama endpoint, plus checkpoint history/hash retention and output-path containment checks. `runtime.py` and `ael_chat.py` compile. The full repository CI additionally runs 32 CT logging/paired-runner tests, 2 Q-Batch methodology tests, and 26 Q-Batch historical-analysis tests. The clean-checkout [CI run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) passed all four groups on Python 3.11, 3.12 and 3.13 (132 tests per Python version). These tests establish local invariants and adapter serialization behavior; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
+**69 AEL tests** cover the runtime and mocked local bridge (63 runtime tests and 6 bridge tests). The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
 
 ## Quick start
 
@@ -87,11 +87,9 @@ For controlled memory promotion, see [`MEMORY_WORKFLOW.md`](MEMORY_WORKFLOW.md).
 
 Without a provider/local-model tokenizer, the CLI uses a rough UTF-8 estimate, not a guaranteed token limit for a particular model. The local adapter reserves room for its fixed prompt and the current user message using the same estimate. A model-specific token counter/context length should be added before treating the budget as exact.
 
-## Experiments and Q-Batch
+## Q-Batch
 
-- [Checklist-elaboration experiment](experiments/checklist_elaboration/README.md) — four-condition MP × Critical Thinking planning study, protocol, scoring and runner.
-- [Q-Batch historical analysis](experiments/qbatch_historical_analysis/README.md) — historical run evidence, integrity checks and failure analysis.
-- [CT/A-B logging harness](experiments/ct_ab/README.md) — instrumentation, paired-run validation, preflight and method demonstration.
+[Q-Batch of Evidence](https://github.com/memoryprismv1/q-batch-of-evidence) is a separate project and the canonical home for experiment runners, testing logs, controlled conditions, historical analysis and test reports. AEL may produce its own ledger receipts during a Q-Batch run; those AEL ledger receipts and Q-Batch experiment receipts are distinct evidence streams.
 
 ## Verification records
 
@@ -120,4 +118,4 @@ No direct integration into ChatGPT or Claude websites; no paid/cloud API integra
 
 The shared runtime is split into the `ael/` package: database and migrations, canonical AEL ledger, branches, memory, context assembly, provider transport, sessions, checkpoints and revisions. `runtime.py` remains the compatibility entry point for existing imports and CLI usage.
 
-The global `testing_logger/` package is separate from the AEL ledger. Experiments call it at the points and frequency their protocols require. Experiment-specific schemas, scoring and orchestration remain under `experiments/`. See [ARCHITECTURE_REFACTOR.md](ARCHITECTURE_REFACTOR.md).
+Q-Batch's testing logger and experiment packages are maintained in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL owns only its runtime and canonical ledger. See [ARCHITECTURE_REFACTOR.md](ARCHITECTURE_REFACTOR.md).

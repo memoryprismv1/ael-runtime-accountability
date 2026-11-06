@@ -1,4 +1,4 @@
-name: Runtime tests
+name: AEL runtime tests
 
 on:
   push:
@@ -19,41 +19,13 @@ jobs:
       matrix:
         python-version: ['3.11', '3.12', '3.13']
     steps:
-      - name: Check out source
+      - name: Check out AEL runtime
         uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Compile runtime and tests
-        run: python -m compileall -q runtime.py ael_chat.py ael testing_logger tests experiments
-      - name: Run existing unit and mock integration tests
+      - name: Compile AEL runtime and tests
+        run: python -m compileall -q runtime.py ael_chat.py ael tests
+      - name: Run AEL runtime and mocked bridge tests
         run: python -m unittest discover -s tests -v
-      - name: Run experiment logging and paired-run contract tests
-        run: python -m unittest experiments.ct_ab.test_logging experiments.ct_ab.test_pair_runner -v
-      - name: Run autonomous checklist-elaboration runner tests
-        run: python -m unittest experiments.checklist_elaboration.test_runner -v
-      - name: Run Q-Batch order/carryover methodology tests
-        run: python -m unittest experiments.ct_ab.test_method_demo -v
-      - name: Run Q-Batch historical cohort analysis tests
-        run: python -m unittest discover -s experiments/qbatch_historical_analysis -p 'test_*.py' -v
-      - name: Execute deterministic Q-Batch methodology demonstration
-        run: python -m experiments.ct_ab.method_demo --output "$RUNNER_TEMP/ct-ab-method-demo"
-      - name: Upload Q-Batch methodology evidence
-        if: matrix.python-version == '3.11' && always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ct-ab-method-demo-evidence
-          path: ${{ runner.temp }}/ct-ab-method-demo/
-          if-no-files-found: warn
-          retention-days: 30
-      - name: Run synthetic pair preflight
-        run: python -m experiments.ct_ab.preflight --output "$RUNNER_TEMP/ct-ab-preflight"
-      - name: Upload synthetic preflight logs and report
-        if: matrix.python-version == '3.11' && always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ct-ab-instrumentation-preflight
-          path: ${{ runner.temp }}/ct-ab-preflight/
-          if-no-files-found: warn
-          retention-days: 30

@@ -1,6 +1,6 @@
 # V2.8.1 Test Report — Conformance, Model Boundary, Local Interactive Bridge
 
-**Latest validation (5 November 2026):** 72 AEL runtime tests passed using Python's standard `unittest`; `runtime.py` and `ael_chat.py` compile. Clean-checkout [GitHub Actions run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) passed on Python 3.11, 3.12 and 3.13. Each version also passed 32 CT logging/paired-runner tests, 2 Q-Batch methodology tests and 26 historical-analysis tests (132 tests per version). The code baseline for this run is commit `67f83f1e0a8ed704246eef080c8e3950d092c845`.
+**Repository boundary update (6 November 2026):** the AEL suite now contains 69 AEL-only tests: 63 runtime tests and 6 mocked local-bridge tests. The 3 shared-logger tests and all experiment, method and historical-analysis tests moved to the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). The earlier clean-checkout [CI run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) was run before the split and included the Q-Batch suites; it is a historical baseline, not validation of the new AEL-only workflow. The first post-split CI run will establish the new baseline.
 
 ## V2.8.1 additions
 

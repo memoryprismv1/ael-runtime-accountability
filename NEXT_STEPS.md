@@ -2,7 +2,7 @@
 
 **Current build:** V2.8.1 — source-reconciled local prototype with retention/use policy, memory-promotion stages, delta-first delivery and conformance checking, bounded model context, an optional loopback-only Ollama adapter, and an interactive local chat shell.  
 **Current phase:** Final stabilisation closeout of existing behaviour. No new features are in scope unless a minimal change is required to repair a demonstrated defect.  
-**Latest clean-checkout CI baseline:** [run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810), code commit `67f83f1e0a8ed704246eef080c8e3950d092c845`; Python 3.11, 3.12 and 3.13 jobs all passed. Each version ran 72 AEL runtime tests, 32 CT logging/paired-runner tests, 2 Q-Batch methodology tests and 26 historical-analysis tests (132 tests per version).  
+**Historical pre-split CI baseline:** [run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) passed 132 combined AEL/Q-Batch tests per Python version. On 6 November 2026 the repositories were separated: AEL now runs its 69 runtime/mock-bridge tests; Q-Batch owns its own logger, harnesses and experiment CI. The first post-split AEL workflow run will establish the current CI baseline.  
 **Ownership:** AEL and the source architecture belong to the user. This is an implementation handoff, not a new AEL specification.
 
 ## Stabilisation closeout — 5 November 2026
