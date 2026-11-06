@@ -1,0 +1,98 @@
+{
+  "fixture_notice": "All identifiers, times and incidents below are synthetic test data, not records from an actual airport.",
+  "incidents": [
+    {
+      "incident_id": "INC-001",
+      "bag_tag": "BG-1007",
+      "onward_flight": "F818",
+      "flight_scheduled_departure_utc": "2026-10-12T10:50:00Z",
+      "events": [
+        {
+          "event_id": "EV-100",
+          "event_type": "transfer_area_scan",
+          "location_code": "PIER-B",
+          "event_time_utc": "2026-10-12T10:12:00Z",
+          "received_time_utc": "2026-10-12T10:20:00Z",
+          "source_system": "BRS"
+        },
+        {
+          "event_id": "EV-100",
+          "event_type": "transfer_area_scan",
+          "location_code": "PIER-B",
+          "event_time_utc": "2026-10-12T10:12:00Z",
+          "received_time_utc": "2026-10-12T10:21:00Z",
+          "source_system": "BRS"
+        }
+      ],
+      "question_for_agent": "What does the duplicate and delayed event allow the system to conclude, and what must remain uncertain?"
+    },
+    {
+      "incident_id": "INC-002",
+      "bag_tag": "BG-2041",
+      "onward_flight": "F822",
+      "flight_scheduled_departure_utc": "2026-10-12T11:00:00Z",
+      "events": [
+        {
+          "event_id": "EV-220",
+          "event_type": "transfer_area_scan",
+          "location_code": "PIER-2",
+          "event_time_utc": "2026-10-12T10:29:00Z",
+          "received_time_utc": "2026-10-12T10:36:00Z",
+          "source_system": "BRS"
+        },
+        {
+          "event_id": "NOTE-19",
+          "event_type": "manual_handler_note",
+          "reported_action": "loaded to onward flight",
+          "location_code": "AIRCRAFT_SIDE",
+          "event_time_utc": "2026-10-12T10:33:00Z",
+          "received_time_utc": "2026-10-12T10:41:00Z",
+          "source_system": "HANDLER_NOTE"
+        }
+      ],
+      "question_for_agent": "How should a coordination view represent two records that appear to conflict without pretending the conflict is resolved?"
+    },
+    {
+      "incident_id": "INC-003",
+      "bag_tag": "BG-3005",
+      "onward_flight": "F830",
+      "flight_scheduled_departure_utc": "2026-10-12T11:15:00Z",
+      "events": [
+        {
+          "event_id": "EV-310",
+          "event_type": "arrival_scan",
+          "location_code": "TRANSFER_INTAKE",
+          "event_time_utc": "2026-10-12T10:35:00Z",
+          "received_time_utc": "2026-10-12T10:35:10Z",
+          "source_system": "BRS"
+        }
+      ],
+      "question_for_agent": "What should the system show when no later transfer scan is present? What must it not infer?"
+    },
+    {
+      "incident_id": "INC-004",
+      "bag_tag": "BG-4002",
+      "onward_flight": "F835",
+      "flight_scheduled_departure_utc": "2026-10-12T11:25:00Z",
+      "events": [
+        {
+          "event_id": "EV-420",
+          "event_type": "loading_area_scan",
+          "location_code": "PIER-4",
+          "event_time_utc": "2026-10-12T10:54:00Z",
+          "received_time_utc": "2026-10-12T11:04:00Z",
+          "source_system": "BRS"
+        },
+        {
+          "event_id": "EV-421",
+          "event_type": "transfer_area_scan",
+          "location_code": "PIER-3",
+          "event_time_utc": "2026-10-12T10:58:00Z",
+          "received_time_utc": "2026-10-12T11:01:00Z",
+          "source_system": "BRS"
+        }
+      ],
+      "question_for_agent": "How should event time, arrival time, ordering and uncertainty be handled when records arrive out of order?"
+    }
+  ]
+}

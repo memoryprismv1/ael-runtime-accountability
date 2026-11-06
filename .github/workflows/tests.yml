@@ -31,6 +31,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run experiment logging and paired-run contract tests
         run: python -m unittest experiments.ct_ab.test_logging experiments.ct_ab.test_pair_runner -v
+      - name: Run autonomous checklist-elaboration runner tests
+        run: python -m unittest experiments.checklist_elaboration.test_runner -v
       - name: Run Q-Batch order/carryover methodology tests
         run: python -m unittest experiments.ct_ab.test_method_demo -v
       - name: Run Q-Batch historical cohort analysis tests
