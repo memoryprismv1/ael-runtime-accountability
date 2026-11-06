@@ -261,7 +261,8 @@ class PlanningAgent:
             outcome=self.dispatch(name,args); status="succeeded"
         except RunnerError as exc:
             self.logger.record_tool_call(name,call_id,args,{"error":"RunnerError","message":str(exc)},status="failed",phase="planning")
-            self.logger.emit("agent_loop_detected","runner","planning","failed",{"reason":"repeated_identical_input_request","tool_call_number":self.tool_count})
+            reason="repeated_identical_input_request" if name=="request_input" else "runner_guard_stop"
+            self.logger.emit("agent_loop_detected","runner","planning","failed",{"reason":reason,"tool_name":name,"tool_call_number":self.tool_count})
             raise
         except Exception as exc:
             outcome={"error":type(exc).__name__,"message":str(exc)[:1200]}; status="failed"
