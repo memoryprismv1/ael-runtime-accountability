@@ -36,6 +36,18 @@ python -m experiments.checklist_elaboration.runner doctor
 
 The unit tests use a fake model client. They do not call Ollama or generate real-model evidence.
 
+## Private GitHub-hosted run path
+
+For the controlled four-condition feasibility block, use the manual-only workflow in the private [Memory Prism Differential](https://github.com/memoryprismv1/the-differential-library) repository:
+
+`.github/workflows/qbatch-checklist-elaboration.yml`
+
+That workflow checks out this runner at an immutable commit, checks out both skill packages at their pinned commits, installs the fixed local model on a disposable GitHub-hosted VM, and runs one randomized block. It then stores the raw run logs, blinded score packets, block report, and separate controller key in a dated folder in the private Differential repository. It is the preferred execution route; no local machine or AEL installation is required.
+
+The workflow is manual-dispatch only. It does not run on pushes, PR changes, merges, or schedules. The actual user is not contacted.
+
+**Repository access caveat:** the raw evidence and controller key are stored in a private repository, but repository read access applies to the whole repository, not separate folders. Anyone with read access can access these files. Do not give blinded assessors repository access before scores are frozen; distribute only their score-packet ZIPs.
+
 ## Deliberate real-model feasibility block
 
 Only after tests pass and a private destination is verified:
