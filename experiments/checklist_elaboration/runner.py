@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import platform
+import random
 import secrets
 import shutil
 import subprocess
@@ -178,7 +179,7 @@ class PlanningAgent:
         self.max_turns=max_turns; self.max_tools=max_tools; self.request_timeout=request_timeout
         self.run_timeout=run_timeout; self.output_token_limit=output_token_limit
         self.started=time.monotonic(); self.tool_count=0; self.output_tokens=0; self.usage_known=True
-        self.input_requests=set(); self.finished=False
+        self.input_requests=set(); self.input_request_records=[]; self.finished=False
         self.messages=[
             {"role":"system","content":SYSTEM},
             {"role":"user","content":"Read task/TASK.md and supplied source-pack/. Any selected skill files are under skills/. Use the file tools, create the three deliverables, then finish."},
@@ -232,7 +233,9 @@ class PlanningAgent:
             if not all(isinstance(v,str) and v.strip() and len(v)<=2000 for v in (q,why,role)):
                 raise ValueError("question, why_needed and project_role must be non-empty text up to 2,000 chars")
             fingerprint=hashlib.sha256(" ".join((q+" "+why+" "+role).casefold().split()).encode()).hexdigest()
-            if fingerprint in self.input_requests: raise RunnerError("repeated identical simulated input request")
+            repeated=fingerprint in self.input_requests
+            self.input_request_records.append({"question":q,"why_needed":why,"project_role":role,"repeated":repeated})
+            if repeated: raise RunnerError("repeated identical simulated input request")
             self.input_requests.add(fingerprint)
             return {"status":"captured_no_contact","response":None,"repeat":False,"instruction":"No human is available. Continue independently; record a genuinely unresolved decision and proceed with all independent work. No person was contacted."}
         if name=="finish":
@@ -249,11 +252,16 @@ class PlanningAgent:
     def _tool(self,call:Mapping[str,Any])->dict[str,Any]:
         self.tool_count+=1; call_id=f"call-{self.tool_count:03d}"
         fn=call.get("function",{}); name=fn.get("name","unknown"); args=parse_args(fn.get("arguments",{}))
-        if name not in ALLOWED: raise ValueError("tool is not allowlisted")
+        if name not in ALLOWED:
+            outcome={"error":"unknown_tool","message":"tool is not allowlisted"}
+            self.logger.record_tool_call(str(name),call_id,args,outcome,status="failed",phase="planning")
+            self.logger.emit("error","runner","planning","observed",{"kind":"unknown_tool_attempt","tool_name":str(name)})
+            raise RunnerError("unknown tool attempted")
         try:
             outcome=self.dispatch(name,args); status="succeeded"
-        except RunnerError:
-            self.logger.record_tool_call(name,call_id,args,{"error":"RunnerError","message":"repeated input request"},status="failed",phase="planning")
+        except RunnerError as exc:
+            self.logger.record_tool_call(name,call_id,args,{"error":"RunnerError","message":str(exc)},status="failed",phase="planning")
+            self.logger.emit("agent_loop_detected","runner","planning","failed",{"reason":"repeated_identical_input_request","tool_call_number":self.tool_count})
             raise
         except Exception as exc:
             outcome={"error":type(exc).__name__,"message":str(exc)[:1200]}; status="failed"
@@ -325,7 +333,10 @@ class PlanningAgent:
                     self.finished=True; status="succeeded"; reason="three deliverables validated"; break
             if self.finished or status=="succeeded" or reason!="agent did not finish": break
         metrics={"status":status,"stop_reason":reason,"turns":turn,"tool_calls":self.tool_count,
-                 "simulated_input_requests":len(self.input_requests),
+                 "simulated_input_requests":len(self.input_request_records),
+                 "unique_simulated_input_requests":len(self.input_requests),
+                 "repeated_simulated_input_requests":sum(1 for x in self.input_request_records if x["repeated"]),
+                 "input_request_records":self.input_request_records,
                  "output_tokens":self.output_tokens if self.usage_known else None,
                  "token_usage_available":self.usage_known,"elapsed_seconds":round(time.monotonic()-self.started,3)}
         self.logger.emit("agent_note","runner","delivery","observed",{"note_type":"run_metrics",**metrics})
@@ -368,15 +379,16 @@ def run_block(*,output_dir:str|Path,key_file:str|Path,task_dir:str|Path=DEFAULT_
     if len(matches)!=1: raise ValueError("requested model is not installed under the exact name")
     model_record={"provider":"ollama-local","name":model,"digest":matches[0].get("digest"),"ollama_version":version.get("version","unknown")}
     mp_info=verify_source(mp_source,MP_COMMIT,MP_FILES); ct_info=verify_source(ct_source,CT_COMMIT,CT_FILES)
-    labels=["A","B","C","D"]; secrets.SystemRandom().shuffle(labels)
-    cells=["MP0_CT0","MP1_CT0","MP0_CT1","MP1_CT1"]; secrets.SystemRandom().shuffle(cells)
+    randomisation_seed=secrets.token_hex(16); rng=random.Random(randomisation_seed)
+    labels=["A","B","C","D"]; rng.shuffle(labels)
+    cells=["MP0_CT0","MP1_CT0","MP0_CT1","MP1_CT1"]; rng.shuffle(cells)
     mapping=dict(zip(labels,cells)); reverse={v:k for k,v in mapping.items()}
     task=Path(task_dir).resolve(strict=True); task_hash=tree_sha(task)
-    output.mkdir(parents=True,exist_ok=True)
+    output.mkdir(parents=True,exist_ok=True); output.chmod(0o700)
     runs=output/"runs"; workspaces=output/"workspaces"; packets=output/"score-packets"
-    for d in (runs,workspaces,packets): d.mkdir()
+    for d in (runs,workspaces,packets): d.mkdir(mode=0o700); d.chmod(0o700)
     save_private(key,{"experiment_id":"qbatch-checklist-elaboration-v1","created_at_utc":utc_now(),
-        "blind_label_to_cell_id":mapping,"execution_order":cells,"task_sha256":task_hash,
+        "blind_label_to_cell_id":mapping,"execution_order":cells,"randomisation_seed":randomisation_seed,"randomisation_method":"Python random.Random seeded from private 128-bit secret","task_sha256":task_hash,
         "mp_source":mp_info,"ct_source":ct_info,"model":model_record,
         "warning":"PRIVATE CONDITION KEY: withhold until blind scores are frozen."})
     report={}
@@ -410,7 +422,7 @@ def run_block(*,output_dir:str|Path,key_file:str|Path,task_dir:str|Path=DEFAULT_
             logger.finish("succeeded" if validation else "failed",metrics["stop_reason"])
         except Exception as exc:
             metrics={"status":"failed","stop_reason":f"{type(exc).__name__}: {str(exc)[:1000]}","turns":0,
-                     "tool_calls":agent.tool_count,"simulated_input_requests":len(agent.input_requests),
+                     "tool_calls":agent.tool_count,"simulated_input_requests":len(agent.input_request_records),"unique_simulated_input_requests":len(agent.input_requests), "input_request_records":agent.input_request_records,
                      "elapsed_seconds":round(time.monotonic()-agent.started,3)}
             validation=None
             logger.emit("error","runner","delivery","observed",{"kind":"runner_exception","message":metrics["stop_reason"]})
