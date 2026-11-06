@@ -138,7 +138,7 @@ def validate_run(run_dir: str | Path, require_finished: bool = True) -> dict[str
         _fail(f"invalid manifest context: {exc}")
     if manifest["schema_version"] != SCHEMA_VERSION or manifest["logger_version"] != LOGGER_VERSION:
         _fail("unsupported schema/logger version")
-    if manifest["condition_label"] not in {"A", "B", "REHEARSAL-A", "REHEARSAL-B"}:
+    if manifest["condition_label"] not in {"A", "B", "C", "D", "REHEARSAL-A", "REHEARSAL-B", "REHEARSAL-C", "REHEARSAL-D"}:
         _fail("invalid condition label")
     if not HASH_RE.fullmatch(str(manifest["task_brief_sha256"])):
         _fail("invalid task brief hash")
