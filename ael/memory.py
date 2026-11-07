@@ -285,10 +285,10 @@ def change_memory_state(con, memory_id: str, action: str, note: str = '', *, act
     if action not in {'dormant', 'reverse', 'reactivate', 'confirm'}:
         raise ValueError('action must be dormant, reverse, reactivate, or confirm')
     origin = 'user' if action in {'reverse', 'reactivate'} else 'system'
-    _validate_memory_attribution(con, account=row['account_id'], action_origin=origin, actor_id=actor_id,
-                                 on_behalf_of_id=on_behalf_of_id)
     if row['stage'] != 'keepable':
         raise ValueError('Only a kept memory can change active/dormant/reversed authority; review and keep it first')
+    _validate_memory_attribution(con, account=row['account_id'], action_origin=origin, actor_id=actor_id,
+                                 on_behalf_of_id=on_behalf_of_id)
     ts = now()
     transitions = {
       'dormant': ('dormant', 1, 0),
