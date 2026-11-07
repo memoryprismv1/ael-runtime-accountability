@@ -167,17 +167,21 @@ Where an older event has no actor identity, the migration uses an explicit unatt
 
 New multi-user integrations should always supply the authenticated participant ID. The fallbacks are compatibility markers, not acceptable substitutes for identity-aware production workflows.
 
-## Who may act
+## Current action gate — implementation, not a definition of AEL's role
 
-For canonical events, explicitly identified human and AI participants must have an active participation period in the chat (or matching workflow scope) when they act. The membership check uses the same half-open sequence boundaries as reconstruction: a participant cannot act before the join boundary or after the leave boundary. A person may self-join; the initial/system provisioning path may also add a participant. Reserved compatibility actors and explicit system/service identities remain exempt for runtime bookkeeping and legacy single-user workflows.
+PR [#32](https://github.com/memoryprismv1/ael-runtime-accountability/pull/32) added a runtime check: explicitly identified human/AI actors need an active participation period to append a canonical event, and branch proposal checks membership before writing branch state. Reserved compatibility and system/service identities are exceptions.
 
-This is a membership check, not an approval policy. A manager being present does not grant approval authority, and a person holding a role label such as `approver` is not automatically authorised to approve. The canonical event still records `authority` separately. A role/capability policy must be defined and checked independently before treating membership as permission.
+This check is now under design review. AEL's purpose is accountability, not workflow control. An attempted action outside the recorded participation period may itself be important evidence. A rejection gate that records nothing could hide the attempt. Revisit whether to preserve an attributed attempt and flag its relationship to the recorded membership history rather than refusing to record it. The merged code has not yet been changed.
 
-The current enforcement is applied at the canonical event append boundary and before branch-proposal writes. Supporting lifecycle paths that write directly to their own tables (for example, memory lifecycle rows and checkpoint creation) still need a complete pass to ensure they cannot bypass the same membership rule.
+Membership, action and authority are separate facts. Presence does not grant approval rights; a role label such as `approver` is not proof of permission. AEL should preserve any recorded/claimed authority and relevant host evidence, not become the organisation's permission-administration system.
+
+The same accountability principle applies to supporting operations: memory, revision and checkpoint actions need traceable actor/source/object/version records. This is a completeness-of-evidence concern, not a demand that AEL enforce an organisation-wide workflow policy.
 
 ## Current limits
+
+- The runtime's active-membership gate is implemented but under design review; see the preceding section and [AEL_SCOPE_AND_CONTEXT_REUSE.md](AEL_SCOPE_AND_CONTEXT_REUSE.md).
 
 - AEL stores the identity references and membership intervals; the host application is responsible for authenticating identities and supplying trustworthy IDs.
 - A participation interval establishes membership in the chain, not message-level delivery, reading, or comprehension.
 - The runtime does not infer responsibility or culpability from presence. Actor, authority, role, scope, and available evidence must be evaluated separately.
-- The SQLite prototype does not add foreign-key constraints from every actor field to the participant registry; runtime validation rejects unregistered actors and enforces active membership on canonical chat events. Direct supporting-table lifecycle paths are not yet fully covered.
+- The SQLite prototype does not add foreign-key constraints from every actor field to the participant registry. Supporting-table attribution coverage is not yet complete.

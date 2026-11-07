@@ -2,9 +2,11 @@
 
 ## Why this exists
 
-A conversation's visible message transcript is not the entirety of the context presented to a model. A shared instruction, project setting, or context file can change while the messages already exchanged remain untouched. AEL needs to represent that as a separate, attributable event rather than pretending it was a new chat message.
+A conversation's visible message transcript is not the entirety of the context presented to a model. A context resource can change while the messages already exchanged remain untouched. AEL can represent that as a separate, attributable event rather than pretending it was a new chat message. This feature is an accountability receipt for a context change within one chat; it is not a workflow control or context-distribution service.
 
-This prototype records **chat-scoped** external context changes. It does not claim to connect to ChatGPT shared projects, a hosted workspace, or a file-upload service. A future host adapter must supply authenticated actor IDs and the source reference for the change.
+A separate, related problem is **controlled reuse of useful knowledge across similar projects**. That should not be conflated with intervention/version tracking. Reuse means discovering and deliberately selecting a suitable prior method or lesson with its provenance and limitations, not automatically synchronising every chat or copying an entire conversation. See [AEL_SCOPE_AND_CONTEXT_REUSE.md](AEL_SCOPE_AND_CONTEXT_REUSE.md) for the current design direction.
+
+This prototype records **chat-scoped** context changes. It does not claim to connect to ChatGPT shared projects, a hosted workspace, or a file-upload service. A future host adapter must supply authenticated actor IDs and the source reference for the change.
 
 ## Event and versioning
 
@@ -53,6 +55,7 @@ An identified human or AI actor must be an active participant in the chat (or in
 ## Current boundary
 
 - Resource history and active-context selection are tested within one account/project/chat scope.
-- Cross-chat/project-wide resource propagation is not implemented by this prototype.
+- Cross-chat/project-wide resource propagation is not implemented and is not the current design target by default. Consider selective, user-directed reuse of suitable knowledge from prior projects instead; preserve source, version/hash, applicability and sensitivity boundaries.
 - The code records that a context intervention occurred; it does not prove that a platform delivered the change to a particular model request. A real adapter should correlate the AEL event with the actual hydrated/model-input hash.
 - `source_ref` is a reference supplied by the host; AEL does not authenticate the external source on its own.
+- Project-sensitive context must not be copied into a different project merely because the organisation owns both projects. Host/organisation permissions govern access. The current plain-text event store is not suitable for sensitive project content without appropriate security controls.
