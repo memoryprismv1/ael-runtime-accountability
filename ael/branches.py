@@ -32,7 +32,7 @@ def propose_branch(con, *, account='default', project: str, chat: str, branch_id
         (account, project, chat)).fetchone():
         append_event(con, account=account, project=project, chat=chat, event_type='original_query', provenance='user',
                      authority='user_direct', inference_kind='user_statement', truth_status='not_applicable',
-                     content=original_query, metadata={'purpose': 'restore query for clean branch rerun'}, actor_id=resolved_actor)
+                     content=original_query, metadata={'purpose': 'restore query for clean branch rerun'})
     con.execute('''INSERT INTO branches(branch_id,account_id,project_id,chat_id,label,tradeoff,strategy_key,proposed_at)
       VALUES(?,?,?,?,?,?,?,?)''', (branch_id, account, project, chat, label, tradeoff, strategy_key, now()))
     con.commit()
