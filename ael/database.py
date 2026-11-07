@@ -285,15 +285,31 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
         """SELECT DISTINCT m.account_id, me.actor_id AS participant_id, 'unknown' AS participant_type,
                   'unattributed' AS identity_source
            FROM memory_events me JOIN memories m ON m.memory_id=me.memory_id
-           WHERE me.actor_id IS NOT NULL""",
-        """SELECT DISTINCT c.account_id, me.actor_id AS participant_id, 'unknown' AS participant_type,
-                  'unattributed' AS identity_source
+           WHERE me.actor_id IS NOT NULL
+           UNION SELECT DISTINCT m.account_id, me.recorded_by_id, 'system', 'system'
+           FROM memory_events me JOIN memories m ON m.memory_id=me.memory_id
+           WHERE me.recorded_by_id IS NOT NULL
+           UNION SELECT DISTINCT m.account_id, me.on_behalf_of_id, 'unknown', 'unattributed'
+           FROM memory_events me JOIN memories m ON m.memory_id=me.memory_id
+           WHERE me.on_behalf_of_id IS NOT NULL
+           UNION SELECT DISTINCT c.account_id, me.actor_id, 'unknown', 'unattributed'
            FROM memory_events me JOIN memory_candidates c ON c.candidate_id=me.memory_id
-           WHERE me.actor_id IS NOT NULL""",
-        """SELECT DISTINCT p.account_id, re.actor_id AS participant_id, 'unknown' AS participant_type,
-                  'unattributed' AS identity_source
+           WHERE me.actor_id IS NOT NULL
+           UNION SELECT DISTINCT c.account_id, me.recorded_by_id, 'system', 'system'
+           FROM memory_events me JOIN memory_candidates c ON c.candidate_id=me.memory_id
+           WHERE me.recorded_by_id IS NOT NULL
+           UNION SELECT DISTINCT c.account_id, me.on_behalf_of_id, 'unknown', 'unattributed'
+           FROM memory_events me JOIN memory_candidates c ON c.candidate_id=me.memory_id
+           WHERE me.on_behalf_of_id IS NOT NULL
+           UNION SELECT DISTINCT p.account_id, re.actor_id, 'unknown', 'unattributed'
            FROM revision_events re JOIN revision_proposals p ON p.proposal_id=re.proposal_id
-           WHERE re.actor_id IS NOT NULL""",
+           WHERE re.actor_id IS NOT NULL
+           UNION SELECT DISTINCT p.account_id, re.recorded_by_id, 'system', 'system'
+           FROM revision_events re JOIN revision_proposals p ON p.proposal_id=re.proposal_id
+           WHERE re.recorded_by_id IS NOT NULL
+           UNION SELECT DISTINCT p.account_id, re.on_behalf_of_id, 'unknown', 'unattributed'
+           FROM revision_events re JOIN revision_proposals p ON p.proposal_id=re.proposal_id
+           WHERE re.on_behalf_of_id IS NOT NULL""",
     ]
     for query in legacy_actor_queries:
         for row in con.execute(query).fetchall():
