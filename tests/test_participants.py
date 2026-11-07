@@ -281,8 +281,6 @@ class ParticipantLedgerTests(unittest.TestCase):
     def test_workflow_membership_includes_chat_wide_participants(self):
         chat_member = self.register("chat-member", "Avery")["participant_id"]
         workflow_member = self.register("workflow-member", "Riley")["participant_id"]
-        runtime.join_participant(self.con, account=self.account, project=self.project, chat=self.chat,
-            participant_id=self.admin, role="admin", actor_id=runtime.SYSTEM_ACTOR_ID)
         chat_period = runtime.join_participant(
             self.con, account=self.account, project=self.project, chat=self.chat,
             participant_id=chat_member, role="manager", actor_id=runtime.SYSTEM_ACTOR_ID
