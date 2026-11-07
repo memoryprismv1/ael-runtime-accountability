@@ -33,8 +33,8 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 ## Existing implemented primitives
 
 - Append-only event ledger with separate provenance, decision authority, inference kind, truth status, source reference, actor, represented principal and recorder.
-- Multi-user participant registry with organisation-issued or generated stable IDs, repeated participation periods, role/scope boundaries, and participant-at-event reconstruction.
-- Active context as a disposable projection, distinct from full history.
+- Multi-user participant registry with organisation-issued or generated stable IDs, repeated participation periods, role/scope boundaries, participant-at-event reconstruction, and active-membership checks for canonical actions.
+- Active context as a disposable projection, distinct from full history; separately versioned external context interventions can change model input without rewriting chat messages.
 - Branch records with trade-offs; rejected output stays historical and is excluded from active context.
 - Pivot-with-reset and chat-identity transition hydration.
 - Failed-pattern circuit breaker counting explicit same-strategy rejection, not ordinary edits.
@@ -48,7 +48,7 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 
 ## Multi-user ledger format
 
-The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format and migration rules. A CSV-driven integration fixture exercises a late-arriving manager, a separate approver, agent execution, and participant leave/re-entry in [`examples/multi-user-workflow`](examples/multi-user-workflow/README.md).
+The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format, migration rules and current membership enforcement boundary. [`CONTEXT_INTERVENTIONS.md`](CONTEXT_INTERVENTIONS.md) explains how shared/context-file changes are recorded separately from visible chat messages. A CSV-driven integration fixture exercises a late-arriving manager, a separate approver, agent execution, and participant leave/re-entry in [`examples/multi-user-workflow`](examples/multi-user-workflow/README.md).
 
 ## Tests
 
@@ -58,7 +58,7 @@ Run from this directory:
 python -m unittest discover -s tests -v
 ```
 
-**82 AEL tests** cover the runtime and mocked local bridge (63 runtime tests and 6 bridge tests). The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
+**85 AEL tests** cover the runtime and mocked local bridge, including active-participant action boundaries and context interventions. The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md) for the per-version CI result.
 
 ## Quick start
 

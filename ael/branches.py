@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from .config import now, VALID_USAGE_STATUSES, BRANCH_REUSE_STATUSES, ASSISTANT_ACTOR_ID
-from .ledger import append_event, _ensure_actor
+from .ledger import append_event, _ensure_actor, _assert_actor_is_active
 
 def branch_statuses(con, account: str, project: str, chat: str) -> dict[str, str]:
     result: dict[str, str] = {}
@@ -23,6 +23,8 @@ def propose_branch(con, *, account='default', project: str, chat: str, branch_id
                    actor_id: str | None = None) -> None:
     resolved_actor = actor_id or ASSISTANT_ACTOR_ID
     _ensure_actor(con, account=account, participant_id=resolved_actor)
+    _assert_actor_is_active(con, account=account, project=project, chat=chat,
+                            actor_id=resolved_actor, event_type='branch.proposed')
     _ensure_actor(con, account=account, participant_id='ael:system:runtime')
     if con.execute('SELECT 1 FROM branches WHERE branch_id=? AND account_id=? AND project_id=? AND chat_id=?',
                    (branch_id, account, project, chat)).fetchone():

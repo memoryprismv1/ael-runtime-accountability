@@ -1,15 +1,23 @@
-# V2.8.1 Test Report — Conformance, Model Boundary, Local Interactive Bridge
+# AEL Runtime Test Report — V2.8.1 prototype and multi-user/context extensions
 
-**Repository boundary update (7 November 2026):** the AEL suite contains 82 AEL-only tests: 63 runtime tests, 6 mocked local-bridge tests, 10 multi-user ledger tests and 3 CSV-driven multi-user workflow tests. The multi-user tests cover stable participant IDs, repeated participation periods and half-open boundaries, actor attribution for branch/memory/revision decisions, checkpoint creator/recorder attribution, workflow membership inheritance, rejection of invalid actors before object creation, legacy migration without invented identities, atomic/idempotent roster import, manager presence without action, approval actor separation, and requester re-entry. CSV multi-user workflow CI run [#441](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42375456173) passed all 82 tests on Python 3.11, 3.12 and 3.13. The 3 shared-logger tests and all experiment, method and historical-analysis tests moved to the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). The earlier clean-checkout [CI run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) was run before the split and included the Q-Batch suites; it is a historical baseline, not validation of the new AEL-only workflow. The earlier pre-split run #388 remains a historical combined-suite baseline; run #438 validates this AEL-only schema-v3 change.
+**Latest AEL-only CI (7 November 2026):** PR [#32](https://github.com/memoryprismv1/ael-runtime-accountability/pull/32), workflow run [#444](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42377682672), passed **85 tests on each of Python 3.11, 3.12 and 3.13**. The run includes compilation of the runtime and tests before executing the full unittest suite. The PR adds canonical active-membership enforcement, pre-write branch-proposal validation, versioned external context intervention events, and tests that model input changes without rewriting the visible message transcript. At the time of this report the PR is green and pending merge.
 
-## V2.8.1 additions
+**Prior merged baseline:** PR [#31](https://github.com/memoryprismv1/ael-runtime-accountability/pull/31), workflow run [#442](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42375531422), passed 82 tests on Python 3.11/3.12/3.13. PR [#30](https://github.com/memoryprismv1/ael-runtime-accountability/pull/30) introduced the schema-v3 participant registry and actor attribution. The 3 shared-logger tests and experiment/method/historical-analysis tests are in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence), not this AEL suite.
 
-1. `ollama-status` reads the local `/api/tags` inventory without sending a prompt or opening the AEL database.
-2. Local-model inventory excludes model tags ending in `:cloud`.
-3. `ollama-chat` refuses cloud model tags as well as non-loopback endpoints.
-4. Interactive shell performs two turns, stores both user and assistant records in the persistent ledger, and writes per-turn audit files locally.
-5. `/new` generates a different chat identity; the next turn hydrates isolated context while keeping account/project scope.
-6. Audit metadata, omitted-event records, hashes and event identifiers do not cross the model-input boundary.
+## New participant enforcement coverage
+
+- Identified human/AI actor is rejected before joining, accepted within an active period, and rejected after leaving.
+- A rejected pre-join branch proposal leaves no branch row behind.
+- Existing half-open join/leave and re-entry semantics remain covered.
+- Membership remains distinct from approval permission; no role/capability authorization matrix is implemented yet.
+
+## New external context intervention coverage
+
+- A context intervention changes the provider-facing working context and its SHA-256 audit hash while the user/assistant message transcript remains unchanged.
+- Only the latest intervention for each resource ID is injected; prior versions remain in immutable history.
+- An unjoined actor cannot change context.
+- A stale expected previous hash is rejected.
+- The intervention content and resource/version/source/actor metadata remain separate from the sidecar data sent to the model.
 
 ## Prior coverage retained
 
@@ -23,8 +31,8 @@
 
 ## Real-model status
 
-Ollama was **not installed in the development environment**. No real inference, answer-quality, latency, hardware performance or true model-tokenizer/context-window test was performed. Mock-server tests verify only request/response integration and runtime data boundaries.
+Ollama was **not installed in the development environment**. No real inference, answer-quality, latency, hardware performance or true model-tokenizer/context-window test was performed. Mock-server and fixture tests verify runtime invariants and request/response integration, not actual hosted ChatGPT behaviour or live shared-project context delivery.
 
 ## Remaining limits
 
-The conformance checker verifies structural scope, not semantic intent. The offline context counter is approximate. The bridge is not connected to ChatGPT or Claude websites and this is not the complete AEL runtime.
+The canonical event append boundary enforces membership for explicitly identified human/AI actors; direct supporting-table paths such as memory lifecycle events and checkpoint creation still need an enforcement pass. Membership is not approval authority. External context intervention support is currently chat-scoped and requires a host adapter to supply trusted actor identity and source references. The conformance checker verifies structural scope, not semantic intent. The offline context counter is approximate. This is not the complete AEL runtime.

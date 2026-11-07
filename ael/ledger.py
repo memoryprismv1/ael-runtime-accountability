@@ -114,6 +114,48 @@ def _ensure_actor(con: sqlite3.Connection, *, account: str, participant_id: str,
         raise ValueError(f'Actor must be registered before being referenced: {participant_id}')
 
 
+def _assert_actor_is_active(
+    con: sqlite3.Connection, *, account: str, project: str, chat: str,
+    actor_id: str, event_type: str, metadata: dict | None = None,
+) -> None:
+    """Require identified people/agents to be members when they act in a scope.
+
+    Reserved compatibility actors and system/service identities remain usable for
+    runtime bookkeeping. A participant may self-join; every other identified
+    action requires an already-active chat or matching workflow membership.
+    """
+    row = con.execute(
+        'SELECT participant_type,identity_source FROM participants WHERE account_id=? AND participant_id=?',
+        (account, actor_id),
+    ).fetchone()
+    if not row:
+        raise ValueError(f'Actor is not registered: {actor_id}')
+    if actor_id in DEFAULT_ACTOR_BY_PROVENANCE.values():
+        return
+    if row['participant_type'] in {'system', 'service'} or row['identity_source'] == 'system':
+        return
+    metadata = metadata or {}
+    if event_type == 'participant.joined' and metadata.get('participant_id') == actor_id:
+        return
+    workflow_id = metadata.get('workflow_id')
+    active = con.execute(
+        """SELECT 1 FROM participation_periods
+           WHERE account_id=? AND project_id=? AND chat_id=?
+             AND (workflow_id IS NULL OR workflow_id=?)
+             AND participant_id=? AND effective_from_seq<=
+                 (SELECT COALESCE(MAX(seq),0)+1 FROM events)
+             AND (effective_until_seq IS NULL OR
+                  (SELECT COALESCE(MAX(seq),0)+1 FROM events)<effective_until_seq)
+           LIMIT 1""",
+        (account, project, chat, workflow_id, actor_id),
+    ).fetchone()
+    if not active:
+        raise ValueError(
+            f'Actor is not an active participant in this scope: {actor_id}; '
+            'join before acting or use an explicitly identified system/service actor.'
+        )
+
+
 def append_event(
     con: sqlite3.Connection, *, account='default', project: str, chat: str,
     event_type: str, provenance: str, content: str, authority='none',
@@ -134,6 +176,10 @@ def append_event(
 
     actor_id = actor_id or DEFAULT_ACTOR_BY_PROVENANCE[provenance]
     _ensure_actor(con, account=account, participant_id=actor_id)
+    _assert_actor_is_active(
+        con, account=account, project=project, chat=chat, actor_id=actor_id,
+        event_type=event_type, metadata=metadata,
+    )
     _ensure_actor(con, account=account, participant_id=recorded_by_id)
     if on_behalf_of_id:
         if not con.execute(

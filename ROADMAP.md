@@ -2,7 +2,7 @@
 
 This roadmap tracks implementation work, not changes to the author's AEL framework.
 
-## Current prototype baseline
+## Implemented prototype baseline
 
 - [x] Append-only local event history and disposable active-context projection.
 - [x] Branch exposure primitives and structural pivot/reset.
@@ -10,52 +10,29 @@ This roadmap tracks implementation work, not changes to the author's AEL framewo
 - [x] Controlled local-to-account memory candidate pipeline.
 - [x] Bounded model-input allowlist and context packing.
 - [x] Delta-first proposal/decision/reset and textual conformance checks.
-- [x] Loopback-only Ollama adapter and interactive shell, tested against a mock service.
-- [x] Automated tests in GitHub Actions workflow.
-- [x] Workspace-rooted file-backed artifact reader that pins and hashes source bytes and revalidates them during expansion/verification.
+- [x] Loopback-only Ollama adapter and interactive shell, tested against a mock service; no real-model inference claim.
+- [x] Multi-user participant registry, stable IDs, repeated participation periods and schema-v3 export.
+- [x] CSV participant roster import and 16-step simulated workflow proving presence without action, separate proposer/approver identities, and leave/re-entry.
+- [x] Canonical event active-membership enforcement for explicitly identified human/AI actors; reserved fallback and system/service actor paths remain explicit exceptions.
+- [x] Branch proposal checks actor membership before writing branch state.
+- [x] Chat-scoped external context intervention records with content/version hashes, latest-version context projection, and audit sidecar metadata.
 
-## Current phase: stabilisation only
+## Current phase — validate the boundaries
 
-No new features are in scope unless a minimal change is required to repair a demonstrated defect in existing behaviour.
-
-- [x] Repeat the existing test suite from clean checkouts; record exact commits, runtime versions, test counts, and results. Latest verified code baseline: [CI #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) on `67f83f1e0a8ed704246eef080c8e3950d092c845`; Python 3.11/3.12/3.13 all green, each with 72 AEL runtime tests, 32 CT logging/paired-runner tests, 2 Q-Batch methodology tests and 26 historical-analysis tests (132 per version).
-- [x] Preserve and verify the existing append-only ledger, context isolation, pivot/reset, retention/use, delta-first acceptance, and conformance contracts through the existing AEL tests.
-- [x] Preserve and verify file-backed artifact source pinning, hash checks, same-rooted reads, and change/disappearance handling through the existing AEL tests.
-- [x] Preserve and verify database reopen, context rehydration, legacy migration, and checkpoint history behaviour. Checkpoint exports use unique checkpoint IDs and contained filename components; regression tests verify historical hashes and output-root containment.
-- [x] Keep the loopback-only Ollama boundary and interactive shell covered by mock tests. Do not claim real inference without a captured real-model run.
-- [x] Reconcile docs with implemented code and test evidence, including removal of the stale claim that file-backed artifact loading/hash revalidation is unfinished.
-- [x] Conduct a focused threat-model and data-handling review. Findings and use restrictions are recorded in SECURITY.md; sensitive-data use remains blocked by missing encryption/access-control/backup/deletion protections, and confidential blind pilot execution remains blocked while raw audit artifacts are published from this public repository.
-
-### Demonstrated defects corrected
-
-- [x] Q-Batch: duplicate submit_plan now stops the runner immediately under the existing one-plan contract; the correction has a deterministic regression test.
-- [x] AEL checkpoints: each export has a unique checkpoint ID in its filename, preventing a later checkpoint from overwriting an older snapshot referenced in SQLite.
-- [x] AEL checkpoints: project/chat identifiers are URL-encoded in filenames so path separators cannot escape the requested output directory.
-
-## Deferred — not active work
-
-These items would add or expand capabilities and must not be started during the current stabilisation phase:
-
-- independent semantic conformance engine beyond existing checks;
-- memory walk-back decay/reactivation automation;
-- automatic lesson extraction or automatic promotion;
-- new UI or runtime bridge;
-- new storage, analytics, or dashboard components.
+- [ ] Confirm the current branch's three-version CI run and merge only after all tests pass.
+- [ ] Extend active-membership enforcement to supporting-table write paths: memory lifecycle, revision lifecycle and checkpoint creation.
+- [ ] Separate membership from action permission; specify and test approval capabilities/delegation rather than assuming that an `approver` label is sufficient.
+- [ ] Test multiple external context resources, stale writers and the actual host-to-model correlation path.
+- [ ] Decide what a project-wide context source means across multiple chats before implementing cross-chat propagation.
 
 ## Not planned without evidence
 
 - Paid API requirement for core local persistence mechanics.
 - Automatic learning claims or model-weight changes.
 - Silent automatic promotion of local lessons into shared account context.
-- Automatic locale clustering beyond the author's documented scope.
-- A full UI unless a demonstrated use case warrants it.
+- A new UI/runtime bridge before a real host integration requires it.
+- A new analytics or dashboard subsystem.
 
-A stable, reproducible implementation of the current baseline is the deliverable. Do not expand the feature set to make the roadmap look active.
+## Historical stabilisation record — 5 November 2026
 
-
-## Closeout snapshot — 5 November 2026
-
-- The Q-Batch historical-analysis correction in [PR #22](https://github.com/memoryprismv1/ael-runtime-accountability/pull/22) was merged on 4 November (merge commit `b87cb320cc53e59357fd334fbdd8b46fab899a2f`). No pull requests are currently open.
-- [Issue #1](https://github.com/memoryprismv1/ael-runtime-accountability/issues/1), concerning independent assessor ratings, remains open and deferred; it would expand the evaluation scorecard schema and is not part of stabilisation.
-- The `main` branch is not protected and has no required status checks configured. This is recorded for visibility; no branch-protection change is included in this work.
-- No real-model CT pilot was run. The workflow remains manual-dispatch only.
+The prior V2.8.1 stabilisation work verified the existing ledger, context isolation, pivot/reset, retention/use, delta-first conformance, file-backed source pinning, legacy migration, checkpoint recovery, and the loopback-only Ollama mock boundary. The pre-split combined CI run [#388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) is historical and included Q-Batch tests before repository separation. The current AEL-only validation is run separately from Q-Batch. A real-model inference or blind CT pilot was not run. See [NEXT_STEPS.md](NEXT_STEPS.md) and [TEST_REPORT.md](TEST_REPORT.md).
