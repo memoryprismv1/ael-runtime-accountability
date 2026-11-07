@@ -290,6 +290,12 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
             (row['account_id'], row['recorded_by_id'], row['recorded_by_id'], stamp, stamp)
         )
     legacy_actor_queries = [
+        """SELECT DISTINCT account_id, created_by_id AS participant_id, 'unknown' AS participant_type,
+                  'unattributed' AS identity_source FROM checkpoints
+           WHERE created_by_id IS NOT NULL
+           UNION SELECT DISTINCT account_id, recorded_by_id, 'system', 'system' FROM checkpoints
+           WHERE recorded_by_id IS NOT NULL""",
+
         """SELECT DISTINCT m.account_id, me.actor_id AS participant_id, 'unknown' AS participant_type,
                   'unattributed' AS identity_source
            FROM memory_events me JOIN memories m ON m.memory_id=me.memory_id
@@ -337,7 +343,7 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
         (UNKNOWN_EXTERNAL_ACTOR_ID, 'unknown', 'unattributed', 'Unattributed external actor'),
         (UNKNOWN_ACTOR_ID, 'unknown', 'unattributed', 'Unattributed actor'),
     ]
-    account_rows = con.execute("SELECT DISTINCT account_id FROM events UNION SELECT DISTINCT account_id FROM memories UNION SELECT DISTINCT account_id FROM revision_proposals").fetchall()
+    account_rows = con.execute("SELECT DISTINCT account_id FROM events UNION SELECT DISTINCT account_id FROM memories UNION SELECT DISTINCT account_id FROM revision_proposals UNION SELECT DISTINCT account_id FROM checkpoints").fetchall()
     for account_row in account_rows:
         for participant_id, participant_type, identity_source, display_name in builtins:
             con.execute(
