@@ -46,6 +46,10 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 - Delta-first revision proposal, decision, reset/re-plan, and post-expansion textual conformance. New file-backed revisions use a shared workspace-rooted reader that hashes exact bytes and revalidates the pinned source during expansion and verification; existing caller-supplied APIs remain compatible.
 - Strict provider-input allowlist plus optional loopback-only local Ollama adapter.
 
+## Scope and context reuse
+
+[AEL_SCOPE_AND_CONTEXT_REUSE.md](AEL_SCOPE_AND_CONTEXT_REUSE.md) records the accountability-first boundary: AEL provides accountability, optionality and thinking space; it does not manage end-to-end workflows or administer organisational permissions. It also describes controlled reuse of prior project knowledge without blanket context propagation or disclosure of project-sensitive material.
+
 ## Multi-user ledger format
 
 The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format, migration rules and current membership enforcement boundary. [`CONTEXT_INTERVENTIONS.md`](CONTEXT_INTERVENTIONS.md) explains how shared/context-file changes are recorded separately from visible chat messages. A CSV-driven integration fixture exercises a late-arriving manager, a separate approver, agent execution, and participant leave/re-entry in [`examples/multi-user-workflow`](examples/multi-user-workflow/README.md).
