@@ -609,7 +609,6 @@ def _store_revision_verification(con, proposal: dict, output: dict, report: dict
                      inference_kind='process_event', truth_status='not_applicable',
                      source_ref=f'revision-conformance:{check_id}',
                      content=correction or 'Expanded artifact did not conform to its accepted delta; a fresh proposal is required.',
-                     actor_id=actor_id, on_behalf_of_id=on_behalf_of_id,
                   metadata={'proposal_id': proposal_id, 'proposal_hash': proposal['proposal_hash'],
                                'check_id': check_id, **source_meta})
     report.update({'check_id': check_id, 'proposal_id': proposal_id, 'proposal_hash': proposal['proposal_hash'],
