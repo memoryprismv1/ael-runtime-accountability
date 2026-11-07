@@ -77,3 +77,14 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 - Inspect the existing memory candidate/review/use pipeline before proposing a new context-sharing subsystem.
 
 **Document:** [AEL_SCOPE_AND_CONTEXT_REUSE.md](AEL_SCOPE_AND_CONTEXT_REUSE.md). This is an implementation-design clarification, not a new AEL framework specification. No runtime code, Q-Batch files or Differential files were changed by this clarification.
+
+
+## 7 November 2026 — PR #33: accountability-first scope clarification
+
+**Merge commit:** `95cec7e2f7236d66a65d7e0851a3528a980fb37f`
+
+**Changed:** Added [AEL_SCOPE_AND_CONTEXT_REUSE.md](AEL_SCOPE_AND_CONTEXT_REUSE.md) and aligned the README, roadmap, handoff, participant-ledger notes and context-intervention guide.
+
+**Recorded boundary:** AEL provides accountability, optionality and thinking space; it does not manage end-to-end workflows or administer organisational permissions. PR #32's active-membership rejection gate is under design review because an out-of-period action attempt may itself be evidence worth preserving. Cross-project work is framed as controlled, selective reuse of applicable knowledge with provenance and sensitivity boundaries, not blanket context propagation.
+
+**Verification:** Documentation-only PR [#33](https://github.com/memoryprismv1/ael-runtime-accountability/pull/33), workflow run [#455](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42394886609), passed the existing 85-test suite on Python 3.11, 3.12 and 3.13. No runtime code changed.
