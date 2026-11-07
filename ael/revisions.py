@@ -6,7 +6,7 @@ import json
 import sqlite3
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
-from .config import new_id, now
+from .config import new_id, now, UNKNOWN_USER_ACTOR_ID, UNKNOWN_ACTOR_ID, ASSISTANT_ACTOR_ID, SYSTEM_ACTOR_ID
 from .ledger import append_event
 from .context import hydrate_payload
 from .paths import read_workspace_artifact, WorkspaceArtifactError
@@ -53,13 +53,17 @@ def _revision_state(con, proposal_id: str) -> str:
 
 def _append_revision_event(con, *, proposal: dict, event_type: str, from_state: str | None,
                            to_state: str, action_origin: str, note: str = '',
-                           metadata: dict | None = None) -> dict:
+                           metadata: dict | None = None, actor_id: str | None = None,
+                           on_behalf_of_id: str | None = None,
+                           recorded_by_id: str = SYSTEM_ACTOR_ID) -> dict:
     if to_state not in REVISION_STATES:
         raise ValueError(f'Invalid revision state {to_state!r}')
+    resolved_actor = actor_id or (UNKNOWN_USER_ACTOR_ID if action_origin == 'user' else ASSISTANT_ACTOR_ID if action_origin == 'assistant' else UNKNOWN_ACTOR_ID if action_origin == 'external' else SYSTEM_ACTOR_ID)
     cur = con.execute('''INSERT INTO revision_events(event_id,proposal_id,occurred_at,event_type,from_state,to_state,
-      proposal_hash,action_origin,note,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?)''',
+      proposal_hash,action_origin,note,metadata_json,actor_id,on_behalf_of_id,recorded_by_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
       (new_id('REV-EVT'), proposal['proposal_id'], now(), event_type, from_state, to_state,
-       proposal['proposal_hash'], action_origin, note, json.dumps(metadata or {}, ensure_ascii=False)))
+       proposal['proposal_hash'], action_origin, note, json.dumps(metadata or {}, ensure_ascii=False),
+       resolved_actor, on_behalf_of_id, recorded_by_id))
     con.commit()
     return dict(con.execute('SELECT * FROM revision_events WHERE seq=?', (cur.lastrowid,)).fetchone())
 
