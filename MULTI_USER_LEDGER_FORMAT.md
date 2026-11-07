@@ -140,11 +140,15 @@ Example event:
 }
 ```
 
+## Checkpoints and supporting records
+
+Checkpoint index rows are not event-stream entries. Each checkpoint therefore stores `created_by_id` and `recorded_by_id` directly. The exported participant registry includes these identities as well as actors from canonical, memory and revision history. The runtime process is the default recorder; identity-aware callers should supply the initiating participant as `actor_id` when creating a checkpoint.
+
 ## Export
 
 `scope_ledger(con, account, project, chat)` returns a schema-version-3 snapshot containing:
 
-- `participants`: de-duplicated participant objects and all their participation periods within the scope;
+- `participants`: de-duplicated participant objects and all their participation periods within the scope, including actors recorded on checkpoints;
 - `events`: the canonical event stream, with actor, represented-principal, and recorder IDs;
 - identity references used by supporting memory/revision lifecycle records.
 
