@@ -81,6 +81,9 @@ def propose_revision(con, *, account='default', project: str, chat: str, proposa
                      _source_relative_path: str | None = None,
                      _source_byte_length: int | None = None, actor_id: str | None = None) -> dict:
     """Create an immutable, reviewable delta proposal. No full replacement artifact is generated or stored here."""
+    actor_id = actor_id or ASSISTANT_ACTOR_ID
+    _ensure_actor(con, account=account, participant_id=actor_id)
+    _ensure_actor(con, account=account, participant_id=SYSTEM_ACTOR_ID)
     for label, value in [('proposal_id', proposal_id), ('delta_summary', delta_summary),
                          ('impact_summary', impact_summary)]:
         if not isinstance(value, str) or not value.strip():
@@ -145,7 +148,7 @@ def propose_revision(con, *, account='default', project: str, chat: str, proposa
     _append_revision_event(con, proposal=proposal, event_type='revision.proposed', from_state=None,
                            to_state='proposed', action_origin='assistant',
                            note='Structural delta proposed; full artifact has not been expanded.',
-                           actor_id=actor_id or ASSISTANT_ACTOR_ID,
+                           actor_id=actor_id,
                            metadata={'parent_revision_id': parent_revision_id, 'source_ref': source_ref,
                                      'source_relative_path': _source_relative_path,
                                      'source_sha256': base_sha256 if _source_relative_path else None,
