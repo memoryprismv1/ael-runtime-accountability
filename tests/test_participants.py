@@ -140,6 +140,15 @@ class ParticipantLedgerTests(unittest.TestCase):
                 event_type="user_message", provenance="user", content="Before joining",
                 actor_id=person,
             )
+        with self.assertRaisesRegex(ValueError, "not an active participant"):
+            runtime.propose_branch(
+                self.con, account=self.account, project=self.project, chat=self.chat,
+                branch_id="prejoin-branch", label="Not allowed", tradeoff="Not allowed",
+                strategy_key="prejoin", actor_id=person,
+            )
+        self.assertEqual(self.con.execute(
+            "SELECT COUNT(*) FROM branches WHERE branch_id='prejoin-branch'"
+        ).fetchone()[0], 0)
         runtime.join_participant(
             self.con, account=self.account, project=self.project, chat=self.chat,
             participant_id=person, role="participant", actor_id=runtime.SYSTEM_ACTOR_ID,
