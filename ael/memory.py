@@ -53,8 +53,6 @@ def add_memory(con, *, account='default', scope: str, tag: str, claim: str,
                project: str | None = None, source_event_seq: int | None = None, weight: float = 1.0, actor_id: str | None = None) -> str:
     # Store a candidate in a separate local-candidate table. It is not yet an
     # account/project memory and cannot be discovered by other runtime contexts.
-    _validate_memory_attribution(con, account=account, action_origin='assistant',
-                                 actor_id=actor_id or ASSISTANT_ACTOR_ID, on_behalf_of_id=None)
     if scope not in {'account', 'project'}:
         raise ValueError('scope must be account or project')
     if scope == 'project' and not project:
@@ -70,6 +68,8 @@ def add_memory(con, *, account='default', scope: str, tag: str, claim: str,
         raise ValueError('Memory source event must belong to the same account')
     if scope == 'project' and source['project_id'] != project:
         raise ValueError('Project-scoped memory source event must belong to the same project')
+    _validate_memory_attribution(con, account=account, action_origin='assistant',
+                                 actor_id=actor_id or ASSISTANT_ACTOR_ID, on_behalf_of_id=None)
     mid, ts = new_id('MEM'), now()
     con.execute('''INSERT INTO memory_candidates(candidate_id,account_id,scope,project_id,origin_project_id,chat_id,
       tag,claim,source_event_seq,state,usage_status,weight,created_at,updated_at)
@@ -92,12 +92,12 @@ def review_memory_claim(con, memory_id: str, decision: str, *, edited_claim: str
     row = con.execute('SELECT * FROM memory_candidates WHERE candidate_id=?', (memory_id,)).fetchone()
     if not row:
         raise ValueError(f'Unknown local memory candidate {memory_id}')
-    _validate_memory_attribution(con, account=row['account_id'], action_origin='user', actor_id=actor_id,
-                                 on_behalf_of_id=on_behalf_of_id)
     if row['state'] != 'local_candidate':
         raise ValueError('Only a local candidate can undergo claim review')
     if decision not in {'accept', 'edit', 'reject'}:
         raise ValueError('decision must be accept, edit, or reject')
+    _validate_memory_attribution(con, account=row['account_id'], action_origin='user', actor_id=actor_id,
+                                 on_behalf_of_id=on_behalf_of_id)
     old_claim = row['claim']
     ts = now()
     if decision == 'reject':
@@ -158,10 +158,10 @@ def resolve_memory_reference(con, memory_id: str, decision: str, note: str = '',
     row = con.execute('SELECT * FROM memories WHERE memory_id=?', (memory_id,)).fetchone()
     if not row:
         raise ValueError(f'Unknown shared memory reference {memory_id}')
-    _validate_memory_attribution(con, account=row['account_id'], action_origin='user', actor_id=actor_id,
-                                 on_behalf_of_id=on_behalf_of_id)
     if row['stage'] != 'shared_reference':
         raise ValueError('Only a shared read-only reference can be resolved here')
+    _validate_memory_attribution(con, account=row['account_id'], action_origin='user', actor_id=actor_id,
+                                 on_behalf_of_id=on_behalf_of_id)
     stage, state, usage_status, read_perm, influence_perm, legacy_alias = _resolution_target(decision)
     ts = now()
     con.execute("""UPDATE memories SET stage=?,state=?,usage_status=?,read_permission=?,influence_permission=?,
@@ -251,10 +251,10 @@ def set_memory_usage_status(con, memory_id: str, usage_status: str, note: str = 
         return {'memory_id': memory_id, 'usage_status': usage_status, 'shared': False,
                 'influence_permission': False, 'data_retained': True}
 
-    _validate_memory_attribution(con, account=row['account_id'], action_origin='user', actor_id=actor_id,
-                                 on_behalf_of_id=on_behalf_of_id)
     if row['state'] == 'reversed' and usage_status in {'use_when_relevant', 'never_try_again'}:
         raise ValueError('An explicitly reversed memory requires an explicit reactivate action before active use.')
+    _validate_memory_attribution(con, account=row['account_id'], action_origin='user', actor_id=actor_id,
+                                 on_behalf_of_id=on_behalf_of_id)
     active_use = usage_status in {'use_when_relevant', 'never_try_again'}
     stage = 'keepable' if active_use else row['stage']
     state = row['state']
@@ -278,12 +278,15 @@ def change_memory_state(con, memory_id: str, action: str, note: str = '', *, act
     row = con.execute('SELECT * FROM memories WHERE memory_id=?', (memory_id,)).fetchone()
     if not row:
         raise ValueError(f'Unknown memory {memory_id}')
-    _validate_memory_attribution(con, account=row['account_id'], action_origin='user', actor_id=actor_id,
-                                 on_behalf_of_id=on_behalf_of_id)
     if action == 'ratify':
         # Compatibility alias for the explicit second-stage keep decision.
         resolve_memory_reference(con, memory_id, 'keep', note=note, actor_id=actor_id, on_behalf_of_id=on_behalf_of_id)
         return
+    if action not in {'dormant', 'reverse', 'reactivate', 'confirm'}:
+        raise ValueError('action must be dormant, reverse, reactivate, or confirm')
+    origin = 'user' if action in {'reverse', 'reactivate'} else 'system'
+    _validate_memory_attribution(con, account=row['account_id'], action_origin=origin, actor_id=actor_id,
+                                 on_behalf_of_id=on_behalf_of_id)
     if row['stage'] != 'keepable':
         raise ValueError('Only a kept memory can change active/dormant/reversed authority; review and keep it first')
     ts = now()
@@ -313,10 +316,10 @@ def reopen_memory_candidate(con, memory_id: str, note: str = '', *, actor_id: st
     row = con.execute('SELECT * FROM memory_candidates WHERE candidate_id=?', (memory_id,)).fetchone()
     if not row:
         raise ValueError(f'Unknown local memory candidate {memory_id}')
-    _validate_memory_attribution(con, account=row['account_id'], action_origin='user', actor_id=actor_id,
-                                 on_behalf_of_id=on_behalf_of_id)
     if row['state'] != 'rejected':
         raise ValueError('Only a locally rejected candidate can be reopened')
+    _validate_memory_attribution(con, account=row['account_id'], action_origin='user', actor_id=actor_id,
+                                 on_behalf_of_id=on_behalf_of_id)
     con.execute("UPDATE memory_candidates SET state='local_candidate',updated_at=? WHERE candidate_id=?", (now(), memory_id))
     con.commit()
     _append_memory_event(con, memory_id=memory_id, event_type='memory.local_candidate_reopened',
