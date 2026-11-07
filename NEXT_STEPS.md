@@ -1,54 +1,57 @@
 # AEL Runtime — Next Steps / Handoff
 
-**Current build:** V2.8.1 — source-reconciled local prototype with retention/use policy, memory-promotion stages, delta-first delivery and conformance checking, bounded model context, an optional loopback-only Ollama adapter, and an interactive local chat shell.  
-**Current phase:** Final stabilisation closeout of existing behaviour. No new features are in scope unless a minimal change is required to repair a demonstrated defect.  
-**Historical pre-split CI baseline:** [run #388](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/41991737810) passed 132 combined AEL/Q-Batch tests per Python version. On 6 November 2026 the repositories were separated: AEL now runs its 69 runtime/mock-bridge tests; Q-Batch owns its own logger, harnesses and experiment CI. The first post-split AEL workflow run will establish the current CI baseline.  
+**Current build:** V2.8.1 prototype, extended on 7 November 2026 with schema-v3 participants, CSV multi-user workflow fixtures, active-membership enforcement at the canonical event boundary, and chat-scoped external context intervention records.  
+**Current phase:** Validate participant action boundaries and context changes that alter hydrated model input without changing the visible message transcript.  
 **Ownership:** AEL and the source architecture belong to the user. This is an implementation handoff, not a new AEL specification.
 
-## Stabilisation closeout — 5 November 2026
+## Merged work already on main
 
-- The clean-checkout baseline above is confirmed on all three Python versions. The latest code change under test adds only deterministic SQLite failure-injection coverage: a rejected event insert leaves no phantom row, a later valid append succeeds, and the append survives a database reopen. No runtime feature was added in that commit.
-- Q-Batch historical-analysis PR [#22](https://github.com/memoryprismv1/ael-runtime-accountability/pull/22) was merged on 4 November 2026 (merge commit `b87cb320cc53e59357fd334fbdd8b46fab899a2f`). There are currently zero open pull requests.
-- One separate issue remains open: [#1 — Preserve independent assessor ratings in CT evaluation](https://github.com/memoryprismv1/ael-runtime-accountability/issues/1). It expands the scorecard schema and remains outside this stabilisation scope.
-- The `main` branch is currently unprotected (no required status checks configured). This was observed and not changed as part of the documentation handoff.
-- No real-model inference or CT pilot workflow was launched. The real-model workflow remains manual-dispatch only; routine CI is not pilot evidence.
+- **PR [#30](https://github.com/memoryprismv1/ael-runtime-accountability/pull/30)** — participant registry, actor attribution, repeated membership periods and schema-v3 export. Squash commit: `1eb82061768f2b9a84a1e6f066bc3d64c3792406`. CI: 79 tests passed on Python 3.11/3.12/3.13.
+- **PR [#31](https://github.com/memoryprismv1/ael-runtime-accountability/pull/31)** — CSV roster importer and 16-step multi-user workflow fixture. Squash commit: `292fc42bcd7e0f4c930391fe69da17e910072c67`. CI [#442](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42375531422): 82 tests passed on Python 3.11/3.12/3.13.
+- Q-Batch remains the home for shared experiment logging and Q-Batch evidence. No Q-Batch or The Differential files were changed as part of these AEL changes.
 
-## What V2.8.1 added
+## Current branch — participant enforcement and context intervention
 
-- Added `ollama-status` to check a loopback Ollama service and enumerate model names without sending a prompt or opening the AEL database.
-- Added `ael_chat.py` and `START_AEL_CHAT.bat` for interactive multi-turn use; turns persist in the same append-only ledger. `/new` changes chat identity and isolates the next local context.
-- Explicitly excludes model names ending in `:cloud`; this bridge is local-only and requires no paid API token.
-- Added tests for model inventory, unsafe-host refusal, cloud-model refusal, interactive persistence, local audit sidecars, and new-chat isolation.
-- Cleaned conflicting older descriptions about the model adapter's status.
+Branch: `participant-enforcement-context-intervention` (not merged at the time of this handoff).
 
-## Stabilisation work
+### Implemented in this branch
 
-1. **Reproducible baseline:** continue running the existing test suite from clean checkouts and record exact commits, commands, runtime versions, and results. Treat one successful run as a baseline observation, not proof of production readiness.
-2. **Existing artifact integration:** the runtime already uses a workspace-rooted file-backed reader that pins and hashes source bytes and revalidates them during expansion/verification. Existing tests cover changed/disappeared sources, exact CRLF bytes, path escapes, and same-rooted reads. This is implemented behaviour to preserve and stabilise, not an outstanding feature request.
-3. **Existing persistence and migration:** retain the current append-only ledger, database-reopen, context rehydration, legacy migration, and checkpoint-export contracts. Repeated checkpoint exports now retain unique files matching each stored snapshot hash; project/chat identifiers are encoded to keep exports inside the selected directory. Regression tests pass in CI.
-4. **Local model boundary:** the loopback-only Ollama adapter and interactive shell have mock-service coverage. A real local-model inference run remains unverified; it is not required to validate the current persistence, control-flow, or evidence contracts and is not part of this stabilisation cycle. The GitHub pilot is manual-dispatch only. Because the repository is public and its raw audit artifact can reveal the A/B condition, a confidentially blinded pilot is blocked until private evidence storage is available. See SECURITY.md.
-5. **Documentation accuracy:** keep this handoff and `ROADMAP.md` aligned with code and tests. Clearly distinguish implementation that is tested with mocks from behaviour verified against a real local model.
+1. Canonical event appends require an explicitly identified human/AI actor to be an active member of the chat, or of the matching workflow where supplied. The half-open membership interval governs the check.
+2. Reserved fallback actors and explicit system/service actors remain exempt for compatibility and runtime bookkeeping. A participant may self-join; the setup/system path may also provision membership.
+3. Branch proposal validates active membership before writing the branch row, preventing a denied proposal from leaving partial branch state.
+4. `record_context_intervention` appends versioned `context.intervened` events with resource ID/type, actor, authority, source reference, previous/current SHA-256, and exact content.
+5. Hydration selects only the latest context version per resource. Prior versions remain in history; active context receives the newest content. The visible user/assistant message transcript is not rewritten.
+6. The provider-facing input remains the existing allowlist. Intervention provenance/version details are in the audit sidecar, not sent as sidecar data to the model.
 
-## Deferred — not part of the stabilisation phase
+### Tests being added
 
-The following items would add or materially expand capabilities. Do not start them during the current stabilisation window:
+- Identified actor denied before joining, accepted while active, denied after leaving.
+- Denied pre-join branch proposal leaves no branch row.
+- External context intervention changes the model-input hash and content while the user-message transcript remains unchanged.
+- A later resource version supersedes the earlier version in active context while preserving both in history.
+- Unjoined outsider and stale expected previous hash are rejected.
 
-- independent semantic conformance engine beyond the existing scope/conformance checks;
-- automatic lesson extraction and candidate generation;
-- memory walk-back decay/reactivation automation;
-- a new UI/runtime bridge;
-- any new storage or analytical subsystem.
+CI has not yet verified this branch. Do not treat the above as merged or green until the PR workflow completes.
 
-Keep these ideas recorded as deferred possibilities, not active implementation tasks.
+## Known limits / next tests
 
-## Do not do
+1. **Supporting action paths:** audit and enforce membership for operations that write directly to supporting tables rather than through `append_event`, especially memory lifecycle rows, revision lifecycle rows, and checkpoint creation. Branch proposal has an explicit pre-write check already.
+2. **Approval permission:** active membership is not approval authority. Define a separate capability/delegation rule and test an active participant with no approval permission attempting to approve. Do not infer permission from a display name or role label alone.
+3. **Context scope:** current intervention support is account/project/chat scoped. It does not yet propagate a project instruction or uploaded context file into multiple chats. A host adapter must provide trusted resource identity, actor ID, source reference, and correlate the event with the actual model-input hash.
+4. **Host identity source:** use the platform's authenticated participant list when available. Do not build a replacement multi-user UI unless a host integration demonstrably requires one.
+5. **Real-model behavior:** mock/fixture tests establish ledger and model-input construction invariants, not the behavior of an actual hosted platform or local model.
 
-- Do not describe this as the complete AEL runtime.
-- Do not claim a real local-model inference was run unless an actual run is captured and verified.
-- Do not introduce a paid API requirement merely to test local persistence or control-flow mechanics.
-- Do not treat source essays or the Evidence Pack as subordinate to implementation convenience.
-- Do not infer source truth from model self-report.
-- Do not delete retained history because a record is currently irrelevant.
-- Do not expand a full artifact before the exact delta is explicitly accepted.
-- Do not mark a candidate release-ready until structural conformance passes.
-- Do not add new features during stabilisation to work around an uninvestigated defect.
+## Repository boundaries
+
+- AEL runtime activity and context-intervention receipts stay in AEL.
+- Experiment execution and cross-run comparison stay in Q-Batch.
+- The Differential remains reference material only unless a separate, justified write is approved.
+
+## Guardrails
+
+- Do not call this the complete AEL runtime.
+- Do not claim the live ChatGPT shared-project or hosted-chat behavior was reproduced. The fixture models an AEL-side context change only.
+- Do not equate membership or a role label with approval permission.
+- Do not claim a real local-model inference was run unless captured and verified.
+- Do not infer who read or understood a message from presence alone.
+- Do not delete old context versions or participant periods; retain their event history.
