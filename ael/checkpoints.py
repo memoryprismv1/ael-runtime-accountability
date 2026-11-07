@@ -5,12 +5,17 @@ import json
 import sqlite3
 from pathlib import Path
 from urllib.parse import quote
-from .config import new_id, now
+from .config import new_id, now, SYSTEM_ACTOR_ID
+from .ledger import _ensure_actor
 from .context import hydrate_payload, render_markdown
 
-def checkpoint(con, *, account='default', project: str, chat: str, out_dir: str | Path) -> tuple[Path, Path]:
+def checkpoint(con, *, account='default', project: str, chat: str, out_dir: str | Path,
+               actor_id: str | None = None, recorded_by_id: str = SYSTEM_ACTOR_ID) -> tuple[Path, Path]:
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     payload = hydrate_payload(con, account=account, project=project, chat=chat)
+    created_by_id = actor_id or SYSTEM_ACTOR_ID
+    _ensure_actor(con, account=account, participant_id=created_by_id)
+    _ensure_actor(con, account=account, participant_id=recorded_by_id)
     # A checkpoint row is a retained snapshot reference. Its exported files
     # must therefore be unique: reusing project/chat-only paths would let a
     # later export overwrite the bytes (and hash) of an earlier checkpoint.
@@ -31,8 +36,8 @@ def checkpoint(con, *, account='default', project: str, chat: str, out_dir: str 
         if loaded['last_event_seq'] != payload['last_event_seq']:
             raise RuntimeError('Checkpoint event sequence verification failed')
         sha = hashlib.sha256(saved_raw.encode('utf-8')).hexdigest()
-        con.execute('''INSERT INTO checkpoints(checkpoint_id,created_at,account_id,project_id,chat_id,last_event_seq,markdown_path,json_path,snapshot_sha256)
-          VALUES(?,?,?,?,?,?,?,?,?)''', (checkpoint_id, now(), account, project, chat, payload['last_event_seq'], str(md), str(js), sha))
+        con.execute('''INSERT INTO checkpoints(checkpoint_id,created_at,account_id,project_id,chat_id,last_event_seq,markdown_path,json_path,snapshot_sha256,created_by_id,recorded_by_id)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?)''', (checkpoint_id, now(), account, project, chat, payload['last_event_seq'], str(md), str(js), sha, created_by_id, recorded_by_id))
         con.commit()
     except Exception:
         # A retained checkpoint row is the index for both exported files.

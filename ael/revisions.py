@@ -6,7 +6,8 @@ import json
 import sqlite3
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
-from .config import new_id, now
+from .config import new_id, now, UNKNOWN_USER_ACTOR_ID, UNKNOWN_ACTOR_ID, ASSISTANT_ACTOR_ID, SYSTEM_ACTOR_ID
+from .ledger import _ensure_actor
 from .ledger import append_event
 from .context import hydrate_payload
 from .paths import read_workspace_artifact, WorkspaceArtifactError
@@ -53,13 +54,21 @@ def _revision_state(con, proposal_id: str) -> str:
 
 def _append_revision_event(con, *, proposal: dict, event_type: str, from_state: str | None,
                            to_state: str, action_origin: str, note: str = '',
-                           metadata: dict | None = None) -> dict:
+                           metadata: dict | None = None, actor_id: str | None = None,
+                           on_behalf_of_id: str | None = None,
+                           recorded_by_id: str = SYSTEM_ACTOR_ID) -> dict:
     if to_state not in REVISION_STATES:
         raise ValueError(f'Invalid revision state {to_state!r}')
+    resolved_actor = actor_id or (UNKNOWN_USER_ACTOR_ID if action_origin == 'user' else ASSISTANT_ACTOR_ID if action_origin == 'assistant' else UNKNOWN_ACTOR_ID if action_origin == 'external' else SYSTEM_ACTOR_ID)
+    _ensure_actor(con, account=proposal['account_id'], participant_id=resolved_actor)
+    _ensure_actor(con, account=proposal['account_id'], participant_id=recorded_by_id)
+    if on_behalf_of_id and not con.execute('SELECT 1 FROM participants WHERE account_id=? AND participant_id=?', (proposal['account_id'], on_behalf_of_id)).fetchone():
+        raise ValueError(f'on_behalf_of_id is not registered: {on_behalf_of_id}')
     cur = con.execute('''INSERT INTO revision_events(event_id,proposal_id,occurred_at,event_type,from_state,to_state,
-      proposal_hash,action_origin,note,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?)''',
+      proposal_hash,action_origin,note,metadata_json,actor_id,on_behalf_of_id,recorded_by_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
       (new_id('REV-EVT'), proposal['proposal_id'], now(), event_type, from_state, to_state,
-       proposal['proposal_hash'], action_origin, note, json.dumps(metadata or {}, ensure_ascii=False)))
+       proposal['proposal_hash'], action_origin, note, json.dumps(metadata or {}, ensure_ascii=False),
+       resolved_actor, on_behalf_of_id, recorded_by_id))
     con.commit()
     return dict(con.execute('SELECT * FROM revision_events WHERE seq=?', (cur.lastrowid,)).fetchone())
 
@@ -70,8 +79,11 @@ def propose_revision(con, *, account='default', project: str, chat: str, proposa
                      base_sha256: str | None = None, source_ref: str | None = None,
                      parent_revision_id: str | None = None,
                      _source_relative_path: str | None = None,
-                     _source_byte_length: int | None = None) -> dict:
+                     _source_byte_length: int | None = None, actor_id: str | None = None) -> dict:
     """Create an immutable, reviewable delta proposal. No full replacement artifact is generated or stored here."""
+    actor_id = actor_id or ASSISTANT_ACTOR_ID
+    _ensure_actor(con, account=account, participant_id=actor_id)
+    _ensure_actor(con, account=account, participant_id=SYSTEM_ACTOR_ID)
     for label, value in [('proposal_id', proposal_id), ('delta_summary', delta_summary),
                          ('impact_summary', impact_summary)]:
         if not isinstance(value, str) or not value.strip():
@@ -136,6 +148,7 @@ def propose_revision(con, *, account='default', project: str, chat: str, proposa
     _append_revision_event(con, proposal=proposal, event_type='revision.proposed', from_state=None,
                            to_state='proposed', action_origin='assistant',
                            note='Structural delta proposed; full artifact has not been expanded.',
+                           actor_id=actor_id,
                            metadata={'parent_revision_id': parent_revision_id, 'source_ref': source_ref,
                                      'source_relative_path': _source_relative_path,
                                      'source_sha256': base_sha256 if _source_relative_path else None,
@@ -192,7 +205,8 @@ def revision_history(con, proposal_id: str, *, account: str | None = None,
 
 def decide_revision(con, proposal_id: str, decision: str, *, note: str = '',
                     account: str | None = None, project: str | None = None,
-                    chat: str | None = None) -> dict:
+                    chat: str | None = None, actor_id: str | None = None,
+                    on_behalf_of_id: str | None = None) -> dict:
     """Apply an explicit decision. Acceptance binds to the immutable proposal hash."""
     if decision not in {'accept', 'reject'}:
         raise ValueError("decision must be 'accept' or 'reject'")
@@ -203,12 +217,14 @@ def decide_revision(con, proposal_id: str, decision: str, *, note: str = '',
             raise ValueError(f'Cannot accept revision in state {state!r}; a fresh proposal is required')
         ev = _append_revision_event(con, proposal=proposal, event_type='revision.accepted', from_state=state,
                                     to_state='accepted_for_expansion', action_origin='user', note=note,
-                                    metadata={'approved_proposal_hash': proposal['proposal_hash']})
+                                    metadata={'approved_proposal_hash': proposal['proposal_hash']},
+                                    actor_id=actor_id, on_behalf_of_id=on_behalf_of_id)
         append_event(con, account=proposal['account_id'], project=proposal['project_id'], chat=proposal['chat_id'],
                      event_type='revision.accepted', provenance='user', authority='user_direct',
                      inference_kind='decision', truth_status='not_applicable',
                      source_ref=f"revision:{proposal_id}:{proposal['proposal_hash']}",
-                     content=f"User accepted structural delta {proposal_id} for expansion.",
+                     actor_id=actor_id, on_behalf_of_id=on_behalf_of_id,
+                     content=f"Participant approved structural delta {proposal_id} for expansion.",
                      metadata={'proposal_hash': proposal['proposal_hash'], 'artifact_id': proposal['artifact_id'],
                                'base_version': proposal['base_version'], 'decision_note': note})
         return {'proposal_id': proposal_id, 'state': 'accepted_for_expansion',
@@ -221,14 +237,16 @@ def decide_revision(con, proposal_id: str, decision: str, *, note: str = '',
         raise ValueError('An expanded artifact already exists; create a new proposal to revise it')
     _append_revision_event(con, proposal=proposal, event_type='revision.rejected', from_state=state,
                            to_state='rejected', action_origin='user', note=note,
-                           metadata={'rejected_proposal_hash': proposal['proposal_hash']})
+                           metadata={'rejected_proposal_hash': proposal['proposal_hash']},
+                           actor_id=actor_id, on_behalf_of_id=on_behalf_of_id)
     # Preserve only the user's correction signal in the active event ledger; the rejected delta lives in the
     # separate immutable revision store and is not loaded into active model context.
     append_event(con, account=proposal['account_id'], project=proposal['project_id'], chat=proposal['chat_id'],
                  event_type='revision.rejected', provenance='user', authority='user_direct',
                  inference_kind='decision', truth_status='not_applicable',
                  source_ref=f"revision:{proposal_id}:{proposal['proposal_hash']}",
-                 content=note or 'User rejected the proposed structural delta.',
+                 actor_id=actor_id, on_behalf_of_id=on_behalf_of_id,
+                 content=note or 'Participant rejected the proposed structural delta.',
                  metadata={'proposal_id': proposal_id, 'proposal_hash': proposal['proposal_hash'],
                            'artifact_id': proposal['artifact_id'], 'base_version': proposal['base_version']})
     reset = _append_revision_event(con, proposal=proposal, event_type='revision.reset', from_state='rejected',
@@ -595,7 +613,7 @@ def _store_revision_verification(con, proposal: dict, output: dict, report: dict
                      inference_kind='process_event', truth_status='not_applicable',
                      source_ref=f'revision-conformance:{check_id}',
                      content=correction or 'Expanded artifact did not conform to its accepted delta; a fresh proposal is required.',
-                     metadata={'proposal_id': proposal_id, 'proposal_hash': proposal['proposal_hash'],
+                  metadata={'proposal_id': proposal_id, 'proposal_hash': proposal['proposal_hash'],
                                'check_id': check_id, **source_meta})
     report.update({'check_id': check_id, 'proposal_id': proposal_id, 'proposal_hash': proposal['proposal_hash'],
                    'output_id': output['output_id'], 'status': status, 'passed': bool(report.get('passed')),

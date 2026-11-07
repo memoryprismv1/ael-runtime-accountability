@@ -14,6 +14,17 @@ VALID_INFERENCE_KINDS = {
 }
 VALID_TRUTH_STATUSES = {'unverified', 'verified', 'disputed', 'not_applicable'}
 VALID_USAGE_STATUSES = {'use_when_relevant', 'never_try_again', 'maybe_later', 'not_pertinent_now'}
+
+# Stable participant IDs used when older single-user callers do not yet supply
+# an authenticated actor. Unknown is explicit; it is never silently attributed
+# to a named person.
+UNKNOWN_USER_ACTOR_ID = 'ael:actor:unknown-user'
+UNKNOWN_EXTERNAL_ACTOR_ID = 'ael:actor:unknown-external'
+UNKNOWN_ACTOR_ID = 'ael:actor:unattributed'
+ASSISTANT_ACTOR_ID = 'ael:agent:assistant'
+SYSTEM_ACTOR_ID = 'ael:system:runtime'
+VALID_PARTICIPANT_TYPES = {'human', 'ai_agent', 'service', 'system', 'unknown'}
+VALID_IDENTITY_SOURCES = {'organisation', 'self_generated', 'provider', 'system', 'unattributed'}
 BRANCH_REUSE_STATUSES = {'never_try_again', 'maybe_later', 'not_pertinent_now'}
 
 

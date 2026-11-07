@@ -2,6 +2,8 @@
 from __future__ import annotations
 import sqlite3
 from pathlib import Path
+from datetime import datetime, timezone
+from .config import SYSTEM_ACTOR_ID, ASSISTANT_ACTOR_ID, UNKNOWN_USER_ACTOR_ID, UNKNOWN_EXTERNAL_ACTOR_ID, UNKNOWN_ACTOR_ID
 
 SCHEMA = r'''
 PRAGMA foreign_keys = ON;
@@ -21,12 +23,51 @@ CREATE TABLE IF NOT EXISTS events (
   content TEXT NOT NULL,
   branch_id TEXT,
   strategy_key TEXT,
-  metadata_json TEXT NOT NULL DEFAULT '{}'
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  actor_id TEXT NOT NULL DEFAULT 'ael:actor:unattributed',
+  on_behalf_of_id TEXT,
+  recorded_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime'
 );
 CREATE INDEX IF NOT EXISTS ix_events_scope ON events(account_id, project_id, chat_id, seq);
 CREATE INDEX IF NOT EXISTS ix_events_branch ON events(branch_id, seq);
 CREATE TRIGGER IF NOT EXISTS events_no_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'event ledger is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT, 'event ledger is append-only'); END;
+CREATE TABLE IF NOT EXISTS participants (
+  account_id TEXT NOT NULL,
+  participant_id TEXT NOT NULL,
+  participant_type TEXT NOT NULL CHECK(participant_type IN ('human','ai_agent','service','system','unknown')),
+  identity_source TEXT NOT NULL CHECK(identity_source IN ('organisation','self_generated','provider','system','unattributed')),
+  issuer TEXT,
+  external_id TEXT,
+  display_name TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  PRIMARY KEY(account_id, participant_id),
+  UNIQUE(account_id, identity_source, issuer, external_id)
+);
+CREATE INDEX IF NOT EXISTS ix_participants_name ON participants(account_id, display_name);
+CREATE TABLE IF NOT EXISTS participation_periods (
+  participation_period_id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  chat_id TEXT NOT NULL,
+  workflow_id TEXT,
+  participant_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'participant',
+  started_by_event_id TEXT NOT NULL,
+  effective_from_seq INTEGER NOT NULL,
+  ended_by_event_id TEXT,
+  effective_until_seq INTEGER,
+  created_at TEXT NOT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  CHECK(effective_from_seq > 0),
+  CHECK(effective_until_seq IS NULL OR effective_until_seq > effective_from_seq),
+  FOREIGN KEY(account_id, participant_id) REFERENCES participants(account_id, participant_id)
+);
+CREATE INDEX IF NOT EXISTS ix_participation_scope ON participation_periods(account_id, project_id, chat_id, effective_from_seq, effective_until_seq);
+CREATE INDEX IF NOT EXISTS ix_participation_actor ON participation_periods(account_id, participant_id, effective_from_seq);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_participation_active ON participation_periods(account_id, project_id, chat_id, ifnull(workflow_id, ''), participant_id) WHERE effective_until_seq IS NULL;
 CREATE TABLE IF NOT EXISTS branches (
   branch_id TEXT NOT NULL,
   account_id TEXT NOT NULL,
@@ -89,7 +130,10 @@ CREATE TABLE IF NOT EXISTS memory_events (
   from_usage_status TEXT,
   to_usage_status TEXT,
   action_origin TEXT NOT NULL,
-  note TEXT NOT NULL DEFAULT ''
+  note TEXT NOT NULL DEFAULT '',
+  actor_id TEXT NOT NULL DEFAULT 'ael:actor:unattributed',
+  on_behalf_of_id TEXT,
+  recorded_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime'
 );
 CREATE INDEX IF NOT EXISTS ix_memory_events_id ON memory_events(memory_id, seq);
 CREATE TRIGGER IF NOT EXISTS memory_events_no_update BEFORE UPDATE ON memory_events BEGIN SELECT RAISE(ABORT, 'memory event history is append-only'); END;
@@ -103,7 +147,9 @@ CREATE TABLE IF NOT EXISTS checkpoints (
   last_event_seq INTEGER NOT NULL,
   markdown_path TEXT NOT NULL,
   json_path TEXT NOT NULL,
-  snapshot_sha256 TEXT NOT NULL
+  snapshot_sha256 TEXT NOT NULL,
+  created_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime',
+  recorded_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime'
 );CREATE TABLE IF NOT EXISTS revision_proposals (
   proposal_id TEXT PRIMARY KEY,
   account_id TEXT NOT NULL,
@@ -138,6 +184,9 @@ CREATE TABLE IF NOT EXISTS revision_events (
   action_origin TEXT NOT NULL CHECK(action_origin IN ('user','assistant','external','system')),
   note TEXT NOT NULL DEFAULT '',
   metadata_json TEXT NOT NULL DEFAULT '{}',
+  actor_id TEXT NOT NULL DEFAULT 'ael:actor:unattributed',
+  on_behalf_of_id TEXT,
+  recorded_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime',
   FOREIGN KEY(proposal_id) REFERENCES revision_proposals(proposal_id)
 );
 CREATE INDEX IF NOT EXISTS ix_revision_events_proposal ON revision_events(proposal_id, seq);
@@ -179,6 +228,136 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     con.execute('PRAGMA foreign_keys = ON')
     con.executescript(SCHEMA)
+    checkpoint_cols = {r['name'] for r in con.execute('PRAGMA table_info(checkpoints)').fetchall()}
+    if 'created_by_id' not in checkpoint_cols:
+        con.execute("ALTER TABLE checkpoints ADD COLUMN created_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime'")
+    if 'recorded_by_id' not in checkpoint_cols:
+        con.execute("ALTER TABLE checkpoints ADD COLUMN recorded_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime'")
+    # Actor attribution is additive. Older rows receive explicit unattributed
+    # actor IDs rather than guessed identities.
+    column_migrations = {
+        'events': [
+            ("actor_id", "TEXT NOT NULL DEFAULT 'ael:actor:unattributed'"),
+            ("on_behalf_of_id", "TEXT"),
+            ("recorded_by_id", "TEXT NOT NULL DEFAULT 'ael:system:runtime'"),
+        ],
+        'memory_events': [
+            ("actor_id", "TEXT NOT NULL DEFAULT 'ael:actor:unattributed'"),
+            ("on_behalf_of_id", "TEXT"),
+            ("recorded_by_id", "TEXT NOT NULL DEFAULT 'ael:system:runtime'"),
+        ],
+        'revision_events': [
+            ("actor_id", "TEXT NOT NULL DEFAULT 'ael:actor:unattributed'"),
+            ("on_behalf_of_id", "TEXT"),
+            ("recorded_by_id", "TEXT NOT NULL DEFAULT 'ael:system:runtime'"),
+        ],
+    }
+    for table, columns in column_migrations.items():
+        existing = {r['name'] for r in con.execute(f'PRAGMA table_info({table})').fetchall()}
+        for column, declaration in columns:
+            if column not in existing:
+                con.execute(f'ALTER TABLE {table} ADD COLUMN {column} {declaration}')
+    # Seed reserved actors and any actor IDs already present in a database that
+    # was created by an intermediate build. Their identity remains explicitly
+    # unknown until an authorised identity source resolves it.
+    reserved = [
+        ('ael:actor:unknown-user', 'unknown', 'unattributed', 'Unattributed user'),
+        ('ael:actor:unknown-external', 'unknown', 'unattributed', 'Unattributed external actor'),
+        ('ael:actor:unattributed', 'unknown', 'unattributed', 'Unattributed actor'),
+        ('ael:agent:assistant', 'ai_agent', 'system', 'AEL assistant agent'),
+        ('ael:system:runtime', 'system', 'system', 'AEL runtime'),
+    ]
+    stamp = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    for participant_id, participant_type, identity_source, display_name in reserved:
+        con.execute(
+            """INSERT OR IGNORE INTO participants
+               (account_id,participant_id,participant_type,identity_source,display_name,created_at,updated_at)
+               VALUES('default',?,?,?,?,?,?)""",
+            (participant_id, participant_type, identity_source, display_name, stamp, stamp)
+        )
+    for row in con.execute("SELECT DISTINCT account_id, actor_id FROM events WHERE actor_id IS NOT NULL").fetchall():
+        con.execute(
+            """INSERT OR IGNORE INTO participants
+               (account_id,participant_id,participant_type,identity_source,display_name,created_at,updated_at)
+               VALUES(?,?,'unknown','unattributed',?,?,?)""",
+            (row['account_id'], row['actor_id'], row['actor_id'], stamp, stamp)
+        )
+    for row in con.execute("SELECT DISTINCT account_id, recorded_by_id FROM events WHERE recorded_by_id IS NOT NULL").fetchall():
+        con.execute(
+            """INSERT OR IGNORE INTO participants
+               (account_id,participant_id,participant_type,identity_source,display_name,created_at,updated_at)
+               VALUES(?,?,'system','system',?,?,?)""",
+            (row['account_id'], row['recorded_by_id'], row['recorded_by_id'], stamp, stamp)
+        )
+    legacy_actor_queries = [
+        """SELECT DISTINCT account_id, created_by_id AS participant_id, 'unknown' AS participant_type,
+                  'unattributed' AS identity_source FROM checkpoints
+           WHERE created_by_id IS NOT NULL
+           UNION SELECT DISTINCT account_id, recorded_by_id, 'system', 'system' FROM checkpoints
+           WHERE recorded_by_id IS NOT NULL""",
+
+        """SELECT DISTINCT m.account_id, me.actor_id AS participant_id, 'unknown' AS participant_type,
+                  'unattributed' AS identity_source
+           FROM memory_events me JOIN memories m ON m.memory_id=me.memory_id
+           WHERE me.actor_id IS NOT NULL
+           UNION SELECT DISTINCT m.account_id, me.recorded_by_id, 'system', 'system'
+           FROM memory_events me JOIN memories m ON m.memory_id=me.memory_id
+           WHERE me.recorded_by_id IS NOT NULL
+           UNION SELECT DISTINCT m.account_id, me.on_behalf_of_id, 'unknown', 'unattributed'
+           FROM memory_events me JOIN memories m ON m.memory_id=me.memory_id
+           WHERE me.on_behalf_of_id IS NOT NULL
+           UNION SELECT DISTINCT c.account_id, me.actor_id, 'unknown', 'unattributed'
+           FROM memory_events me JOIN memory_candidates c ON c.candidate_id=me.memory_id
+           WHERE me.actor_id IS NOT NULL
+           UNION SELECT DISTINCT c.account_id, me.recorded_by_id, 'system', 'system'
+           FROM memory_events me JOIN memory_candidates c ON c.candidate_id=me.memory_id
+           WHERE me.recorded_by_id IS NOT NULL
+           UNION SELECT DISTINCT c.account_id, me.on_behalf_of_id, 'unknown', 'unattributed'
+           FROM memory_events me JOIN memory_candidates c ON c.candidate_id=me.memory_id
+           WHERE me.on_behalf_of_id IS NOT NULL
+           UNION SELECT DISTINCT p.account_id, re.actor_id, 'unknown', 'unattributed'
+           FROM revision_events re JOIN revision_proposals p ON p.proposal_id=re.proposal_id
+           WHERE re.actor_id IS NOT NULL
+           UNION SELECT DISTINCT p.account_id, re.recorded_by_id, 'system', 'system'
+           FROM revision_events re JOIN revision_proposals p ON p.proposal_id=re.proposal_id
+           WHERE re.recorded_by_id IS NOT NULL
+           UNION SELECT DISTINCT p.account_id, re.on_behalf_of_id, 'unknown', 'unattributed'
+           FROM revision_events re JOIN revision_proposals p ON p.proposal_id=re.proposal_id
+           WHERE re.on_behalf_of_id IS NOT NULL""",
+    ]
+    for query in legacy_actor_queries:
+        for row in con.execute(query).fetchall():
+            con.execute(
+                """INSERT OR IGNORE INTO participants
+                   (account_id,participant_id,participant_type,identity_source,display_name,created_at,updated_at)
+                   VALUES(?,?,?,?,?,?,?)""",
+                (row['account_id'], row['participant_id'], row['participant_type'],
+                 row['identity_source'], row['participant_id'], stamp, stamp)
+            )
+    # Preserve the correct built-in types even if those IDs were first seen
+    # through a legacy row whose new attribution columns defaulted to unknown.
+    builtins = [
+        (SYSTEM_ACTOR_ID, 'system', 'system', 'AEL runtime'),
+        (ASSISTANT_ACTOR_ID, 'ai_agent', 'system', 'AEL assistant agent'),
+        (UNKNOWN_USER_ACTOR_ID, 'unknown', 'unattributed', 'Unattributed user'),
+        (UNKNOWN_EXTERNAL_ACTOR_ID, 'unknown', 'unattributed', 'Unattributed external actor'),
+        (UNKNOWN_ACTOR_ID, 'unknown', 'unattributed', 'Unattributed actor'),
+    ]
+    account_rows = con.execute("SELECT DISTINCT account_id FROM events UNION SELECT DISTINCT account_id FROM memories UNION SELECT DISTINCT account_id FROM revision_proposals UNION SELECT DISTINCT account_id FROM checkpoints").fetchall()
+    for account_row in account_rows:
+        for participant_id, participant_type, identity_source, display_name in builtins:
+            con.execute(
+                """INSERT INTO participants
+                   (account_id,participant_id,participant_type,identity_source,display_name,created_at,updated_at)
+                   VALUES(?,?,?,?,?,?,?)
+                   ON CONFLICT(account_id,participant_id) DO UPDATE SET
+                     participant_type=excluded.participant_type,
+                     identity_source=excluded.identity_source,
+                     display_name=excluded.display_name,
+                     updated_at=excluded.updated_at""",
+                (account_row['account_id'], participant_id, participant_type,
+                 identity_source, display_name, stamp, stamp)
+            )
     # Backward-compatible migration from early V2 prototypes. Existing pending
     # memories were already shared as read-only references; existing active or
     # walk-back memories had already been promoted to account/project authority.

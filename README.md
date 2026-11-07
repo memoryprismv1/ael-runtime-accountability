@@ -32,7 +32,8 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 
 ## Existing implemented primitives
 
-- Append-only event ledger with separate provenance, decision authority, inference kind, truth status and source reference.
+- Append-only event ledger with separate provenance, decision authority, inference kind, truth status, source reference, actor, represented principal and recorder.
+- Multi-user participant registry with organisation-issued or generated stable IDs, repeated participation periods, role/scope boundaries, and participant-at-event reconstruction.
 - Active context as a disposable projection, distinct from full history.
 - Branch records with trade-offs; rejected output stays historical and is excluded from active context.
 - Pivot-with-reset and chat-identity transition hydration.
@@ -45,6 +46,10 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 - Delta-first revision proposal, decision, reset/re-plan, and post-expansion textual conformance. New file-backed revisions use a shared workspace-rooted reader that hashes exact bytes and revalidates the pinned source during expansion and verification; existing caller-supplied APIs remain compatible.
 - Strict provider-input allowlist plus optional loopback-only local Ollama adapter.
 
+## Multi-user ledger format
+
+The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format and migration rules.
+
 ## Tests
 
 Run from this directory:
@@ -53,7 +58,7 @@ Run from this directory:
 python -m unittest discover -s tests -v
 ```
 
-**69 AEL tests** cover the runtime and mocked local bridge (63 runtime tests and 6 bridge tests). The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
+**79 AEL tests** cover the runtime and mocked local bridge (63 runtime tests and 6 bridge tests). The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
 
 ## Quick start
 
