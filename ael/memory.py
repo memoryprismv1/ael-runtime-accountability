@@ -287,7 +287,7 @@ def reopen_memory_candidate(con, memory_id: str, note: str = '', *, actor_id: st
     _append_memory_event(con, memory_id=memory_id, event_type='memory.local_candidate_reopened',
       from_state='rejected', to_state='local_candidate', from_stage='local_candidate', to_stage='local_candidate',
       action_origin='user', note=json.dumps({'note': note, 'claim_retained': True}, ensure_ascii=False),
-      from_usage_status=row['usage_status'], to_usage_status=row['usage_status'])
+      from_usage_status=row['usage_status'], to_usage_status=row['usage_status'], actor_id=actor_id, on_behalf_of_id=on_behalf_of_id)
     return {'memory_id': memory_id, 'state': 'local_candidate', 'usage_status': row['usage_status'],
             'shared': False, 'influence_permission': False, 'data_retained': True}
 
