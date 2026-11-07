@@ -167,9 +167,17 @@ Where an older event has no actor identity, the migration uses an explicit unatt
 
 New multi-user integrations should always supply the authenticated participant ID. The fallbacks are compatibility markers, not acceptable substitutes for identity-aware production workflows.
 
+## Who may act
+
+For canonical events, explicitly identified human and AI participants must have an active participation period in the chat (or matching workflow scope) when they act. The membership check uses the same half-open sequence boundaries as reconstruction: a participant cannot act before the join boundary or after the leave boundary. A person may self-join; the initial/system provisioning path may also add a participant. Reserved compatibility actors and explicit system/service identities remain exempt for runtime bookkeeping and legacy single-user workflows.
+
+This is a membership check, not an approval policy. A manager being present does not grant approval authority, and a person holding a role label such as `approver` is not automatically authorised to approve. The canonical event still records `authority` separately. A role/capability policy must be defined and checked independently before treating membership as permission.
+
+The current enforcement is applied at the canonical event append boundary and before branch-proposal writes. Supporting lifecycle paths that write directly to their own tables (for example, memory lifecycle rows and checkpoint creation) still need a complete pass to ensure they cannot bypass the same membership rule.
+
 ## Current limits
 
 - AEL stores the identity references and membership intervals; the host application is responsible for authenticating identities and supplying trustworthy IDs.
 - A participation interval establishes membership in the chain, not message-level delivery, reading, or comprehension.
 - The runtime does not infer responsibility or culpability from presence. Actor, authority, role, scope, and available evidence must be evaluated separately.
-- The SQLite prototype does not add foreign-key constraints from every actor field to the participant registry; runtime validation rejects unregistered explicit actors.
+- The SQLite prototype does not add foreign-key constraints from every actor field to the participant registry; runtime validation rejects unregistered actors and enforces active membership on canonical chat events. Direct supporting-table lifecycle paths are not yet fully covered.
