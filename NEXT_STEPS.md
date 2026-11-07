@@ -1,35 +1,50 @@
 # AEL Runtime — Next Steps / Handoff
 
 **Current main:** `301fb4bec68829460509851d83d2e225a859faad`  
-**Current phase:** Close the remaining action-authority gap and decide the real host/context scope.  
+**Current phase:** Preserve the accountability-first scope; examine the action gate; explore controlled reuse of prior knowledge.  
 **Latest CI:** PR [#32](https://github.com/memoryprismv1/ael-runtime-accountability/pull/32), run [#445](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42377856668), passed 85 tests on Python 3.11, 3.12 and 3.13.
+
+## Scope clarification — 7 November 2026
+
+See [AEL_SCOPE_AND_CONTEXT_REUSE.md](AEL_SCOPE_AND_CONTEXT_REUSE.md). AEL is primarily an **accountability mechanism**, with additional benefits of giving the user optionality and thinking space. It may help people reason about a workflow; it does not own or manage the workflow. Record and expose evidence; do not become the workflow orchestrator, organisation access-control service, or automatic context-distribution service.
+
+### Important review: PR #32's membership gate
+
+The merged implementation rejects identified human/AI actors who append canonical events outside an active participation period. This is now **under design review**, not an unquestioned target to extend. An attempted action outside the recorded participation period may itself be accountability evidence. The current rejection gate could hide that attempt if it leaves no record.
+
+Review whether AEL should record an attributed action attempt and flag its relationship to the participation history, instead of policing the workflow by refusing to record it. Do not expand this into general workflow enforcement before resolving that question. Existing code remains unchanged pending a separate tested decision.
 
 ## Merged and recorded
 
 - [PR #30](https://github.com/memoryprismv1/ael-runtime-accountability/pull/30) — multi-user participant registry and actor attribution. Merge commit: `1eb82061768f2b9a84a1e6f066bc3d64c3792406`.
-- [PR #31](https://github.com/memoryprismv1/ael-runtime-accountability/pull/31) — CSV roster importer and 16-step multi-user workflow fixture. Merge commit: `292fc42bcd7e0f4c930391fe69da17e910072c67`. CI [#442](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42375531422): 82 tests on all three Python versions.
-- [PR #32](https://github.com/memoryprismv1/ael-runtime-accountability/pull/32) — active membership enforcement at canonical event append, branch-proposal pre-write check, and chat-scoped external context intervention. Merge commit: `301fb4bec68829460509851d83d2e225a859faad`. CI [#445](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42377856668): 85 tests on all three Python versions.
+- [PR #31](https://github.com/memoryprismv1/ael-runtime-accountability/pull/31) — CSV participant roster importer and simulated multi-party scenario. Merge commit: `292fc42bcd7e0f4c930391fe69da17e910072c67`. The fixture is a test of attribution and presence, not an AEL workflow-management product.
+- [PR #32](https://github.com/memoryprismv1/ael-runtime-accountability/pull/32) — canonical active-membership check and chat-scoped context intervention. Merge commit: `301fb4bec68829460509851d83d2e225a859faad`. CI [#445](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42377856668): 85 tests on all three Python versions.
 
-See [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) for the chronology, reasons, code changes, verification and retained limits.
+## Next design work
 
-## Next work
+1. **Evidence across supporting operations:** Review memory lifecycle, revision decisions, checkpoints and other AEL operations for complete actor/provenance/source/version receipts. The purpose is to avoid accountability blind spots, not enforce a global workflow policy.
+2. **Attempt versus acceptance:** Decide how AEL records attempted, rejected, unauthorised, or out-of-period actions without silently erasing evidence. Keep recorded authority separate from any host-system authorisation result.
+3. **Controlled context reuse:** Investigate how a new, similar project can selectively reuse prior methods and lessons without importing entire old conversations or exposing project-sensitive material.
+4. **Reuse and sensitivity boundaries:** Distinguish organisation-wide reusable knowledge, potentially reusable project learning, and project-sensitive information. Similarity does not prove applicability; company ownership does not imply universal access.
+5. **Provenance on reused knowledge:** Preserve the source project/item, version/hash, applicability conditions, sensitivity/reuse restriction, selection decision, and whether/how it influenced the target model input.
+6. **Host boundary:** The host/organisation remains responsible for authentication, access control and retrieval permissions. AEL can record origins, choices and model-context use; it should not administer organisation permissions or propagate every context item across chats.
 
-1. **Close enforcement gaps:** audit direct supporting-table writes, especially memory lifecycle actions and checkpoint creation. Make sure a named human/AI actor cannot use those paths while outside the relevant participation period.
-2. **Separate membership from authority:** define a capability/delegation rule and test an active participant who lacks approval authority. Do not grant permission merely because someone is present or has a role label.
-3. **Clarify context scope:** decide whether project-level instructions/files should affect multiple chats and how their versions are correlated. Current interventions are account/project/chat scoped only.
-4. **Host adapter:** use a real authenticated participant roster and join/leave feed when available. No replacement multi-user UI is needed unless the host demands it.
-5. **External behavior evidence:** correlate AEL context events with the exact prompt/context hash delivered to a real model. Current fixture tests are not proof of live ChatGPT behaviour or real-model quality.
+## Reuse direction — prefer selective pull, not blanket propagation
 
-## Boundaries
+A new project may discover that relevant prior knowledge exists. The user can inspect its origin, version, limitations and applicable conditions, then choose whether to bring an appropriate item into the new context. Prefer a reusable lesson or method over copying an entire transcript. Keep source-sensitive details inside their authorised project boundary; an abstracted lesson may be reusable only after deliberate review.
 
-- AEL owns runtime activity and context-intervention records.
-- Q-Batch owns experiment execution and cross-run evidence.
-- The Differential has not been modified; reference-only use remains the default unless a separate write is justified and approved.
+The existing memory pipeline already has source-linked candidates, visible review, distinct keep/use choices, project/account scopes and applicability tags. Inspect and extend those mechanisms before proposing another context-sharing subsystem.
 
-## Guardrails
+The current `context.intervened` feature records a change to context within one chat. It is not a cross-chat synchronisation service. Cross-project context reuse is a separate question.
 
-- This is not the complete AEL runtime.
-- Membership does not prove reading, comprehension, notice, or approval permission.
-- The context fixture models an AEL-side intervention; it does not reproduce hosted ChatGPT shared-project behaviour.
-- No real local-model inference is claimed without a captured run.
-- Retain participant periods and superseded context versions as history.
+## Boundaries and guardrails
+
+- AEL observes, records, exposes and helps reason about accountability; it does not run the workflow being observed.
+- Membership, action, authority and evidence are separate facts.
+- Do not treat a role label as proof of permission.
+- Do not let an enforcement gate erase evidence of a relevant attempted action.
+- Do not automatically distribute project context or copy entire conversations between projects.
+- Do not treat the present account/project scope fields as a complete organisation ACL.
+- Do not put sensitive project content into the current plain-text context-intervention store until appropriate access, encryption, retention and deletion protections exist.
+- No real hosted ChatGPT behaviour or real-model inference is claimed.
+- Q-Batch owns experiment execution and cross-run evidence. The Differential was not modified by PRs #30–#32.
