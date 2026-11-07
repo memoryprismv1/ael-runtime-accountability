@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,7 +19,7 @@ from ael.multiuser_fixtures import run_workflow_csv, write_receipt
 def main(argv: list[str] | None = None) -> int:
     fixture_dir = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db", default=str(ROOT / "handoffs" / "multi-user-fixture.sqlite3"))
+    parser.add_argument("--db", help="Optional persistent SQLite path; defaults to a temporary database")
     parser.add_argument("--account", default="fixture-account")
     parser.add_argument("--project", default="multi-user-demo")
     parser.add_argument("--chat", default="approval-workflow-demo")
@@ -27,7 +28,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=str(ROOT / "handoffs" / "multi-user-fixture-receipt.json"))
     args = parser.parse_args(argv)
 
-    con = runtime.connect(args.db)
+    temporary_db = tempfile.TemporaryDirectory(prefix="ael-multiuser-fixture-") if not args.db else None
+    db_path = args.db or str(Path(temporary_db.name) / "fixture.sqlite3")
+    con = runtime.connect(db_path)
     try:
         receipt = run_workflow_csv(
             con,
@@ -47,13 +50,14 @@ def main(argv: list[str] | None = None) -> int:
             "manager_performed_actions": receipt["manager_performed_actions"],
             "requester_participation_periods": next(
                 len(p["participation_periods"]) for p in receipt["ledger"]["participants"]
-                if p["participant_id"] == receipt["ledger"]["participants"][0]["participant_id"]
-                and p.get("display_name") == "Riley Requester"
+                if p.get("metadata", {}).get("fixture_key") == "requester"
             ),
             "receipt": str(path),
         }, ensure_ascii=False, indent=2))
     finally:
         con.close()
+        if temporary_db:
+            temporary_db.cleanup()
     return 0
 
 
