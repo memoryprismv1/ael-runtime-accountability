@@ -52,7 +52,7 @@ class ParticipantLedgerTests(unittest.TestCase):
 
         first = runtime.join_participant(
             self.con, account=self.account, project=self.project, chat=self.chat,
-            participant_id=pid, role="manager", actor_id=self.admin
+            participant_id=pid, role="manager", actor_id=runtime.SYSTEM_ACTOR_ID
         )
         start_seq = first["effective_from_seq"]
         before = start_seq - 1
@@ -68,7 +68,7 @@ class ParticipantLedgerTests(unittest.TestCase):
 
         left = runtime.leave_participant(
             self.con, account=self.account, project=self.project, chat=self.chat,
-            participant_id=pid, actor_id=self.admin
+            participant_id=pid, actor_id=runtime.SYSTEM_ACTOR_ID
         )
         end_seq = left["effective_until_seq"]
         self.assertEqual(end_seq, left["effective_from_seq"] + (end_seq - left["effective_from_seq"]))
@@ -86,7 +86,7 @@ class ParticipantLedgerTests(unittest.TestCase):
 
         second = runtime.join_participant(
             self.con, account=self.account, project=self.project, chat=self.chat,
-            participant_id=pid, role="approver", actor_id=self.admin
+            participant_id=pid, role="approver", actor_id=runtime.SYSTEM_ACTOR_ID
         )
         self.assertEqual(second["role"], "approver")
         periods = self.con.execute(
@@ -102,6 +102,10 @@ class ParticipantLedgerTests(unittest.TestCase):
     def test_branch_proposal_and_selection_have_separate_actors(self):
         proposer = self.register("proposer-1", "Priya")["participant_id"]
         decider = self.register("decider-1", "Sam")["participant_id"]
+        runtime.join_participant(self.con, account=self.account, project=self.project, chat=self.chat,
+            participant_id=proposer, role="assistant", actor_id=runtime.SYSTEM_ACTOR_ID)
+        runtime.join_participant(self.con, account=self.account, project=self.project, chat=self.chat,
+            participant_id=decider, role="approver", actor_id=runtime.SYSTEM_ACTOR_ID)
         runtime.propose_branch(
             self.con, account=self.account, project=self.project, chat=self.chat,
             branch_id="branch-1", label="Path A", tradeoff="Takes longer",
@@ -128,11 +132,42 @@ class ParticipantLedgerTests(unittest.TestCase):
                 actor_id="org:org-example:typo-user"
             )
 
+    def test_identified_actor_must_be_active_before_and_after_membership(self):
+        person = self.register("timing-1", "Taylor")["participant_id"]
+        with self.assertRaisesRegex(ValueError, "not an active participant"):
+            runtime.append_event(
+                self.con, account=self.account, project=self.project, chat=self.chat,
+                event_type="user_message", provenance="user", content="Before joining",
+                actor_id=person,
+            )
+        runtime.join_participant(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            participant_id=person, role="participant", actor_id=runtime.SYSTEM_ACTOR_ID,
+        )
+        accepted = runtime.append_event(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            event_type="user_message", provenance="user", content="While participating",
+            actor_id=person,
+        )
+        self.assertEqual(accepted["actor_id"], person)
+        runtime.leave_participant(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            participant_id=person, actor_id=runtime.SYSTEM_ACTOR_ID,
+        )
+        with self.assertRaisesRegex(ValueError, "not an active participant"):
+            runtime.append_event(
+                self.con, account=self.account, project=self.project, chat=self.chat,
+                event_type="user_message", provenance="user", content="After leaving",
+                actor_id=person,
+            )
+        self.assertFalse(any(e["content"] == "Before joining" or e["content"] == "After leaving"
+                             for e in runtime.scope_events(self.con, self.account, self.project, self.chat)))
+
     def test_scope_ledger_contains_participants_and_all_periods(self):
         member = self.register("observer-3", "Taylor")["participant_id"]
         runtime.join_participant(
             self.con, account=self.account, project=self.project, chat=self.chat,
-            participant_id=member, role="observer", actor_id=self.admin
+            participant_id=member, role="observer", actor_id=runtime.SYSTEM_ACTOR_ID
         )
         exported = runtime.scope_ledger(self.con, self.account, self.project, self.chat)
         self.assertEqual(exported["schema_version"], 3)
@@ -184,6 +219,8 @@ class ParticipantLedgerTests(unittest.TestCase):
             self.con, account=self.account, project=self.project, chat=self.chat,
             event_type="observation", provenance="user", content="A source observation"
         )
+        runtime.join_participant(self.con, account=self.account, project=self.project, chat=self.chat,
+            participant_id=approver, role="approver", actor_id=runtime.SYSTEM_ACTOR_ID)
         candidate_id = runtime.add_memory(
             self.con, account=self.account, scope="account", tag="workflow",
             claim="Keep this as an account-level reference.",
@@ -226,6 +263,8 @@ class ParticipantLedgerTests(unittest.TestCase):
 
     def test_checkpoint_record_identifies_creator_and_recorder(self):
         creator = self.register("checkpoint-creator", "Casey")["participant_id"]
+        runtime.join_participant(self.con, account=self.account, project=self.project, chat=self.chat,
+            participant_id=creator, role="creator", actor_id=runtime.SYSTEM_ACTOR_ID)
         out_dir = self.root / "checkpoints"
         paths = runtime.checkpoint(
             self.con, account=self.account, project=self.project, chat=self.chat,
@@ -242,14 +281,16 @@ class ParticipantLedgerTests(unittest.TestCase):
     def test_workflow_membership_includes_chat_wide_participants(self):
         chat_member = self.register("chat-member", "Avery")["participant_id"]
         workflow_member = self.register("workflow-member", "Riley")["participant_id"]
+        runtime.join_participant(self.con, account=self.account, project=self.project, chat=self.chat,
+            participant_id=self.admin, role="admin", actor_id=runtime.SYSTEM_ACTOR_ID)
         chat_period = runtime.join_participant(
             self.con, account=self.account, project=self.project, chat=self.chat,
-            participant_id=chat_member, role="manager", actor_id=self.admin
+            participant_id=chat_member, role="manager", actor_id=runtime.SYSTEM_ACTOR_ID
         )
         workflow_period = runtime.join_participant(
             self.con, account=self.account, project=self.project, chat=self.chat,
             participant_id=workflow_member, role="approver", workflow_id="approval-1",
-            actor_id=self.admin
+            actor_id=runtime.SYSTEM_ACTOR_ID
         )
         at_seq = max(chat_period["effective_from_seq"], workflow_period["effective_from_seq"])
         scoped = runtime.participants_at_sequence(
