@@ -1,8 +1,9 @@
 # AEL Runtime — Next Steps / Handoff
 
-**Current main:** `301fb4bec68829460509851d83d2e225a859faad`  
+**Runtime feature baseline:** `301fb4bec68829460509851d83d2e225a859faad`  
+**Latest scope-documentation merge:** PR [#33](https://github.com/memoryprismv1/ael-runtime-accountability/pull/33), merge `95cec7e2f7236d66a65d7e0851a3528a980fb37f`.  
 **Current phase:** Preserve the accountability-first scope; examine the action gate; explore controlled reuse of prior knowledge.  
-**Latest CI:** PR [#32](https://github.com/memoryprismv1/ael-runtime-accountability/pull/32), run [#445](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42377856668), passed 85 tests on Python 3.11, 3.12 and 3.13.
+**Latest CI:** PR [#33](https://github.com/memoryprismv1/ael-runtime-accountability/pull/33), run [#455](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42394886609), passed 85 tests on Python 3.11, 3.12 and 3.13 (documentation-only changes).
 
 ## Scope clarification — 7 November 2026
 
