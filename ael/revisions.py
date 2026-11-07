@@ -239,7 +239,6 @@ def decide_revision(con, proposal_id: str, decision: str, *, note: str = '',
     # Preserve only the user's correction signal in the active event ledger; the rejected delta lives in the
     # separate immutable revision store and is not loaded into active model context.
     append_event(con, account=proposal['account_id'], project=proposal['project_id'], chat=proposal['chat_id'],
-    append_event(con, account=proposal['account_id'], project=proposal['project_id'], chat=proposal['chat_id'],
                  event_type='revision.rejected', provenance='user', authority='user_direct',
                  inference_kind='decision', truth_status='not_applicable',
                  source_ref=f"revision:{proposal_id}:{proposal['proposal_hash']}",
