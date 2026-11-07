@@ -36,7 +36,8 @@ def propose_branch(con, *, account='default', project: str, chat: str, branch_id
     append_event(con, account=account, project=project, chat=chat, event_type='branch.proposed', provenance='system',
                  content=f'{label}\nTrade-off: {tradeoff}', branch_id=branch_id, strategy_key=strategy_key,
                  inference_kind='process_event', truth_status='not_applicable',
-                 metadata={'strategy_key': strategy_key, 'original_query': original_query})
+                 metadata={'strategy_key': strategy_key, 'original_query': original_query},
+                 actor_id=actor_id or ASSISTANT_ACTOR_ID)
 
 
 def reject_branch(con, *, account='default', project: str, chat: str, branch_id: str,
