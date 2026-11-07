@@ -26,6 +26,16 @@ def context_projection(con, *, account='default', project: str, chat: str, recen
                        relevance_tags: set[str] | None = None) -> dict:
     """Build a fresh context projection. History is immutable; this is not the canonical record."""
     events = scope_events(con, account, project, chat)
+    # Shared context can be changed outside the visible message transcript.
+    # Retain every intervention in history, but inject only the latest version
+    # of each named resource into the current model context.
+    latest_context_versions: dict[str, int] = {}
+    for event in events:
+        if event['event_type'] == 'context.intervened':
+            meta = json.loads(event.get('metadata_json') or '{}')
+            resource_id = meta.get('resource_id')
+            if resource_id:
+                latest_context_versions[resource_id] = event['seq']
     statuses = branch_statuses(con, account, project, chat)
     revision_statuses = revision_statuses_for_scope(con, account, project, chat)
     # Only the most recent N assistant outputs remain active. Old assistant turns remain in history verbatim.
@@ -40,7 +50,12 @@ def context_projection(con, *, account='default', project: str, chat: str, recen
         revision_id = event_meta.get('proposal_id')
         revision_state = revision_statuses.get(revision_id) if revision_id else None
         superseded_revision_acceptance = (e['event_type'] == 'revision.accepted' and revision_state not in {'accepted_for_expansion', 'expanded'})
-        if superseded_revision_acceptance:
+        resource_id = event_meta.get('resource_id') if e['event_type'] == 'context.intervened' else None
+        superseded_context_intervention = bool(resource_id and latest_context_versions.get(resource_id) != e['seq'])
+        if superseded_context_intervention:
+            e['projection_status'] = 'superseded_context_version_retained_in_history'
+            excluded.append(e)
+        elif superseded_revision_acceptance:
             e['projection_status'] = 'superseded_acceptance_retained_in_history'
             excluded.append(e)
         elif rejected and e['event_type'] != 'branch.rejected':
@@ -230,7 +245,7 @@ def render_model_context(
 
     # User-originated turns remain verbatim. Runtime decision records and explicit
     # constraints are protected even if their provenance was assigned by a wrapper.
-    protected_types = {'initial_brief', 'constraint', 'original_query', 'user_correction', 'branch.rejected'}
+    protected_types = {'initial_brief', 'constraint', 'original_query', 'user_correction', 'branch.rejected', 'context.intervened'}
     protected_events = [e for e in active_events if e.get('provenance') == 'user' or e.get('event_type') in protected_types]
     protected_ids = {e['seq'] for e in protected_events}
 
@@ -356,6 +371,12 @@ def build_model_input(
         'read_only_memory_ids_not_injected': packed['read_only_memory_ids_not_injected'],
         'context_packing': packed['budget'],
         'source_policy': packed['source_policy'],
+        'context_interventions': [
+            {key: value for key, value in json.loads(e.get('metadata_json') or '{}').items()
+             if key in {'resource_id', 'resource_type', 'version', 'previous_version', 'previous_sha256', 'content_sha256'}}
+            | {'event_id': e['event_id'], 'seq': e['seq'], 'actor_id': e.get('actor_id'), 'source_ref': e.get('source_ref')}
+            for e in payload.get('active_events', []) if e.get('event_type') == 'context.intervened'
+        ],
         'model_input_keys': sorted(model_input.keys()),
         'budget': {'total_input_budget': max_tokens, 'reserved_for_prompt_and_current_message': reserved_tokens,
                    'working_context_budget': context_budget, 'counter': packed['budget']['counter']},
