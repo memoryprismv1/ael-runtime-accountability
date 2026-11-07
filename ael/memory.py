@@ -3,16 +3,19 @@ from __future__ import annotations
 import json
 import sqlite3
 from typing import Any
-from .config import new_id, now, VALID_USAGE_STATUSES
+from .config import new_id, now, VALID_USAGE_STATUSES, UNKNOWN_USER_ACTOR_ID, UNKNOWN_ACTOR_ID, SYSTEM_ACTOR_ID
 
 def _append_memory_event(con: sqlite3.Connection, *, memory_id: str, event_type: str,
                          from_state: str | None, to_state: str, from_stage: str | None,
                          to_stage: str, action_origin: str, note: str = '',
-                         from_usage_status: str | None = None, to_usage_status: str | None = None) -> None:
+                         from_usage_status: str | None = None, to_usage_status: str | None = None,
+                         actor_id: str | None = None, on_behalf_of_id: str | None = None,
+                         recorded_by_id: str = SYSTEM_ACTOR_ID) -> None:
     # Append a traceable memory lifecycle event; history rows are immutable.
-    con.execute("""INSERT INTO memory_events(memory_id,occurred_at,event_type,from_state,to_state,from_stage,to_stage,from_usage_status,to_usage_status,action_origin,note)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-      (memory_id, now(), event_type, from_state, to_state, from_stage, to_stage, from_usage_status, to_usage_status, action_origin, note))
+    resolved_actor = actor_id or (UNKNOWN_USER_ACTOR_ID if action_origin == 'user' else UNKNOWN_ACTOR_ID if action_origin == 'external' else SYSTEM_ACTOR_ID)
+    con.execute("""INSERT INTO memory_events(memory_id,occurred_at,event_type,from_state,to_state,from_stage,to_stage,from_usage_status,to_usage_status,action_origin,note,actor_id,on_behalf_of_id,recorded_by_id)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+      (memory_id, now(), event_type, from_state, to_state, from_stage, to_stage, from_usage_status, to_usage_status, action_origin, note, resolved_actor, on_behalf_of_id, recorded_by_id))
     con.commit()
 
 
