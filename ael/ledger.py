@@ -250,7 +250,7 @@ def participants_at_sequence(
            FROM participation_periods pp
            JOIN participants p ON p.account_id=pp.account_id AND p.participant_id=pp.participant_id
            WHERE pp.account_id=? AND pp.project_id=? AND pp.chat_id=?
-             AND ifnull(pp.workflow_id,'')=ifnull(?,'')
+             AND (pp.workflow_id IS NULL OR pp.workflow_id=?)
              AND pp.effective_from_seq<=?
              AND (pp.effective_until_seq IS NULL OR ?<pp.effective_until_seq)
            ORDER BY p.participant_id""",
