@@ -61,3 +61,19 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 - AEL runtime events and context-intervention records belong in this repository.
 - Q-Batch owns experiment execution, shared experiment logging and cross-run evidence.
 - The Differential was not modified by PRs #30–#32. It remains reference material unless a separate write is justified and explicitly approved.
+
+
+## 7 November 2026 — Accountability-first scope and controlled context reuse
+
+**Reason for clarification:** AEL was drifting in implementation discussion toward managing workflows and distributing context between chats. The author clarified that AEL is primarily an **accountability mechanism**, with additional benefits of providing the user more optionality and thinking space. AEL may help examine workflows; it does not own or manage them.
+
+**Design correction:**
+
+- Recast participant identity, actor attribution and authority as separate accountability facts. Do not assume membership or a role label grants permission.
+- Put PR #32's active-membership rejection gate under design review. An attempted action outside the recorded participation period can itself be evidence; rejecting it before creating an accountability record may conceal it. No code rollback or change was made as part of this documentation update.
+- Reframe supporting-operation work as complete attribution and provenance receipts for AEL's own actions, not as a mandate to enforce external workflow policy.
+- Reframe cross-chat context propagation as **controlled context reuse**: a new similar project can selectively reuse an applicable method or lesson from prior work, with source, version/hash, applicability conditions, sensitivity boundary and user selection recorded.
+- Prefer selective retrieval of reusable knowledge over importing whole prior conversations. Keep project-sensitive information within the host/organisation's authorised scope. Organisation ownership does not imply universal project access.
+- Inspect the existing memory candidate/review/use pipeline before proposing a new context-sharing subsystem.
+
+**Document:** [AEL_SCOPE_AND_CONTEXT_REUSE.md](AEL_SCOPE_AND_CONTEXT_REUSE.md). This is an implementation-design clarification, not a new AEL framework specification. No runtime code, Q-Batch files or Differential files were changed by this clarification.
