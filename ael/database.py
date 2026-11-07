@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone
+from .config import SYSTEM_ACTOR_ID, ASSISTANT_ACTOR_ID, UNKNOWN_USER_ACTOR_ID, UNKNOWN_EXTERNAL_ACTOR_ID, UNKNOWN_ACTOR_ID
 
 SCHEMA = r'''
 PRAGMA foreign_keys = ON;
@@ -319,6 +320,30 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
                    VALUES(?,?,?,?,?,?,?)""",
                 (row['account_id'], row['participant_id'], row['participant_type'],
                  row['identity_source'], row['participant_id'], stamp, stamp)
+            )
+    # Preserve the correct built-in types even if those IDs were first seen
+    # through a legacy row whose new attribution columns defaulted to unknown.
+    builtins = [
+        (SYSTEM_ACTOR_ID, 'system', 'system', 'AEL runtime'),
+        (ASSISTANT_ACTOR_ID, 'ai_agent', 'system', 'AEL assistant agent'),
+        (UNKNOWN_USER_ACTOR_ID, 'unknown', 'unattributed', 'Unattributed user'),
+        (UNKNOWN_EXTERNAL_ACTOR_ID, 'unknown', 'unattributed', 'Unattributed external actor'),
+        (UNKNOWN_ACTOR_ID, 'unknown', 'unattributed', 'Unattributed actor'),
+    ]
+    account_rows = con.execute("SELECT DISTINCT account_id FROM events UNION SELECT DISTINCT account_id FROM memories UNION SELECT DISTINCT account_id FROM revision_proposals").fetchall()
+    for account_row in account_rows:
+        for participant_id, participant_type, identity_source, display_name in builtins:
+            con.execute(
+                """INSERT INTO participants
+                   (account_id,participant_id,participant_type,identity_source,display_name,created_at,updated_at)
+                   VALUES(?,?,?,?,?,?,?)
+                   ON CONFLICT(account_id,participant_id) DO UPDATE SET
+                     participant_type=excluded.participant_type,
+                     identity_source=excluded.identity_source,
+                     display_name=excluded.display_name,
+                     updated_at=excluded.updated_at""",
+                (account_row['account_id'], participant_id, participant_type,
+                 identity_source, display_name, stamp, stamp)
             )
     # Backward-compatible migration from early V2 prototypes. Existing pending
     # memories were already shared as read-only references; existing active or
