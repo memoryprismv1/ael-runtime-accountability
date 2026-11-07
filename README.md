@@ -32,7 +32,8 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 
 ## Existing implemented primitives
 
-- Append-only event ledger with separate provenance, decision authority, inference kind, truth status and source reference.
+- Append-only event ledger with separate provenance, decision authority, inference kind, truth status, source reference, actor, represented principal and recorder.
+- Multi-user participant registry with organisation-issued or generated stable IDs, repeated participation periods, role/scope boundaries, and participant-at-event reconstruction.
 - Active context as a disposable projection, distinct from full history.
 - Branch records with trade-offs; rejected output stays historical and is excluded from active context.
 - Pivot-with-reset and chat-identity transition hydration.
@@ -44,6 +45,10 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 - Bounded context packing: protected user content stays verbatim; protected overflow fails closed; optional events are included or omitted whole with IDs for retrieval.
 - Delta-first revision proposal, decision, reset/re-plan, and post-expansion textual conformance. New file-backed revisions use a shared workspace-rooted reader that hashes exact bytes and revalidates the pinned source during expansion and verification; existing caller-supplied APIs remain compatible.
 - Strict provider-input allowlist plus optional loopback-only local Ollama adapter.
+
+## Multi-user ledger format
+
+The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format and migration rules.
 
 ## Tests
 
