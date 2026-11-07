@@ -270,6 +270,35 @@ def scope_ledger(con: sqlite3.Connection, account: str, project: str, chat: str)
            ORDER BY effective_from_seq""", (account, project, chat)
     ).fetchall()
     ids.update(r['participant_id'] for r in period_rows)
+    for row in con.execute(
+        """SELECT DISTINCT re.actor_id AS participant_id FROM revision_events re
+             JOIN revision_proposals rp ON rp.proposal_id=re.proposal_id
+             WHERE rp.account_id=? AND rp.project_id=? AND rp.chat_id=?
+             UNION SELECT DISTINCT re.recorded_by_id FROM revision_events re
+             JOIN revision_proposals rp ON rp.proposal_id=re.proposal_id
+             WHERE rp.account_id=? AND rp.project_id=? AND rp.chat_id=?
+             UNION SELECT DISTINCT re.on_behalf_of_id FROM revision_events re
+             JOIN revision_proposals rp ON rp.proposal_id=re.proposal_id
+             WHERE rp.account_id=? AND rp.project_id=? AND rp.chat_id=?""",
+        (account, project, chat, account, project, chat, account, project, chat)).fetchall():
+        if row['participant_id']:
+            ids.add(row['participant_id'])
+    memory_owner_sql = """SELECT memory_id,account_id,project_id,chat_id FROM memory_candidates
+                          UNION ALL SELECT m.memory_id,m.account_id,e.project_id,e.chat_id
+                          FROM memories m JOIN events e ON e.seq=m.source_event_seq"""
+    for row in con.execute(
+        f"""SELECT DISTINCT me.actor_id AS participant_id FROM memory_events me
+              JOIN ({memory_owner_sql}) owner ON owner.memory_id=me.memory_id
+              WHERE owner.account_id=? AND owner.project_id=? AND owner.chat_id=?
+              UNION SELECT DISTINCT me.recorded_by_id FROM memory_events me
+              JOIN ({memory_owner_sql}) owner ON owner.memory_id=me.memory_id
+              WHERE owner.account_id=? AND owner.project_id=? AND owner.chat_id=?
+              UNION SELECT DISTINCT me.on_behalf_of_id FROM memory_events me
+              JOIN ({memory_owner_sql}) owner ON owner.memory_id=me.memory_id
+              WHERE owner.account_id=? AND owner.project_id=? AND owner.chat_id=?""",
+        (account, project, chat, account, project, chat, account, project, chat)).fetchall():
+        if row['participant_id']:
+            ids.add(row['participant_id'])
     participants = []
     for participant_id in sorted(ids):
         row = con.execute(
