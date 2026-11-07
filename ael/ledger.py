@@ -108,6 +108,8 @@ def _ensure_actor(con: sqlite3.Connection, *, account: str, participant_id: str,
         register_participant(con, account=account, participant_id=participant_id,
                              participant_type=participant_type, identity_source=identity_source,
                              display_name=participant_id)
+    else:
+        raise ValueError(f'Actor must be registered before being referenced: {participant_id}')
 
 
 def append_event(
