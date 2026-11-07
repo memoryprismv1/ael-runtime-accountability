@@ -202,7 +202,8 @@ def revision_history(con, proposal_id: str, *, account: str | None = None,
 
 def decide_revision(con, proposal_id: str, decision: str, *, note: str = '',
                     account: str | None = None, project: str | None = None,
-                    chat: str | None = None) -> dict:
+                    chat: str | None = None, actor_id: str | None = None,
+                    on_behalf_of_id: str | None = None) -> dict:
     """Apply an explicit decision. Acceptance binds to the immutable proposal hash."""
     if decision not in {'accept', 'reject'}:
         raise ValueError("decision must be 'accept' or 'reject'")
