@@ -224,5 +224,20 @@ class ParticipantLedgerTests(unittest.TestCase):
         self.assertEqual(canonical["actor_id"], approver)
 
 
+    def test_checkpoint_record_identifies_creator_and_recorder(self):
+        creator = self.register("checkpoint-creator", "Casey")["participant_id"]
+        out_dir = self.root / "checkpoints"
+        paths = runtime.checkpoint(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            out_dir=out_dir, actor_id=creator
+        )
+        row = self.con.execute(
+            "SELECT created_by_id,recorded_by_id FROM checkpoints ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        self.assertEqual(row["created_by_id"], creator)
+        self.assertEqual(row["recorded_by_id"], runtime.SYSTEM_ACTOR_ID)
+        self.assertTrue(all(path.exists() for path in paths))
+
+
 if __name__ == "__main__":
     unittest.main()
