@@ -219,9 +219,8 @@ def decide_revision(con, proposal_id: str, decision: str, *, note: str = '',
         append_event(con, account=proposal['account_id'], project=proposal['project_id'], chat=proposal['chat_id'],
                      event_type='revision.accepted', provenance='user', authority='user_direct',
                      inference_kind='decision', truth_status='not_applicable',
-                     source_ref=f"revision:{proposal_id}:{proposal['proposal_hash']}", actor_id=actor_id,
-                 on_behalf_of_id=on_behalf_of_id, actor_id=actor_id,
-                  on_behalf_of_id=on_behalf_of_id,
+                     source_ref=f"revision:{proposal_id}:{proposal['proposal_hash']}",
+                     actor_id=actor_id, on_behalf_of_id=on_behalf_of_id,
                      content=f"Participant approved structural delta {proposal_id} for expansion.",
                      metadata={'proposal_hash': proposal['proposal_hash'], 'artifact_id': proposal['artifact_id'],
                                'base_version': proposal['base_version'], 'decision_note': note})
@@ -240,9 +239,11 @@ def decide_revision(con, proposal_id: str, decision: str, *, note: str = '',
     # Preserve only the user's correction signal in the active event ledger; the rejected delta lives in the
     # separate immutable revision store and is not loaded into active model context.
     append_event(con, account=proposal['account_id'], project=proposal['project_id'], chat=proposal['chat_id'],
+    append_event(con, account=proposal['account_id'], project=proposal['project_id'], chat=proposal['chat_id'],
                  event_type='revision.rejected', provenance='user', authority='user_direct',
                  inference_kind='decision', truth_status='not_applicable',
                  source_ref=f"revision:{proposal_id}:{proposal['proposal_hash']}",
+                 actor_id=actor_id, on_behalf_of_id=on_behalf_of_id,
                  content=note or 'Participant rejected the proposed structural delta.',
                  metadata={'proposal_id': proposal_id, 'proposal_hash': proposal['proposal_hash'],
                            'artifact_id': proposal['artifact_id'], 'base_version': proposal['base_version']})
