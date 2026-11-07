@@ -25,7 +25,7 @@ def register_participant(
     con: sqlite3.Connection, *, account='default', participant_id: str | None = None,
     participant_type: str = 'human', identity_source: str = 'self_generated',
     display_name: str = '', issuer: str | None = None, external_id: str | None = None,
-    metadata: dict | None = None,
+    metadata: dict | None = None, _commit: bool = True,
 ) -> dict[str, Any]:
     """Register one stable identity. Display names are descriptive, never keys."""
     if participant_type not in VALID_PARTICIPANT_TYPES:
@@ -63,7 +63,8 @@ def register_participant(
                 'UPDATE participants SET display_name=?,updated_at=? WHERE account_id=? AND participant_id=?',
                 (display_name, now(), account, participant_id)
             )
-            con.commit()
+            if _commit:
+                con.commit()
         return dict(con.execute(
             'SELECT * FROM participants WHERE account_id=? AND participant_id=?',
             (account, participant_id)
@@ -79,7 +80,8 @@ def register_participant(
          display_name or participant_id, stamp, stamp,
          json.dumps(metadata or {}, ensure_ascii=False))
     )
-    con.commit()
+    if _commit:
+        con.commit()
     return dict(con.execute(
         'SELECT * FROM participants WHERE account_id=? AND participant_id=?',
         (account, participant_id)
