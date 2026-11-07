@@ -281,6 +281,29 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
                VALUES(?,?,'system','system',?,?,?)""",
             (row['account_id'], row['recorded_by_id'], row['recorded_by_id'], stamp, stamp)
         )
+    legacy_actor_queries = [
+        """SELECT DISTINCT m.account_id, me.actor_id AS participant_id, 'unknown' AS participant_type,
+                  'unattributed' AS identity_source
+           FROM memory_events me JOIN memories m ON m.memory_id=me.memory_id
+           WHERE me.actor_id IS NOT NULL""",
+        """SELECT DISTINCT c.account_id, me.actor_id AS participant_id, 'unknown' AS participant_type,
+                  'unattributed' AS identity_source
+           FROM memory_events me JOIN memory_candidates c ON c.candidate_id=me.memory_id
+           WHERE me.actor_id IS NOT NULL""",
+        """SELECT DISTINCT p.account_id, re.actor_id AS participant_id, 'unknown' AS participant_type,
+                  'unattributed' AS identity_source
+           FROM revision_events re JOIN revision_proposals p ON p.proposal_id=re.proposal_id
+           WHERE re.actor_id IS NOT NULL""",
+    ]
+    for query in legacy_actor_queries:
+        for row in con.execute(query).fetchall():
+            con.execute(
+                """INSERT OR IGNORE INTO participants
+                   (account_id,participant_id,participant_type,identity_source,display_name,created_at,updated_at)
+                   VALUES(?,?,?,?,?,?,?)""",
+                (row['account_id'], row['participant_id'], row['participant_type'],
+                 row['identity_source'], row['participant_id'], stamp, stamp)
+            )
     # Backward-compatible migration from early V2 prototypes. Existing pending
     # memories were already shared as read-only references; existing active or
     # walk-back memories had already been promoted to account/project authority.
