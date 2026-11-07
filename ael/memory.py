@@ -174,17 +174,27 @@ def resolve_memory_batch(con, memory_ids: list[str], decision: str, note: str = 
     event_types = {'use': 'memory.marked_useful_in_batch', 'avoid': 'memory.marked_do_not_repeat_in_batch',
                    'later': 'memory.deferred_in_batch', 'not_pertinent_now': 'memory.marked_not_pertinent_now_in_batch'}
     ts, result = now(), []
+    # Register batch actors before opening the savepoint; identity registration
+    # is account-level setup and must not prematurely commit the decision batch.
+    batch_actor = actor_id or UNKNOWN_USER_ACTOR_ID
+    for row in rows:
+        _ensure_actor(con, account=row['account_id'], participant_id=batch_actor)
+        _ensure_actor(con, account=row['account_id'], participant_id=recorded_by_id)
+        if on_behalf_of_id and not con.execute('SELECT 1 FROM participants WHERE account_id=? AND participant_id=?', (row['account_id'], on_behalf_of_id)).fetchone():
+            raise ValueError(f'on_behalf_of_id is not registered: {on_behalf_of_id}')
     con.execute('SAVEPOINT memory_resolution_batch')
     try:
         for row in rows:
             last_confirmed = ts if normalized in {'use', 'avoid'} else row['last_confirmed_at']
             con.execute("""UPDATE memories SET stage=?,state=?,usage_status=?,read_permission=?,influence_permission=?,last_confirmed_at=?,updated_at=?
               WHERE memory_id=?""", (stage, state, usage_status, read_perm, influence_perm, last_confirmed, ts, row['memory_id']))
+            resolved_actor = batch_actor
             con.execute("""INSERT INTO memory_events(memory_id,occurred_at,event_type,from_state,to_state,from_stage,to_stage,
-              from_usage_status,to_usage_status,action_origin,note) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+              from_usage_status,to_usage_status,action_origin,note,actor_id,on_behalf_of_id,recorded_by_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
               (row['memory_id'], ts, event_types[normalized], row['state'], state, row['stage'], stage,
                row['usage_status'], usage_status, 'user', json.dumps({'decision': normalized, 'note': note,
-               'claim_retained': True, 'legacy_alias_used': legacy_alias}, ensure_ascii=False)))
+               'claim_retained': True, 'legacy_alias_used': legacy_alias}, ensure_ascii=False),
+               resolved_actor, on_behalf_of_id, recorded_by_id))
             result.append({'memory_id': row['memory_id'], 'decision': normalized, 'stage': stage, 'state': state,
                            'usage_status': usage_status, 'influence_permission': bool(influence_perm), 'data_retained': True})
         con.execute('RELEASE SAVEPOINT memory_resolution_batch'); con.commit()
