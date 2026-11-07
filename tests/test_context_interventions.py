@@ -60,14 +60,16 @@ class ContextInterventionTests(unittest.TestCase):
         self.assertIn("All approvals require a human reviewer.", input_after["working_context"])
         self.assertNotIn("All approvals require a human reviewer.", input_before["working_context"])
         self.assertEqual(audit_after["context_interventions"][0]["actor_id"], self.manager)
-        self.assertEqual(audit_after["context_interventions"][0]["content_sha256"], first["metadata_json"] and __import__("json").loads(first["metadata_json"])["content_sha256"])
+        import json
+        first_metadata = json.loads(first["metadata_json"])
+        self.assertEqual(audit_after["context_interventions"][0]["content_sha256"], first_metadata["content_sha256"])
 
         second = runtime.record_context_intervention(
             self.con, account=self.account, project=self.project, chat=self.chat,
             resource_id="shared-approval-guide", resource_type="project_instruction",
             version="v2", content="Approvals require the named approver's explicit selection.",
             actor_id=self.manager, authority="user_direct", source_ref="project-settings:approval-guide:v2",
-            expected_previous_sha256=__import__("json").loads(first["metadata_json"])["content_sha256"],
+            expected_previous_sha256=first_metadata["content_sha256"],
         )
         input_latest, audit_latest = self.model_input()
         self.assertIn("Approvals require the named approver's explicit selection.", input_latest["working_context"])
