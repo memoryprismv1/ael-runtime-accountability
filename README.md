@@ -50,6 +50,10 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 
 The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format, migration rules and current membership enforcement boundary. [`CONTEXT_INTERVENTIONS.md`](CONTEXT_INTERVENTIONS.md) explains how shared/context-file changes are recorded separately from visible chat messages. A CSV-driven integration fixture exercises a late-arriving manager, a separate approver, agent execution, and participant leave/re-entry in [`examples/multi-user-workflow`](examples/multi-user-workflow/README.md).
 
+## Implementation history and handoff
+
+See [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) for dated changes, rationale, merge commits, CI evidence and known limits. [`NEXT_STEPS.md`](NEXT_STEPS.md) is the current handoff; [`ROADMAP.md`](ROADMAP.md) tracks remaining implementation work.
+
 ## Tests
 
 Run from this directory:
