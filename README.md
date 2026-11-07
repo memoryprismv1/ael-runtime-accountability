@@ -48,7 +48,7 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 
 ## Multi-user ledger format
 
-The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format and migration rules.
+The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format and migration rules. A CSV-driven integration fixture exercises a late-arriving manager, a separate approver, agent execution, and participant leave/re-entry in [`examples/multi-user-workflow`](examples/multi-user-workflow/README.md).
 
 ## Tests
 
@@ -58,7 +58,7 @@ Run from this directory:
 python -m unittest discover -s tests -v
 ```
 
-**79 AEL tests** cover the runtime and mocked local bridge (63 runtime tests and 6 bridge tests). The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
+**82 AEL tests** cover the runtime and mocked local bridge (63 runtime tests and 6 bridge tests). The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md).
 
 ## Quick start
 
