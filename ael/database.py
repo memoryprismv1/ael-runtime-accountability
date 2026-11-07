@@ -147,7 +147,9 @@ CREATE TABLE IF NOT EXISTS checkpoints (
   last_event_seq INTEGER NOT NULL,
   markdown_path TEXT NOT NULL,
   json_path TEXT NOT NULL,
-  snapshot_sha256 TEXT NOT NULL
+  snapshot_sha256 TEXT NOT NULL,
+  created_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime',
+  recorded_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime'
 );CREATE TABLE IF NOT EXISTS revision_proposals (
   proposal_id TEXT PRIMARY KEY,
   account_id TEXT NOT NULL,
@@ -226,6 +228,11 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     con.execute('PRAGMA foreign_keys = ON')
     con.executescript(SCHEMA)
+    checkpoint_cols = {r['name'] for r in con.execute('PRAGMA table_info(checkpoints)').fetchall()}
+    if 'created_by_id' not in checkpoint_cols:
+        con.execute("ALTER TABLE checkpoints ADD COLUMN created_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime'")
+    if 'recorded_by_id' not in checkpoint_cols:
+        con.execute("ALTER TABLE checkpoints ADD COLUMN recorded_by_id TEXT NOT NULL DEFAULT 'ael:system:runtime'")
     # Actor attribution is additive. Older rows receive explicit unattributed
     # actor IDs rather than guessed identities.
     column_migrations = {
