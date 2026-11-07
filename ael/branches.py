@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from .config import now, VALID_USAGE_STATUSES, BRANCH_REUSE_STATUSES, ASSISTANT_ACTOR_ID
-from .ledger import append_event
+from .ledger import append_event, _ensure_actor
 
 def branch_statuses(con, account: str, project: str, chat: str) -> dict[str, str]:
     result: dict[str, str] = {}
@@ -21,6 +21,9 @@ def branch_statuses(con, account: str, project: str, chat: str) -> dict[str, str
 def propose_branch(con, *, account='default', project: str, chat: str, branch_id: str,
                    label: str, tradeoff: str, strategy_key: str, original_query: str | None = None,
                    actor_id: str | None = None) -> None:
+    resolved_actor = actor_id or ASSISTANT_ACTOR_ID
+    _ensure_actor(con, account=account, participant_id=resolved_actor)
+    _ensure_actor(con, account=account, participant_id='ael:system:runtime')
     if con.execute('SELECT 1 FROM branches WHERE branch_id=? AND account_id=? AND project_id=? AND chat_id=?',
                    (branch_id, account, project, chat)).fetchone():
         raise ValueError(f'branch_id already exists: {branch_id}')
@@ -29,7 +32,7 @@ def propose_branch(con, *, account='default', project: str, chat: str, branch_id
         (account, project, chat)).fetchone():
         append_event(con, account=account, project=project, chat=chat, event_type='original_query', provenance='user',
                      authority='user_direct', inference_kind='user_statement', truth_status='not_applicable',
-                     content=original_query, metadata={'purpose': 'restore query for clean branch rerun'})
+                     content=original_query, metadata={'purpose': 'restore query for clean branch rerun'}, actor_id=resolved_actor)
     con.execute('''INSERT INTO branches(branch_id,account_id,project_id,chat_id,label,tradeoff,strategy_key,proposed_at)
       VALUES(?,?,?,?,?,?,?,?)''', (branch_id, account, project, chat, label, tradeoff, strategy_key, now()))
     con.commit()
@@ -37,7 +40,7 @@ def propose_branch(con, *, account='default', project: str, chat: str, branch_id
                  content=f'{label}\nTrade-off: {tradeoff}', branch_id=branch_id, strategy_key=strategy_key,
                  inference_kind='process_event', truth_status='not_applicable',
                  metadata={'strategy_key': strategy_key, 'original_query': original_query},
-                 actor_id=actor_id or ASSISTANT_ACTOR_ID)
+                 actor_id=resolved_actor)
 
 
 def reject_branch(con, *, account='default', project: str, chat: str, branch_id: str,
