@@ -239,5 +239,33 @@ class ParticipantLedgerTests(unittest.TestCase):
         self.assertTrue(all(path.exists() for path in paths))
 
 
+    def test_workflow_membership_includes_chat_wide_participants(self):
+        chat_member = self.register("chat-member", "Avery")["participant_id"]
+        workflow_member = self.register("workflow-member", "Riley")["participant_id"]
+        chat_period = runtime.join_participant(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            participant_id=chat_member, role="manager", actor_id=self.admin
+        )
+        workflow_period = runtime.join_participant(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            participant_id=workflow_member, role="approver", workflow_id="approval-1",
+            actor_id=self.admin
+        )
+        at_seq = max(chat_period["effective_from_seq"], workflow_period["effective_from_seq"])
+        scoped = runtime.participants_at_sequence(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            event_seq=at_seq, workflow_id="approval-1"
+        )
+        self.assertEqual(
+            {p["participant_id"] for p in scoped},
+            {chat_member, workflow_member}
+        )
+        chat_only = runtime.participants_at_sequence(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            event_seq=at_seq
+        )
+        self.assertEqual({p["participant_id"] for p in chat_only}, {chat_member})
+
+
 if __name__ == "__main__":
     unittest.main()
