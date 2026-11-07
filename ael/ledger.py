@@ -283,7 +283,7 @@ def scope_ledger(con: sqlite3.Connection, account: str, project: str, chat: str)
         (account, project, chat, account, project, chat, account, project, chat)).fetchall():
         if row['participant_id']:
             ids.add(row['participant_id'])
-    memory_owner_sql = """SELECT memory_id,account_id,project_id,chat_id FROM memory_candidates
+    memory_owner_sql = """SELECT candidate_id AS memory_id,account_id,origin_project_id AS project_id,chat_id FROM memory_candidates
                           UNION ALL SELECT m.memory_id,m.account_id,e.project_id,e.chat_id
                           FROM memories m JOIN events e ON e.seq=m.source_event_seq"""
     for row in con.execute(
