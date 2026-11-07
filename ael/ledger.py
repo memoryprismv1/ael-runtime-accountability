@@ -118,7 +118,7 @@ def append_event(
     inference_kind='unspecified', truth_status='unverified', source_ref=None,
     branch_id=None, strategy_key=None, metadata: dict | None = None,
     actor_id: str | None = None, on_behalf_of_id: str | None = None,
-    recorded_by_id: str = SYSTEM_ACTOR_ID,
+    recorded_by_id: str = SYSTEM_ACTOR_ID, _commit: bool = True,
 ) -> dict[str, Any]:
     """Append an immutable event with explicit actor, authority and recorder identity."""
     if provenance not in VALID_PROVENANCE:
@@ -150,7 +150,8 @@ def append_event(
          inference_kind, truth_status, source_ref, content, branch_id, strategy_key,
          json.dumps(metadata or {}, ensure_ascii=False), actor_id, on_behalf_of_id, recorded_by_id)
     )
-    con.commit()
+    if _commit:
+        con.commit()
     return dict(con.execute('SELECT * FROM events WHERE seq=?', (cur.lastrowid,)).fetchone())
 
 
@@ -165,9 +166,10 @@ def scope_events(con, account: str, project: str, chat: str) -> list[dict]:
 def join_participant(
     con: sqlite3.Connection, *, account='default', project: str, chat: str,
     participant_id: str, role: str = 'participant', workflow_id: str | None = None,
-    actor_id: str | None = None, note: str = '', metadata: dict | None = None,
+    actor_id: str | None = None, on_behalf_of_id: str | None = None,
+    note: str = '', metadata: dict | None = None,
 ) -> dict[str, Any]:
-    """Add a participant. Membership starts on the event after participant.joined."""
+    """Add a participant atomically. Membership starts after participant.joined."""
     if not con.execute(
         'SELECT 1 FROM participants WHERE account_id=? AND participant_id=?',
         (account, participant_id)
@@ -175,31 +177,39 @@ def join_participant(
         raise ValueError(f'Participant must be registered before joining: {participant_id}')
     if not role or not role.strip():
         raise ValueError('role must be non-empty')
-    active = con.execute(
-        """SELECT 1 FROM participation_periods WHERE account_id=? AND project_id=? AND chat_id=?
-           AND ifnull(workflow_id,'')=ifnull(?,'') AND participant_id=? AND effective_until_seq IS NULL""",
-        (account, project, chat, workflow_id, participant_id)
-    ).fetchone()
-    if active:
-        raise ValueError('Participant already has an active period in this scope')
-
-    event = append_event(
-        con, account=account, project=project, chat=chat, event_type='participant.joined',
-        provenance='user', authority='user_direct', inference_kind='process_event',
-        truth_status='not_applicable', actor_id=actor_id,
-        content=note or f'Participant {participant_id} joined as {role}.',
-        metadata={'participant_id': participant_id, 'role': role, 'workflow_id': workflow_id, **(metadata or {})}
-    )
-    period_id = new_id('PERIOD')
-    con.execute(
-        """INSERT INTO participation_periods
-           (participation_period_id,account_id,project_id,chat_id,workflow_id,participant_id,
-            role,started_by_event_id,effective_from_seq,created_at,metadata_json)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-        (period_id, account, project, chat, workflow_id, participant_id, role,
-         event['event_id'], event['seq'] + 1, now(), json.dumps(metadata or {}, ensure_ascii=False))
-    )
-    con.commit()
+    actor_id = actor_id or UNKNOWN_USER_ACTOR_ID
+    _ensure_actor(con, account=account, participant_id=actor_id)
+    _ensure_actor(con, account=account, participant_id=SYSTEM_ACTOR_ID)
+    con.execute('BEGIN IMMEDIATE')
+    try:
+        active = con.execute(
+            """SELECT 1 FROM participation_periods WHERE account_id=? AND project_id=? AND chat_id=?
+               AND ifnull(workflow_id,'')=ifnull(?,'') AND participant_id=? AND effective_until_seq IS NULL""",
+            (account, project, chat, workflow_id, participant_id)
+        ).fetchone()
+        if active:
+            raise ValueError('Participant already has an active period in this scope')
+        event = append_event(
+            con, account=account, project=project, chat=chat, event_type='participant.joined',
+            provenance='user', authority='user_direct', inference_kind='process_event',
+            truth_status='not_applicable', actor_id=actor_id, on_behalf_of_id=on_behalf_of_id,
+            content=note or f'Participant {participant_id} joined as {role}.',
+            metadata={'participant_id': participant_id, 'role': role, 'workflow_id': workflow_id, **(metadata or {})},
+            _commit=False,
+        )
+        period_id = new_id('PERIOD')
+        con.execute(
+            """INSERT INTO participation_periods
+               (participation_period_id,account_id,project_id,chat_id,workflow_id,participant_id,
+                role,started_by_event_id,effective_from_seq,created_at,metadata_json)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (period_id, account, project, chat, workflow_id, participant_id, role,
+             event['event_id'], event['seq'] + 1, now(), json.dumps(metadata or {}, ensure_ascii=False))
+        )
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
     return dict(con.execute(
         'SELECT * FROM participation_periods WHERE participation_period_id=?', (period_id,)
     ).fetchone())
@@ -208,30 +218,40 @@ def join_participant(
 def leave_participant(
     con: sqlite3.Connection, *, account='default', project: str, chat: str,
     participant_id: str, workflow_id: str | None = None,
-    actor_id: str | None = None, note: str = '', metadata: dict | None = None,
+    actor_id: str | None = None, on_behalf_of_id: str | None = None,
+    note: str = '', metadata: dict | None = None,
 ) -> dict[str, Any]:
-    """End the active period; the leave event itself is within that period."""
-    period = con.execute(
-        """SELECT * FROM participation_periods WHERE account_id=? AND project_id=? AND chat_id=?
-           AND ifnull(workflow_id,'')=ifnull(?,'') AND participant_id=? AND effective_until_seq IS NULL""",
-        (account, project, chat, workflow_id, participant_id)
-    ).fetchone()
-    if not period:
-        raise ValueError(f'No active participation period for {participant_id}')
-    event = append_event(
-        con, account=account, project=project, chat=chat, event_type='participant.left',
-        provenance='user', authority='user_direct', inference_kind='process_event',
-        truth_status='not_applicable', actor_id=actor_id,
-        content=note or f'Participant {participant_id} left.',
-        metadata={'participant_id': participant_id, 'role': period['role'],
-                  'workflow_id': workflow_id, **(metadata or {})}
-    )
-    con.execute(
-        """UPDATE participation_periods SET ended_by_event_id=?,effective_until_seq=?
-           WHERE participation_period_id=? AND effective_until_seq IS NULL""",
-        (event['event_id'], event['seq'] + 1, period['participation_period_id'])
-    )
-    con.commit()
+    """End the active period atomically; the leave event remains inside it."""
+    actor_id = actor_id or UNKNOWN_USER_ACTOR_ID
+    _ensure_actor(con, account=account, participant_id=actor_id)
+    _ensure_actor(con, account=account, participant_id=SYSTEM_ACTOR_ID)
+    con.execute('BEGIN IMMEDIATE')
+    try:
+        period = con.execute(
+            """SELECT * FROM participation_periods WHERE account_id=? AND project_id=? AND chat_id=?
+               AND ifnull(workflow_id,'')=ifnull(?,'') AND participant_id=? AND effective_until_seq IS NULL""",
+            (account, project, chat, workflow_id, participant_id)
+        ).fetchone()
+        if not period:
+            raise ValueError(f'No active participation period for {participant_id}')
+        event = append_event(
+            con, account=account, project=project, chat=chat, event_type='participant.left',
+            provenance='user', authority='user_direct', inference_kind='process_event',
+            truth_status='not_applicable', actor_id=actor_id, on_behalf_of_id=on_behalf_of_id,
+            content=note or f'Participant {participant_id} left.',
+            metadata={'participant_id': participant_id, 'role': period['role'],
+                      'workflow_id': workflow_id, **(metadata or {})},
+            _commit=False,
+        )
+        con.execute(
+            """UPDATE participation_periods SET ended_by_event_id=?,effective_until_seq=?
+               WHERE participation_period_id=? AND effective_until_seq IS NULL""",
+            (event['event_id'], event['seq'] + 1, period['participation_period_id'])
+        )
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
     return dict(con.execute(
         'SELECT * FROM participation_periods WHERE participation_period_id=?',
         (period['participation_period_id'],)
