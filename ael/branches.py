@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 import sqlite3
-from .config import now, VALID_USAGE_STATUSES, BRANCH_REUSE_STATUSES
+from .config import now, VALID_USAGE_STATUSES, BRANCH_REUSE_STATUSES, ASSISTANT_ACTOR_ID
 from .ledger import append_event
 
 def branch_statuses(con, account: str, project: str, chat: str) -> dict[str, str]:
@@ -19,7 +19,8 @@ def branch_statuses(con, account: str, project: str, chat: str) -> dict[str, str
 
 
 def propose_branch(con, *, account='default', project: str, chat: str, branch_id: str,
-                   label: str, tradeoff: str, strategy_key: str, original_query: str | None = None) -> None:
+                   label: str, tradeoff: str, strategy_key: str, original_query: str | None = None,
+                   actor_id: str | None = None) -> None:
     if con.execute('SELECT 1 FROM branches WHERE branch_id=? AND account_id=? AND project_id=? AND chat_id=?',
                    (branch_id, account, project, chat)).fetchone():
         raise ValueError(f'branch_id already exists: {branch_id}')
@@ -40,7 +41,7 @@ def propose_branch(con, *, account='default', project: str, chat: str, branch_id
 
 def reject_branch(con, *, account='default', project: str, chat: str, branch_id: str,
                   note: str, strategy_failure: bool = False, threshold: int = 3,
-                  usage_status: str = 'not_pertinent_now') -> dict:
+                  usage_status: str = 'not_pertinent_now', actor_id: str | None = None) -> dict:
     b = con.execute('''SELECT * FROM branches WHERE branch_id=? AND account_id=? AND project_id=? AND chat_id=?''',
                     (branch_id, account, project, chat)).fetchone()
     if not b:
@@ -49,7 +50,7 @@ def reject_branch(con, *, account='default', project: str, chat: str, branch_id:
         raise ValueError(f'usage_status must be one of {sorted(BRANCH_REUSE_STATUSES)}')
     append_event(con, account=account, project=project, chat=chat, event_type='branch.rejected', provenance='user',
                  authority='user_direct', inference_kind='decision', truth_status='not_applicable',
-                 content=note or 'User rejected this branch', branch_id=branch_id,
+                 content=note or 'User rejected this branch', branch_id=branch_id, actor_id=actor_id,
                  strategy_key=b['strategy_key'], metadata={'strategy_failure': strategy_failure, 'usage_status': usage_status})
     consecutive = 0
     if strategy_failure:
@@ -76,7 +77,8 @@ def reject_branch(con, *, account='default', project: str, chat: str, branch_id:
 
 def decide_branch(con, *, account='default', project: str, chat: str, branch_id: str,
                   status: str, note: str = '', decision_path: str = 'direct', strategy_failure=False,
-                  threshold: int = 3, usage_status: str = 'not_pertinent_now') -> dict | None:
+                  threshold: int = 3, usage_status: str = 'not_pertinent_now',
+                  actor_id: str | None = None) -> dict | None:
     if status not in {'selected', 'rejected', 'completed'}:
         raise ValueError('status must be selected, rejected, or completed')
     if decision_path not in {'direct', 'accepted_recommendation', 'system'}:
@@ -87,11 +89,11 @@ def decide_branch(con, *, account='default', project: str, chat: str, branch_id:
         raise ValueError(f'Unknown branch {branch_id!r} for this account/project/chat')
     if status == 'rejected':
         return reject_branch(con, account=account, project=project, chat=chat, branch_id=branch_id,
-                             note=note, strategy_failure=strategy_failure, threshold=threshold, usage_status=usage_status)
+                             note=note, strategy_failure=strategy_failure, threshold=threshold, usage_status=usage_status, actor_id=actor_id)
     authority = 'user_direct' if decision_path == 'direct' else 'user_ratified_recommendation' if decision_path == 'accepted_recommendation' else 'system_process'
     append_event(con, account=account, project=project, chat=chat, event_type=f'branch.{status}', provenance='user' if decision_path != 'system' else 'system',
                  authority=authority, inference_kind='decision', truth_status='not_applicable', content=note or f'Branch {status}',
-                 branch_id=branch_id, strategy_key=b['strategy_key'], metadata={'decision_path': decision_path})
+                 branch_id=branch_id, strategy_key=b['strategy_key'], metadata={'decision_path': decision_path}, actor_id=actor_id)
     return None
 
 
