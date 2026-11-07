@@ -177,5 +177,52 @@ class ParticipantLedgerTests(unittest.TestCase):
             migrated.close()
 
 
+    def test_memory_and_revision_decisions_preserve_the_approving_actor(self):
+        approver = self.register("approver-9", "Jordan")["participant_id"]
+
+        source_event = runtime.append_event(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            event_type="observation", provenance="user", content="A source observation"
+        )
+        candidate_id = runtime.add_memory(
+            self.con, account=self.account, scope="account", tag="workflow",
+            claim="Keep this as an account-level reference.",
+            source_event_seq=source_event["seq"]
+        )
+        runtime.review_memory_claim(
+            self.con, candidate_id, "accept", actor_id=approver,
+            note="Approved by Jordan"
+        )
+        memory_row = self.con.execute(
+            "SELECT actor_id FROM memory_events WHERE memory_id=? ORDER BY seq DESC LIMIT 1",
+            (candidate_id,)
+        ).fetchone()
+        self.assertEqual(memory_row["actor_id"], approver)
+
+        runtime.propose_revision(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            proposal_id="revision-actor-check", artifact_id="brief.md",
+            base_version="v1", original_request="Revise the brief.",
+            delta_summary="Change the opening paragraph.",
+            impact_summary="Only the opening paragraph changes.",
+            changed_sections=["whole-artifact"]
+        )
+        runtime.decide_revision(
+            self.con, "revision-actor-check", "accept",
+            account=self.account, project=self.project, chat=self.chat,
+            actor_id=approver, note="Approved by Jordan"
+        )
+        history = runtime.revision_history(
+            self.con, "revision-actor-check",
+            account=self.account, project=self.project, chat=self.chat
+        )
+        accepted = next(e for e in history if e["event_type"] == "revision.accepted")
+        self.assertEqual(accepted["actor_id"], approver)
+        canonical = [e for e in runtime.scope_events(
+            self.con, self.account, self.project, self.chat
+        ) if e["event_type"] == "revision.accepted"][-1]
+        self.assertEqual(canonical["actor_id"], approver)
+
+
 if __name__ == "__main__":
     unittest.main()
