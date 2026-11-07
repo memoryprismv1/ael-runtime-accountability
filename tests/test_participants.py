@@ -267,5 +267,44 @@ class ParticipantLedgerTests(unittest.TestCase):
         self.assertEqual({p["participant_id"] for p in chat_only}, {chat_member})
 
 
+    def test_invalid_actor_is_rejected_before_branch_memory_or_revision_records_are_written(self):
+        typo_actor = "org:org-example:typo-user"
+        with self.assertRaisesRegex(ValueError, "must be registered"):
+            runtime.propose_branch(
+                self.con, account=self.account, project=self.project, chat=self.chat,
+                branch_id="invalid-actor-branch", label="Path", tradeoff="Trade-off",
+                strategy_key="path", actor_id=typo_actor
+            )
+        self.assertEqual(self.con.execute(
+            "SELECT COUNT(*) FROM branches WHERE branch_id='invalid-actor-branch'"
+        ).fetchone()[0], 0)
+
+        source_event = runtime.append_event(
+            self.con, account=self.account, project=self.project, chat=self.chat,
+            event_type="observation", provenance="user", content="Source"
+        )
+        with self.assertRaisesRegex(ValueError, "must be registered"):
+            runtime.add_memory(
+                self.con, account=self.account, scope="account", tag="test",
+                claim="Do not create this", source_event_seq=source_event["seq"],
+                actor_id=typo_actor
+            )
+        self.assertEqual(self.con.execute(
+            "SELECT COUNT(*) FROM memory_candidates WHERE claim='Do not create this'"
+        ).fetchone()[0], 0)
+
+        with self.assertRaisesRegex(ValueError, "must be registered"):
+            runtime.propose_revision(
+                self.con, account=self.account, project=self.project, chat=self.chat,
+                proposal_id="invalid-actor-revision", artifact_id="brief.md",
+                base_version="v1", original_request="Revise",
+                delta_summary="Change heading", impact_summary="Small change",
+                changed_sections=["whole-artifact"], actor_id=typo_actor
+            )
+        self.assertEqual(self.con.execute(
+            "SELECT COUNT(*) FROM revision_proposals WHERE proposal_id='invalid-actor-revision'"
+        ).fetchone()[0], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
