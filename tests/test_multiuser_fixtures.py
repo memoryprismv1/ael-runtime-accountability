@@ -395,11 +395,25 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         self.assertTrue(skill["limitations"])
         self.assertEqual(
             skill["validation"]["status"],
-            "tested_in_originating_repository_pending_skill_review",
+            "originating_fixture_reviewed_human_adoption_pending",
         )
         self.assertEqual(
             skill["validation"]["skill_review_status"],
-            "pending_independent_human_review_before_adoption",
+            "critical_scope_review_completed_human_or_team_adoption_review_pending",
+        )
+        self.assertIn(
+            "deterministic fixture runner",
+            skill["provenance"]["source_scope"],
+        )
+        self.assertTrue(any("not a production host adapter" in item
+                            for item in skill["limitations"]))
+        self.assertTrue(any("fixture maps a human participant" in item
+                            for item in skill["limitations"]))
+        self.assertTrue(any("not independently tested" in item
+                            for item in skill["limitations"]))
+        self.assertIn(
+            "Do not copy the AEL fixture's human user_direct default",
+            skill["reuse_guidance"],
         )
         self.assertTrue(skill["reuse_guidance"])
 
