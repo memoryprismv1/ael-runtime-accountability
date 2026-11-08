@@ -1,7 +1,7 @@
 step,action,actor_key,participant_key,role,workflow_id,content,event_type,branch_id,label,tradeoff,strategy_key,status,decision_path,note
-1,join,system,requester,lead,,,,,,,,,,
+1,join,system,requester,requester,,,,,,,,,,
 2,join,requester,approver,decision_owner,,,,,,,,,,
-3,message,requester,lead,,,Prepare a short source-grounded brief about a change reported by two measurement sources. Do not assume the reported figures are directly comparable.,user_message,,,,,,,
+3,message,requester,requester,,,Prepare a short source-grounded brief about a change reported by two measurement sources. Do not assume the reported figures are directly comparable.,user_message,,,,,,,
 4,join,requester,researcher,evidence_research,,,,,,,,,,
 5,join,requester,counterreviewer,counterevidence_review,,,,,,,,,,
 6,join,requester,synthesizer,synthesis,,,,,,,,,,
@@ -17,4 +17,4 @@ step,action,actor_key,participant_key,role,workflow_id,content,event_type,branch
 16,message,synthesizer,synthesizer,,,"Revised brief: Source S1 reports a 12% decrease in metered consumption between Q1 and Q2 across three monitored districts. Source S2 reports a 4% increase in billed consumption between the prior-year and current-year quarters across eight districts. These figures describe different measures, coverage and comparison periods and should not be combined into one trend. The sources do not establish a cause.",revised_brief,,,,,,,
 17,message,verifier,verifier,,,"Verification: both figures retain their source labels, metric, coverage and comparison period; no causal explanation or direct comparison has been added. This check verifies only the wording against the two synthetic source statements.",agent_validation,,,,,,,
 18,branch_decided,approver,,,,,,interpretation-b,,,,completed,direct,Complete the brief with the non-comparability and causal limitations retained.
-19,message,requester,lead,,,The approved brief is ready for use within the stated source limits.,user_message,,,,,,,
+19,message,requester,requester,,,The approved brief is ready for use within the stated source limits.,user_message,,,,,,,
