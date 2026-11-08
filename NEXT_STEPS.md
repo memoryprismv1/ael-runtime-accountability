@@ -27,7 +27,7 @@ Review whether AEL should record an attributed action attempt and flag its relat
 
 ## Next design work
 
-1. **Human review of the repository-derived candidate:** Check whether the generalisation is faithful to the PR #35 correction and useful outside the AEL fixture. It remains pending independent approval; repository CI does not approve the skill.
+1. **Independent human/team adoption review:** The critical scope review is complete ([review note](examples/team-skill/REVIEW_ACTOR_PROVENANCE_SKILL.md)). Have a receiving engineer check whether the narrowed practice is useful outside the AEL fixture. Keep adoption pending until that review is explicitly recorded; repository CI does not approve a skill.
 2. **Compare provenance needs:** Synthetic lessons point to fixture files and step numbers; a real engineering lesson points to a public repository, PR, commit, files and tests. Preserve this flexibility without weakening source traceability.
 3. **Inspect the 14 shared top-level fields:** Three lessons now fit the same outer shape, but this remains a small sample. Identify which fields are genuinely universal and which should be optional or domain-specific.
 4. **Keep extraction manual:** Do not build an automatic extractor yet. First test human review and approval, including who may approve reuse and what happens when a candidate is revised or rejected.
