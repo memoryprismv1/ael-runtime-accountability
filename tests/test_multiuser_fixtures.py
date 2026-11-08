@@ -340,6 +340,60 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         )
         self.assertTrue(second_skill["reuse_guidance"])
 
+    def test_real_repository_skill_uses_shared_record_shape_and_traces_code_evidence(self):
+        skill_path = ROOT / "examples" / "team-skill" / "actor-provenance-authority-separation.json"
+        skill_text = skill_path.read_text(encoding="utf-8")
+        skill = json.loads(skill_text)
+        baseline = json.loads(
+            (ROOT / "examples" / "team-skill" / "portable-skill-log.json").read_text(encoding="utf-8")
+        )
+        second = json.loads(
+            (ROOT / "examples" / "team-skill" / "source-grounded-claim-reconciliation.json").read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(set(skill), set(baseline))
+        self.assertEqual(set(skill), set(second))
+        self.assertEqual(skill["format_version"], baseline["format_version"])
+        self.assertEqual(skill["record_type"], "portable_team_skill")
+        self.assertEqual(skill["maturity"], "candidate")
+        self.assertEqual(skill["provenance"]["source_kind"], "real_repository_engineering_change")
+        self.assertEqual(
+            skill["provenance"]["source_repository"],
+            "memoryprismv1/ael-runtime-accountability",
+        )
+        self.assertEqual(skill["provenance"]["source_pull_request"], 35)
+        self.assertEqual(
+            skill["provenance"]["source_commit"],
+            "44561c1b10948e34e671b495d6fe486f89a0a2fc",
+        )
+        self.assertIn("ael/multiuser_fixtures.py", skill["provenance"]["source_files"])
+        self.assertIn("tests/test_multiuser_fixtures.py", skill["provenance"]["source_files"])
+        self.assertIn("test_full_workflow_proves_presence_without_action_and_reentry",
+                      skill["provenance"]["source_tests"])
+        self.assertIn("test_portable_skill_log_is_generalised_and_keeps_synthetic_provenance",
+                      skill["provenance"]["source_tests"])
+        self.assertFalse(skill["provenance"]["participant_names_included"])
+        self.assertFalse(skill["provenance"]["participant_ids_included"])
+        self.assertFalse(skill["provenance"]["account_project_or_chat_identifiers_included"])
+        self.assertFalse(skill["provenance"]["raw_conversation_text_included"])
+
+        lowered = skill_text.casefold()
+        for excluded in (
+            "ari coordinator", "riley requester", "morgan manager",
+            "sam approver", "fixture assistant agent",
+            "fixture-account", "multi-user-demo", "approval-workflow-demo",
+            "agent:fixture:",
+        ):
+            self.assertNotIn(excluded.casefold(), lowered)
+
+        self.assertIn("actor", skill["summary"].casefold())
+        self.assertIn("provenance", skill["summary"].casefold())
+        self.assertTrue(skill["generalised_method"])
+        self.assertTrue(skill["applicability"])
+        self.assertTrue(skill["limitations"])
+        self.assertEqual(skill["validation"]["status"], "tested_in_originating_repository")
+        self.assertTrue(skill["reuse_guidance"])
+
     def test_type_is_optional_defaults_to_human_and_agent_is_explicit(self):
         roster_csv = self.root / "typed-participants.csv"
         roster_csv.write_text(
