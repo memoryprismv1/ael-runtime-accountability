@@ -405,7 +405,7 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         limitations = [item.casefold() for item in skill["limitations"]]
         self.assertTrue(any("not a production host adapter" in item
                             for item in limitations))
-        self.assertTrue(any("fixture maps a human participant" in item
+        self.assertTrue(any("fixture maps human messages to user_direct" in item
                             for item in limitations))
         self.assertTrue(any("does not independently exercise all" in item
                             for item in limitations))
