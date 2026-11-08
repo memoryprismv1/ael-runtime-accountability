@@ -70,7 +70,7 @@
   "provenance": {
     "source_kind": "synthetic_multi_agent_ledger_fixture",
     "source_file": "examples/multi-user-workflow/workflow.csv",
-    "source_steps": [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+    "source_steps": [3, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
     "participant_names_included": false,
     "participant_ids_included": false,
     "account_project_or_chat_identifiers_included": false,
