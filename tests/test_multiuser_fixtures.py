@@ -245,14 +245,14 @@ class CSVParticipantFixtureTests(unittest.TestCase):
                 if event.get("metadata_json")
                 and json.loads(event["metadata_json"]).get("fixture_step") is not None
             }
-            self.assertEqual(by_step[3]["actor_id"], participants["lead"]["participant_id"])
+            self.assertEqual(by_step[3]["actor_id"], participants["requester"]["participant_id"])
             self.assertEqual(by_step[8]["actor_id"], researcher["participant_id"])
             self.assertEqual(by_step[9]["actor_id"], counterreviewer["participant_id"])
             self.assertEqual(by_step[10]["actor_id"], synthesizer["participant_id"])
             self.assertEqual(by_step[11]["actor_id"], verifier["participant_id"])
             self.assertEqual(by_step[16]["actor_id"], synthesizer["participant_id"])
             self.assertEqual(by_step[17]["actor_id"], verifier["participant_id"])
-            self.assertEqual(by_step[19]["actor_id"], participants["lead"]["participant_id"])
+            self.assertEqual(by_step[19]["actor_id"], participants["requester"]["participant_id"])
 
             for step in (8, 9, 10, 11, 16, 17):
                 self.assertEqual(by_step[step]["provenance"], "assistant")
