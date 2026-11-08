@@ -16,6 +16,8 @@ This was a real repository implementation issue found and corrected during devel
 
 The skill is intentionally careful about boundaries. Participant type is not authentication. Membership is not permission. A role label is not authority. The host must provide trusted identity and delegation evidence.
 
+The extracted skill remains a candidate. Its validation evidence is drawn from the merged code change and repository tests, but the extraction itself is marked as pending independent human/team review before adoption.
+
 ## Provenance and privacy
 
 The skill points to the public AEL repository, PR, commit and source files so its origin can be checked. It does not contain participant names, participant IDs, account/project/chat scope IDs or raw conversation text.
@@ -27,4 +29,4 @@ This provenance is intentionally different from the two synthetic examples. The 
 - The change and its tests were exercised in the AEL repository.
 - CI passed 88 tests across Python 3.11, 3.12 and 3.13 after PR #35.
 - No live hosted platform or production multi-agent environment was tested.
-- The lesson is a candidate engineering practice. Its use elsewhere still requires mapping the fields to that system's actual identity, provenance and authority model.
+- The lesson is a candidate engineering practice, pending independent human/team review. Its use elsewhere still requires mapping the fields to that system's actual identity, provenance and authority model.
