@@ -1,0 +1,100 @@
+{
+  "format_version": "1.0",
+  "record_type": "portable_team_skill",
+  "skill_id": "separate-actor-provenance-and-authority",
+  "title": "Keep speaker, source and authority distinct in shared event paths",
+  "maturity": "candidate",
+  "distribution_scope": "team_reusable_candidate",
+  "summary": "When adding new actor types to a shared message or event path, audit every attribution field instead of letting new speakers inherit assumptions designed for the original human-only path.",
+  "problem_pattern": {
+    "conditions": [
+      "A system originally built around one human speaker adds agents, tools, services or other actor types.",
+      "Those actors use an existing shared message or event-writing path.",
+      "The existing path contains human-specific defaults for actor identity, provenance, authority or claim classification."
+    ],
+    "failure_mode": "A new actor can be recorded as though a human made the statement or decision. The ledger then preserves an event but misstates who acted, where the event came from, or what authority it carried."
+  },
+  "generalised_method": [
+    {
+      "step": 1,
+      "action": "List every actor type that can enter the shared write path, including humans, agents, tools, services and system processes."
+    },
+    {
+      "step": 2,
+      "action": "Trace the path from the authenticated speaker identity to every persisted attribution field: actor, represented principal, recorder, provenance, authority, inference or claim kind, truth status and event type."
+    },
+    {
+      "step": 3,
+      "action": "Derive each field from the evidence appropriate to that field. Do not reuse a human message default for an agent merely because both use the same message API."
+    },
+    {
+      "step": 4,
+      "action": "Keep the performer distinct from any human or organisation represented by that performer. Record an on-behalf-of relationship only when there is explicit host evidence for it."
+    },
+    {
+      "step": 5,
+      "action": "Do not treat participant type, membership or a role label as proof of identity authentication or decision authority. Use the host's authenticated identity and delegation evidence for those claims."
+    },
+    {
+      "step": 6,
+      "action": "Test each actor type through the actual shared write path. Assert both the expected attribution and prohibited substitutions—for example, an agent event must not silently acquire human direct-user authority."
+    },
+    {
+      "step": 7,
+      "action": "Retest established human paths and legacy compatibility after changing the shared mapping."
+    }
+  ],
+  "applicability": [
+    "Multi-agent applications adding agents to an existing human-facing conversation or event API.",
+    "Event-sourced systems where several actor types share one append path.",
+    "Tool-using assistants where tool output, assistant reasoning and human decisions need different attribution.",
+    "Systems recording actions performed by an agent or service on behalf of another principal."
+  ],
+  "limitations": [
+    "This method does not authenticate the speaker; the host must supply a trusted identity.",
+    "It does not define a permission model or prove that a represented principal authorised an action.",
+    "A participant type can guide expected handling but is not a substitute for evidence of provenance or authority.",
+    "Event labels and provenance values alone do not establish that a human saw, understood or approved an event.",
+    "This candidate comes from a real code-path correction in the AEL repository and its test suite, not from a production incident or an independently evaluated external team."
+  ],
+  "validation": {
+    "status": "tested_in_originating_repository",
+    "checks": [
+      "The pre-change shared message path applied user provenance, direct-user authority and user-statement classification to every speaker.",
+      "The corrected path resolves the registered speaker and records human, agent, service, system and unknown speaker defaults separately.",
+      "The multi-agent fixture asserts distinct registered agent actor IDs, assistant provenance and no human direct-user authority for agent messages.",
+      "The fixture also asserts that human messages and human decisions remain separately attributed.",
+      "The AEL CI suite passed 88 tests on Python 3.11, 3.12 and 3.13 after the change."
+    ],
+    "not_established": [
+      "Authentication behaviour of a live hosted chat or multi-agent platform.",
+      "Correctness of every possible host-specific provenance or delegation mapping.",
+      "A production incident rate or measured reduction in attribution errors.",
+      "Universal applicability without adapting the field mapping to the receiving system."
+    ]
+  },
+  "provenance": {
+    "source_kind": "real_repository_engineering_change",
+    "source_repository": "memoryprismv1/ael-runtime-accountability",
+    "source_pull_request": 35,
+    "source_commit": "44561c1b10948e34e671b495d6fe486f89a0a2fc",
+    "source_file": "ael/multiuser_fixtures.py",
+    "source_files": [
+      "ael/multiuser_fixtures.py",
+      "tests/test_multiuser_fixtures.py",
+      "examples/multi-user-workflow/participants.csv",
+      "examples/multi-user-workflow/workflow.csv"
+    ],
+    "source_steps": [],
+    "source_tests": [
+      "test_full_workflow_proves_presence_without_action_and_reentry",
+      "test_second_scenario_reuses_skill_record_shape_for_source_reconciliation"
+    ],
+    "source_diff_url": "https://github.com/memoryprismv1/ael-runtime-accountability/pull/35/files",
+    "participant_names_included": false,
+    "participant_ids_included": false,
+    "account_project_or_chat_identifiers_included": false,
+    "raw_conversation_text_included": false
+  },
+  "reuse_guidance": "Use as an implementation review aid when adding actor types to a shared event path. Re-map the fields for the receiving system and verify trusted identity and authority evidence at the host boundary before relying on the resulting ledger."
+}
