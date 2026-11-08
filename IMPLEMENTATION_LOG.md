@@ -147,7 +147,8 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 
 ## 8 November 2026 — PR #37: portable skill from real actor-attribution correction
 
-**PR:** [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37)
+**PR:** [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37)  
+**Merge commit:** `b0984e4231d41ccd08db2ce933fda7a52c69dfd4`
 
 **Why:** After two synthetic examples, a third lesson was needed from an actual engineering change to test the portable format against real repository provenance and test evidence.
 
@@ -161,6 +162,6 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 - Added tests that compare the new record's 14 top-level fields with both existing skill examples, validate its source references and exclusions, and check its pending-review status.
 - Updated the portable-skill guide, repository README and handoff.
 
-**Verification:** PR CI [run #474](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469572953) passed 90 tests on Python 3.11, 3.12 and 3.13.
+**Verification:** PR CI [run #478](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469697312) passed 90 tests on Python 3.11, 3.12 and 3.13.
 
 **Boundary:** This is a real AEL repository engineering correction and code/test evidence, not a production incident or live hosted-platform integration. The extraction is pending independent human/team review. It does not add an automatic extractor, permission system or organisation-wide distribution mechanism.
