@@ -385,9 +385,8 @@ class CSVParticipantFixtureTests(unittest.TestCase):
             self.assertNotIn(excluded.casefold(), lowered)
 
         self.assertIn("speaker", skill["summary"].casefold())
-        self.assertTrue(
-            any(term in skill["summary"].casefold() for term in ("attribution", "provenance"))
-        )
+        self.assertIn("classification", skill["summary"].casefold())
+        self.assertIn("authority", skill["summary"].casefold())
         self.assertTrue(skill["generalised_method"])
         self.assertTrue(skill["applicability"])
         self.assertTrue(skill["limitations"])
