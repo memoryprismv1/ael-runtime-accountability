@@ -1,0 +1,82 @@
+{
+  "format_version": "1.0",
+  "record_type": "portable_team_skill",
+  "skill_id": "source-grounded-claim-reconciliation",
+  "title": "Keep source claims separate until they are genuinely comparable",
+  "maturity": "candidate",
+  "distribution_scope": "team_reusable_candidate",
+  "summary": "When sources report apparently conflicting results, compare their measurement definitions, populations and time periods before combining them into one conclusion.",
+  "problem_pattern": {
+    "conditions": [
+      "A brief or decision draws on multiple sources.",
+      "Sources report figures or conclusions that appear to point in different directions.",
+      "The sources may use different measures, populations, coverage, definitions or comparison periods."
+    ],
+    "failure_mode": "A synthesis treats unlike measurements as directly contradictory or combines them into one trend, then supplies a causal explanation that none of the sources establishes."
+  },
+  "generalised_method": [
+    {
+      "step": 1,
+      "action": "For every quantitative claim, retain its source, measure or definition, population or coverage, comparison period, and relevant unit."
+    },
+    {
+      "step": 2,
+      "action": "Before describing findings as contradictory, check whether the sources measure the same thing over comparable populations and periods."
+    },
+    {
+      "step": 3,
+      "action": "Where the measures cannot be harmonised, report the findings separately and state exactly why they are not directly comparable."
+    },
+    {
+      "step": 4,
+      "action": "Separate the observed result from an explanation of why it happened. Do not add a causal account unless the evidence supports it."
+    },
+    {
+      "step": 5,
+      "action": "Ask an independent reviewer to check that each claim retains its source and qualifiers and that the synthesis has not strengthened the evidence."
+    },
+    {
+      "step": 6,
+      "action": "Preserve rejected interpretations and the reason for rejecting them in the evidence trail."
+    }
+  ],
+  "applicability": [
+    "Research briefs and evidence summaries drawing on multiple sources.",
+    "Operational reports where metrics, populations or reporting periods differ.",
+    "Decision support where apparent disagreement may reflect differing definitions rather than a true conflict.",
+    "Any synthesis in which a concise narrative risks overstating what source material establishes."
+  ],
+  "limitations": [
+    "The method does not establish whether an individual source is accurate, representative or trustworthy.",
+    "Comparability requires domain knowledge of the measures and definitions involved.",
+    "Different sources may be comparable on some dimensions and not others; preserve that detail rather than applying a blanket label.",
+    "No causal inference method is supplied by this skill.",
+    "This candidate has been checked only against the synthetic evidence-reconciliation fixture."
+  ],
+  "validation": {
+    "status": "passed_within_synthetic_fixture_only",
+    "checks": [
+      "Two synthetic sources reported different directions using different metrics, coverage and comparison periods.",
+      "The initial combined causal interpretation was rejected because the supplied evidence did not establish comparability or cause.",
+      "The final brief retained each source's metric, coverage and comparison period separately.",
+      "An independent verification message checked that the final wording did not add unsupported comparison or causation.",
+      "A human made the selection and completion decisions; agent contributions remained separately attributed."
+    ],
+    "not_established": [
+      "Accuracy or credibility of real-world source material.",
+      "Correct comparability judgements in domains requiring specialist definitions.",
+      "Causal explanation of the synthetic measurements.",
+      "Universal applicability to every evidence-synthesis task."
+    ]
+  },
+  "provenance": {
+    "source_kind": "synthetic_evidence_reconciliation_fixture",
+    "source_file": "examples/evidence-reconciliation/workflow.csv",
+    "source_steps": [3, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+    "participant_names_included": false,
+    "participant_ids_included": false,
+    "account_project_or_chat_identifiers_included": false,
+    "raw_conversation_text_included": false
+  },
+  "reuse_guidance": "Use as a candidate practice when synthesising multiple sources. Verify domain-specific measurement definitions and source quality independently; keep non-comparable evidence separate and do not infer causation from direction alone."
+}
