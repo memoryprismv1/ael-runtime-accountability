@@ -1,14 +1,31 @@
-# Multi-user participant workflow fixture
+# Multi-agent participant and skill-learning fixture
 
-This fixture exercises the AEL schema-v3 participant registry without requiring a real multi-user chat service.
+This fixture exercises the AEL schema-v3 participant registry and actor attribution without requiring a real multi-user chat service or a pre-populated database.
 
-## Files
+## Participants
 
-- `participants.csv` registers six stable identities. Importing the roster does **not** add anyone to a conversation.
-- `workflow.csv` drives 16 explicit actions in order: joins, user messages, an assistant branch proposal, a different participant's approval, a manager's departure, and a requester's leave/re-entry.
-- `run_fixture.py` imports the roster, executes the steps through the real AEL ledger APIs, and writes a JSON receipt containing the exported ledger and participant history.
+`participants.csv` contains four humans and four explicitly typed agents:
 
-The manager joins after the conversation has begun, remains present while a branch is proposed and approved, and never acts. The receipt asserts that the manager is part of the chain during those events despite having no actor-attributed actions. The requester leaves and rejoins under the same participant ID, creating two separate participation periods.
+- Human requester, coordinator, passive manager and decision-maker.
+- Analysis agent, review agent, implementation agent and validation agent.
+
+Importing the roster registers identities; it does **not** add them to a conversation. Participation begins only through explicit `join` steps.
+
+## Scenario
+
+`workflow.csv` drives 27 deterministic steps:
+
+1. The human requester describes a resource-constrained processing problem.
+2. An analysis agent proposes bounded chunks.
+3. A separate review agent challenges the proposal by identifying dependencies that may cross chunk boundaries.
+4. The analysis agent revises its proposal. The reviewer also proposes an alternative.
+5. A human selects an initial prototype for evaluation. This is an attributed decision in the fixture, not an implemented permission policy.
+6. The implementation agent reports the prototype ready; an independent validation agent finds a boundary defect.
+7. The human rejects the initial approach. The review agent proposes overlap-aware processing and boundary reconciliation.
+8. The human selects the revised approach; the implementation agent reports the change; the validation agent records a pass for the synthetic boundary cases; the human records completion.
+9. A passive manager, who joined after the initial problem statement, leaves without ever acting. The requester leaves and rejoins, retaining the same identity across two participation periods.
+
+Agent messages are stored with the registered agent as actor, assistant provenance, and no human decision authority. Human messages retain user provenance. Human branch decisions retain the human actor and direct-user authority attribution. Distinct agent identities are not collapsed into one generic assistant.
 
 ## Run
 
@@ -26,17 +43,15 @@ python examples/multi-user-workflow/run_fixture.py --db handoffs/multi-user-fixt
 
 Use `--participants`, `--workflow`, `--account`, `--project`, `--chat` and `--out` to run a different fixture or scope.
 
-## Fixture semantics
+## Portable skill example
 
-- `fixture_key` is only a local CSV alias; it is not the participant's identity.
-- The optional `type` column accepts `human` or `agent`. A blank value, or an omitted column, defaults to `human`; agents must be explicitly marked `agent`.
-- The importer maps roster `agent` to AEL's internal `ai_agent` participant type. The older `participant_type` column remains accepted for existing fixtures.
-- Organisation IDs resolve to `org:<issuer>:<external_id>`.
-- The assistant uses an explicit provider ID.
-- Roster import is idempotent and validates the entire CSV before the first write.
-- Membership exists only after a `join` step and ends only at a `leave` step.
-- Membership intervals use `[effective_from_seq, effective_until_seq)`: the start is included and the end is excluded.
-- The `actor_key` on a workflow step is distinct from `participant_key`, which is the participant being joined/removed or the speaker.
-- `system` is permitted as the actor for initial setup; after that, the coordinator performs membership administration.
+[`examples/team-skill/portable-skill-log.json`](../team-skill/portable-skill-log.json) is a manually curated, anonymised candidate skill distilled from the synthetic ledger scenario. It contains the generalised boundary-checking lesson, applicability, method, limitations, validation status and source fixture step references. It omits participant identities, scope identifiers and raw dialogue.
 
-This is a deterministic integration test, not a claim that the current Ollama shell or any hosted ChatGPT UI already has native multi-user transport. A real chat adapter can later supply authenticated participant IDs and the same join/leave/actor APIs.
+See [the skill example README](../team-skill/README.md) for what this does and does not demonstrate. This is not an automatic extractor and does not establish external validity.
+
+## Fixture boundaries
+
+- This is a deterministic ledger and attribution test, not a live ChatGPT multi-agent adapter.
+- The fixture demonstrates recorded disagreement and distinct contributions; it does not simulate independent model cognition.
+- A recorded human decision is not proof of an external permission check. AEL records actor and claimed/recorded authority; the host remains responsible for actual authentication and access control.
+- The exported ledger is the evidence source. The portable skill file is a deliberately reduced, reviewed example, not a transcript replacement.

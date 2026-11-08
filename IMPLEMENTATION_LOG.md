@@ -101,3 +101,23 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 **Verification:** PR CI [run #459](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42466162643) passed 87 tests on Python 3.11, 3.12 and 3.13. Tests cover blank/default human, omitted column, explicit agent mapping, invalid values rejected before any identity is written, and the mixed participant example.
 
 **Boundary:** This changes roster representation and fixture import only. It does not change identity authentication, membership, authority, action attribution or workflow behavior.
+
+
+## 8 November 2026 — PR #35: multi-agent accountability scenario and portable skill example
+
+**PR:** [#35](https://github.com/memoryprismv1/ael-runtime-accountability/pull/35)
+
+**Why:** The existing multi-user fixture had one agent and recorded every message as a user statement. That could not demonstrate a team with distinct agent contributions, disagreement and review, or produce a useful example of generalised knowledge that could travel without the project transcript.
+
+**Changed:**
+
+- Expanded the deterministic roster to four humans and four explicitly typed agents: analysis, review, implementation and validation.
+- Made fixture message attribution speaker-aware. Human messages retain user provenance and direct-user authority; agent messages retain assistant provenance and no human decision authority. Each agent has its own participant identity.
+- Expanded the scenario to 27 steps. A reviewer challenges the initial analysis; two agent-authored alternatives are recorded; a human selects a prototype for evaluation; independent validation finds a boundary defect; the human rejects that approach; a revised proposal is selected, implemented and independently validated; the human records completion.
+- Kept a passive manager who joins after the initial problem statement, remains present during the decision chain, and never acts. The requester leaves and rejoins under the same participant identity.
+- Added [the portable skill-log example](examples/team-skill/portable-skill-log.json). It distils a boundary-checking lesson from the synthetic ledger scenario, retaining applicability, method, limitations, validation status and source fixture step references while omitting participant names/IDs, account/project/chat identifiers and raw conversation text.
+- Added documentation and tests for separate agent attribution, human decisions, disagreement, validation, passive presence, re-entry and identity-free skill output.
+
+**Verification:** PR CI [run #462](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42467690594) passed 88 tests on Python 3.11, 3.12 and 3.13.
+
+**Boundary:** The scenario is deterministic and synthetic; it does not simulate independent model cognition or a live multi-agent host. The skill file is manually curated, not automatically extracted, and is validated only within this fixture. It is a candidate for reuse, not a universal rule. No workflow permission system or organisation ACL was added.

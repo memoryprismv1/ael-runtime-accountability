@@ -3,5 +3,7 @@ coordinator,,organisation,example-org,coordinator-01,,Ari Coordinator
 requester,,organisation,example-org,requester-02,,Riley Requester
 manager,,organisation,example-org,manager-03,,Morgan Manager
 approver,,organisation,example-org,approver-04,,Sam Approver
-implementer,,organisation,example-org,implementer-05,,Casey Implementer
-assistant,agent,provider,,,agent:fixture:assistant,Fixture Assistant Agent
+assistant,agent,provider,,,agent:fixture:analysis,Analysis Agent
+reviewer,agent,provider,,,agent:fixture:review,Review Agent
+implementer,agent,provider,,,agent:fixture:implementation,Implementation Agent
+validator,agent,provider,,,agent:fixture:validation,Validation Agent

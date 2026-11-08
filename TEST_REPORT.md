@@ -1,6 +1,6 @@
 # AEL Runtime Test Report — V2.8.1 prototype and multi-user/context extensions
 
-**Latest AEL-only CI (7 November 2026):** PR [#32](https://github.com/memoryprismv1/ael-runtime-accountability/pull/32), workflow run [#445](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42377856668), passed **85 tests on each of Python 3.11, 3.12 and 3.13**. The run includes compilation of the runtime and tests before executing the full unittest suite. PR #32 was squash-merged as commit `301fb4bec68829460509851d83d2e225a859faad`. The merged code adds canonical active-membership enforcement, pre-write branch-proposal validation, versioned external context intervention events, and tests that model input changes without rewriting the visible message transcript.
+**Latest AEL-only CI (8 November 2026):** PR [#35](https://github.com/memoryprismv1/ael-runtime-accountability/pull/35), workflow run [#462](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42467690594), passed **88 tests on each of Python 3.11, 3.12 and 3.13**. The run includes compilation of the runtime and tests before executing the full unittest suite. It extends the participant fixture to four distinct agents, fixes speaker-aware human/agent message attribution, records disagreement and independent validation with human decisions, and adds a manually curated anonymised portable skill-log example. This does not add a live multi-agent adapter or automatic skill extractor.
 
 **Prior merged baseline:** PR [#31](https://github.com/memoryprismv1/ael-runtime-accountability/pull/31), workflow run [#442](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42375531422), passed 82 tests on Python 3.11/3.12/3.13. PR [#30](https://github.com/memoryprismv1/ael-runtime-accountability/pull/30) introduced the schema-v3 participant registry and actor attribution. The 3 shared-logger tests and experiment/method/historical-analysis tests are in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence), not this AEL suite.
 
@@ -18,6 +18,15 @@
 - An unjoined actor cannot change context.
 - A stale expected previous hash is rejected.
 - The intervention content and resource/version/source/actor metadata remain separate from the sidecar data sent to the model.
+
+
+## Multi-agent accountability and portable skill example
+
+- The deterministic fixture now has four humans and four separately identified agents: analysis, review, implementation and validation.
+- Agent messages are attributed to their registered speaker with assistant provenance and no human decision authority. Human messages and human decisions remain separately attributed.
+- The scenario preserves a reviewer challenge, an initial approach rejected after a validation finding, a revised approach, independent validation, a passive manager's participation, and requester re-entry.
+- `examples/team-skill/portable-skill-log.json` is a manually curated, anonymised candidate distilled from synthetic fixture evidence. It retains applicability, limitations, validation status and source step references while excluding participant identity, scope identifiers and raw dialogue.
+- The skill is validated only within this synthetic fixture. No automatic extraction or outside applicability is claimed.
 
 ## Prior coverage retained
 

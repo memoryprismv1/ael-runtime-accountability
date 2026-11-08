@@ -52,7 +52,9 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 
 ## Multi-user ledger format
 
-The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format, migration rules and current membership enforcement boundary. [`CONTEXT_INTERVENTIONS.md`](CONTEXT_INTERVENTIONS.md) explains how shared/context-file changes are recorded separately from visible chat messages. A CSV-driven integration fixture exercises a late-arriving manager, a separate approver, agent execution, and participant leave/re-entry in [`examples/multi-user-workflow`](examples/multi-user-workflow/README.md).
+The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format, migration rules and current membership enforcement boundary. [`CONTEXT_INTERVENTIONS.md`](CONTEXT_INTERVENTIONS.md) explains how shared/context-file changes are recorded separately from visible chat messages.
+
+The deterministic [multi-agent fixture](examples/multi-user-workflow/README.md) covers separate analysis, review, implementation and validation agents, agent disagreement, human decisions, and an independent validation finding. It also includes a [portable, anonymised skill-log example](examples/team-skill/README.md) showing how a generalised lesson can travel as a file without carrying participant identities or the source conversation. The skill is a synthetic candidate, not an automatically extracted or universally validated rule.
 
 ## Implementation history and handoff
 
@@ -66,7 +68,7 @@ Run from this directory:
 python -m unittest discover -s tests -v
 ```
 
-**85 AEL tests** cover the runtime and mocked local bridge, including active-participant action boundaries and context interventions. The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md) for the per-version CI result.
+**88 AEL tests** cover the runtime and mocked local bridge, including active-participant action boundaries and context interventions. The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md) for the per-version CI result.
 
 ## Quick start
 
