@@ -409,7 +409,7 @@ class CSVParticipantFixtureTests(unittest.TestCase):
                             for item in skill["limitations"]))
         self.assertTrue(any("fixture maps a human participant" in item
                             for item in skill["limitations"]))
-        self.assertTrue(any("not independently tested" in item
+        self.assertTrue(any("does not independently exercise all" in item
                             for item in skill["limitations"]))
         self.assertIn(
             "Do not copy the AEL fixture's human user_direct default",
