@@ -25,9 +25,10 @@ Review whether AEL should record an attributed action attempt and flag its relat
 
 ## Next design work
 
-1. **Test the portable skill format with a second scenario:** Use a materially different synthetic problem and see whether the same record structure can preserve a useful lesson, applicability conditions, failure modes, validation status and provenance without distorting the lesson.
+1. **Compare the two candidate records:** Review which fields are genuinely common and which may be optional or domain-specific. Two synthetic fixtures are only an initial compatibility check, not enough to declare a universal schema.
 2. **Define the curation boundary:** Separate source evidence, generalised lesson, sensitive details that must be withheld, human review, validation and reuse status. Do not equate anonymisation with proof that a lesson is safe or universally applicable.
-3. **Keep extraction manual for now:** The current `examples/team-skill/portable-skill-log.json` is a manually curated candidate. Do not build an automatic skill extractor until more than one scenario demonstrates what the stable record should contain.
+3. **Try one reviewed, non-sensitive real team lesson before automation:** A real example can expose details that synthetic cases cannot—source restrictions, contextual dependencies, redaction risk and whether the resulting skill is actually useful to another team. Keep the source history local and select only material explicitly suitable for reuse.
+4. **Keep extraction manual for now:** The two examples in `examples/team-skill/` are manually curated candidates. Do not build an automatic extractor until the record has been tested against real curation and review needs.
 4. **Controlled context reuse:** Continue to examine how a new project can selectively reuse reviewed skills without importing whole conversations or project-sensitive information.
 5. **Attempt versus acceptance:** Review whether AEL should preserve and flag attributed action attempts outside a recorded participation period rather than reject them before an accountability record exists.
 6. **Supporting-operation evidence:** Review memory lifecycle, revision decisions and checkpoints for complete actor/source/version receipts. This is accountability coverage, not global workflow enforcement.
