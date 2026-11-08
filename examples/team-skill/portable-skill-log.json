@@ -1,0 +1,80 @@
+{
+  "format_version": "1.0",
+  "record_type": "portable_team_skill",
+  "skill_id": "boundary-aware-chunk-processing",
+  "title": "Check relationships across processing boundaries",
+  "maturity": "candidate",
+  "distribution_scope": "team_reusable_candidate",
+  "summary": "When work is split into bounded chunks, validate not only each chunk but also the relationships that cross chunk boundaries.",
+  "problem_pattern": {
+    "conditions": [
+      "An input must be divided into chunks or batches.",
+      "Memory or resource limits make a single-pass approach impractical.",
+      "Relationships or dependencies may span adjacent chunks."
+    ],
+    "failure_mode": "Each chunk can appear locally correct while a relationship crossing a chunk boundary is lost."
+  },
+  "generalised_method": [
+    {
+      "step": 1,
+      "action": "Identify the resource constraint and the boundaries introduced by partitioning."
+    },
+    {
+      "step": 2,
+      "action": "Ask an independent reviewer to look specifically for dependencies that cross those boundaries."
+    },
+    {
+      "step": 3,
+      "action": "Where cross-boundary dependencies are plausible, consider overlapping adjacent chunks rather than treating each chunk as isolated."
+    },
+    {
+      "step": 4,
+      "action": "Reconcile the relationships between adjacent chunks and run tests that deliberately exercise boundary cases."
+    },
+    {
+      "step": 5,
+      "action": "Keep the initial failure and the reason for changing the method in the evidence trail; do not rewrite the history as though the final method was the first proposal."
+    },
+    {
+      "step": 6,
+      "action": "Treat independent validation as evidence for the tested conditions, not as proof of correctness for every input."
+    }
+  ],
+  "applicability": [
+    "Batch processing under memory or resource constraints.",
+    "Pipelines that partition sequences, documents, streams, spatial regions, or other connected inputs.",
+    "Any process where locally valid pieces can fail when recombined."
+  ],
+  "limitations": [
+    "Overlap is not automatically sufficient; the required overlap depends on the maximum relevant dependency span.",
+    "A reconciliation pass must be designed around the actual relationship being preserved.",
+    "No performance or cost advantage is established by this example.",
+    "This skill has not been validated against production data or outside the synthetic case."
+  ],
+  "validation": {
+    "status": "passed_within_synthetic_fixture_only",
+    "checks": [
+      "An initial bounded-chunk proposal was challenged for ignoring cross-boundary relationships.",
+      "A validation finding exposed a boundary defect in the initial prototype.",
+      "A revised proposal introduced overlap and boundary reconciliation.",
+      "An independent validation message recorded a pass for the stated synthetic boundary cases.",
+      "A human made the selection and completion decisions; agent contributions remained separately attributed."
+    ],
+    "not_established": [
+      "General correctness across all input types.",
+      "Production performance or resource savings.",
+      "A universal choice of overlap size.",
+      "Automatic permission to reuse this method in every project."
+    ]
+  },
+  "provenance": {
+    "source_kind": "synthetic_multi_agent_ledger_fixture",
+    "source_file": "examples/multi-user-workflow/workflow.csv",
+    "source_steps": [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+    "participant_names_included": false,
+    "participant_ids_included": false,
+    "account_project_or_chat_identifiers_included": false,
+    "raw_conversation_text_included": false
+  },
+  "reuse_guidance": "Offer this as a candidate practice when the target work has comparable partition boundaries and cross-boundary dependencies. Recheck applicability, dependency span, and validation coverage before adopting it."
+}
