@@ -1,9 +1,9 @@
 # AEL Runtime — Next Steps / Handoff
 
-**Runtime feature baseline:** `b0984e4231d41ccd08db2ce933fda7a52c69dfd4`  
-**Latest merged feature:** PR [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37), repository-derived actor/provenance/authority skill candidate and provenance tests.  
-**Current review item:** PR [#39](https://github.com/memoryprismv1/ael-runtime-accountability/pull/39) critically narrows the repository-derived candidate. The critical scope review is complete; human/team adoption review remains pending.  
-**Latest scope-review CI:** PR #39 run [#487](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42472507493), passed 90 tests on Python 3.11, 3.12 and 3.13.
+**Runtime feature baseline:** `c0fe725b8982165bb5d48d8835b7efad9e52af1b`  
+**Latest merged feature:** PR [#39](https://github.com/memoryprismv1/ael-runtime-accountability/pull/39), critical scope review and refinement of the actor-attribution portable skill.  
+**Current review item:** The critical scope review is complete; independent human/team adoption review remains pending. See [the review note](examples/team-skill/REVIEW_ACTOR_PROVENANCE_SKILL.md).  
+**Latest scope-review CI:** PR #39 run [#488](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42472677789), passed 90 tests on Python 3.11, 3.12 and 3.13.
 
 ## Scope clarification — 7 November 2026
 
@@ -24,6 +24,7 @@ Review whether AEL should record an attributed action attempt and flag its relat
 - [PR #35](https://github.com/memoryprismv1/ael-runtime-accountability/pull/35) — four-agent accountability scenario, speaker-aware provenance, human decisions, independent validation and anonymised portable skill-log example. Merge commit: `44561c1b10948e34e671b495d6fe486f89a0a2fc`. CI [#462](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42467690594): 88 tests on all three Python versions.
 - [PR #36](https://github.com/memoryprismv1/ael-runtime-accountability/pull/36) — second clean-database evidence-reconciliation scenario and shared 14-field skill-record test. Merge commit: `45688bdee538bb6f51a4fdd6c1400618554719ef`. CI [#468](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42468770147): 89 tests on all three Python versions.
 - [PR #37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37) — repository-derived actor/provenance/authority skill candidate, with source/test provenance and pending human-review status. Merge commit: `b0984e4231d41ccd08db2ce933fda7a52c69dfd4`. CI [#478](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469697312): 90 tests on all three Python versions.
+- [PR #39](https://github.com/memoryprismv1/ael-runtime-accountability/pull/39) — critical scope review and narrowing of the repository-derived skill. Merge commit: `c0fe725b8982165bb5d48d8835b7efad9e52af1b`. CI [#488](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42472677789): 90 tests on all three Python versions. Critical review is complete; independent human/team adoption review remains pending.
 
 ## Next design work
 
