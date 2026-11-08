@@ -9,10 +9,8 @@ from typing import Any
 from .config import VALID_IDENTITY_SOURCES, VALID_PARTICIPANT_TYPES
 from .ledger import register_participant
 
-REQUIRED_COLUMNS = {
-    "fixture_key", "participant_type", "identity_source", "display_name"
-}
-OPTIONAL_COLUMNS = {"issuer", "external_id", "participant_id"}
+REQUIRED_COLUMNS = {"fixture_key", "identity_source", "display_name"}
+OPTIONAL_COLUMNS = {"type", "participant_type", "issuer", "external_id", "participant_id"}
 
 
 def import_participants_csv(
@@ -32,6 +30,8 @@ def import_participants_csv(
         reader = csv.DictReader(handle)
         if not reader.fieldnames:
             raise ValueError("Participant CSV must have a header row")
+        if {"type", "participant_type"}.issubset(reader.fieldnames):
+            raise ValueError("Participant CSV must use either 'type' or legacy 'participant_type', not both")
         missing = sorted(REQUIRED_COLUMNS - set(reader.fieldnames))
         if missing:
             raise ValueError(f"Participant CSV is missing required columns: {', '.join(missing)}")
@@ -56,12 +56,31 @@ def import_participants_csv(
             raise ValueError(f"CSV row {line_number}: duplicate fixture_key {fixture_key!r}")
         seen_keys.add(fixture_key)
 
-        participant_type = row.get("participant_type", "")
+        roster_type = row.get("type", "")
+        legacy_participant_type = row.get("participant_type", "")
         identity_source = row.get("identity_source", "")
-        if participant_type not in VALID_PARTICIPANT_TYPES:
-            raise ValueError(
-                f"CSV row {line_number}: participant_type must be one of {sorted(VALID_PARTICIPANT_TYPES)}"
+        if "type" in reader.fieldnames:
+            if roster_type not in {"", "human", "agent"}:
+                raise ValueError(
+                    f"CSV row {line_number}: type must be 'human' or 'agent' when supplied"
+                )
+            participant_type = "ai_agent" if roster_type == "agent" else "human"
+            simple_type = roster_type or "human"
+        elif legacy_participant_type:
+            if legacy_participant_type not in VALID_PARTICIPANT_TYPES:
+                raise ValueError(
+                    f"CSV row {line_number}: participant_type must be one of {sorted(VALID_PARTICIPANT_TYPES)}"
+                )
+            participant_type = legacy_participant_type
+            simple_type = (
+                "human" if participant_type == "human"
+                else "agent" if participant_type in {"ai_agent", "service", "system"}
+                else None
             )
+        else:
+            # The roster defaults to human. An agent must be typed explicitly.
+            participant_type = "human"
+            simple_type = "human"
         if identity_source not in VALID_IDENTITY_SOURCES:
             raise ValueError(
                 f"CSV row {line_number}: identity_source must be one of {sorted(VALID_IDENTITY_SOURCES)}"
@@ -96,6 +115,8 @@ def import_participants_csv(
                 f"CSV row {line_number}: {identity_source} identity requires participant_id"
             )
 
+        row["_participant_type"] = participant_type
+        row["_type"] = simple_type or ""
         prepared.append(row)
 
     participants: list[dict[str, Any]] = []
@@ -107,7 +128,7 @@ def import_participants_csv(
                 con,
                 account=account,
                 participant_id=row.get("participant_id") or None,
-                participant_type=row["participant_type"],
+                participant_type=row["_participant_type"],
                 identity_source=row["identity_source"],
                 issuer=row.get("issuer") or None,
                 external_id=row.get("external_id") or None,
@@ -120,6 +141,7 @@ def import_participants_csv(
             participants.append({
                 "fixture_key": row["fixture_key"],
                 "participant_id": participant_id,
+                "type": row["_type"] or None,
                 "participant_type": participant["participant_type"],
                 "identity_source": participant["identity_source"],
                 "display_name": participant["display_name"],
