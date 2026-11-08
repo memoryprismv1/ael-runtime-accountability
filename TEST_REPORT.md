@@ -48,6 +48,16 @@
 - CI [run #478](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469697312) passed 90 tests on all three Python versions.
 - This is a real repository engineering correction, not a production incident. No live hosted multi-agent platform was tested. The extraction itself remains a candidate pending independent human/team review.
 
+
+## Critical scope review of the repository-derived skill
+
+- Reviewed the skill against the actual PR #35 diff and fixture integration test.
+- Narrowed the source claim to the deterministic CSV fixture runner; no production adapter or core ledger append change is implied.
+- Made clear that the fixture's human `user_direct` value is a scenario convention, not authentication or permission evidence.
+- Removed unsupported generalisation about represented-principal and recorder fields. Recorded that service/system/unknown branches in the mapping are not all independently exercised by the PR #35 scenario.
+- Added `examples/team-skill/REVIEW_ACTOR_PROVENANCE_SKILL.md` and tests for the corrected source scope, authority warning, and coverage limitation.
+- The candidate's critical scope review is complete; independent human/team adoption review remains pending. CI does not approve skill adoption.
+
 ## Prior coverage retained
 
 - Declared section changes pass; out-of-scope edits, vague locators, stale bases and no-op changes fail closed.
