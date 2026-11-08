@@ -1,6 +1,6 @@
 # AEL Runtime Test Report — V2.8.1 prototype and multi-user/context extensions
 
-**Latest AEL-only CI (8 November 2026):** PR [#35](https://github.com/memoryprismv1/ael-runtime-accountability/pull/35), workflow run [#462](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42467690594), passed **88 tests on each of Python 3.11, 3.12 and 3.13**. The run includes compilation of the runtime and tests before executing the full unittest suite. It extends the participant fixture to four distinct agents, fixes speaker-aware human/agent message attribution, records disagreement and independent validation with human decisions, and adds a manually curated anonymised portable skill-log example. This does not add a live multi-agent adapter or automatic skill extractor.
+**Latest AEL-only CI (8 November 2026):** PR [#36](https://github.com/memoryprismv1/ael-runtime-accountability/pull/36), workflow run [#468](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42468770147), passed **89 tests on each of Python 3.11, 3.12 and 3.13**. The run includes compilation of the runtime and tests before executing the full unittest suite. It adds a second, clean-database, source-reconciliation scenario and verifies that a different candidate lesson fits the same portable skill-log outer structure. It does not add a live multi-agent adapter or automatic skill extractor.
 
 **Prior merged baseline:** PR [#31](https://github.com/memoryprismv1/ael-runtime-accountability/pull/31), workflow run [#442](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42375531422), passed 82 tests on Python 3.11/3.12/3.13. PR [#30](https://github.com/memoryprismv1/ael-runtime-accountability/pull/30) introduced the schema-v3 participant registry and actor attribution. The 3 shared-logger tests and experiment/method/historical-analysis tests are in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence), not this AEL suite.
 
@@ -27,6 +27,16 @@
 - The scenario preserves a reviewer challenge, an initial approach rejected after a validation finding, a revised approach, independent validation, a passive manager's participation, and requester re-entry.
 - `examples/team-skill/portable-skill-log.json` is a manually curated, anonymised candidate distilled from synthetic fixture evidence. It retains applicability, limitations, validation status and source step references while excluding participant identity, scope identifiers and raw dialogue.
 - The skill is validated only within this synthetic fixture. No automatic extraction or outside applicability is claimed.
+
+
+## Second portable-skill scenario: source reconciliation
+
+- A separate clean SQLite database runs an unrelated synthetic evidence-synthesis scenario with a human requester/decision-maker and four distinct agents.
+- Two synthetic sources report opposite movements but use different measures, coverage and comparison periods. An initial combined causal interpretation is challenged and rejected; a source-separated, qualified brief is selected, checked and completed.
+- The portable candidate `examples/team-skill/source-grounded-claim-reconciliation.json` preserves source-comparability checks, uncertainty and causal limits.
+- The test compares its top-level fields with the first chunk-boundary skill record and verifies exclusion of participant identities, scope identifiers, and the scenario's source-specific figures.
+- Both candidates use the same 14 top-level fields but different problem patterns, methods, applicability and limitations. This supports outer-format reuse across these two synthetic cases; it does not prove completeness of a universal schema.
+- CI [run #468](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42468770147) passed 89 tests on all three Python versions.
 
 ## Prior coverage retained
 
