@@ -33,8 +33,8 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         second = import_participants_csv(
             self.con, FIXTURE / "participants.csv", account="fixture-account"
         )
-        self.assertEqual(first["registered_count"], 6)
-        self.assertEqual(second["registered_count"], 6)
+        self.assertEqual(first["registered_count"], 8)
+        self.assertEqual(second["registered_count"], 8)
         roster = {p["fixture_key"]: p for p in first["participants"]}
         self.assertEqual(roster["coordinator"]["type"], "human")
         self.assertEqual(roster["assistant"]["type"], "agent")
@@ -44,7 +44,7 @@ class CSVParticipantFixtureTests(unittest.TestCase):
             self.con.execute(
                 "SELECT COUNT(*) FROM participants WHERE account_id='fixture-account'"
             ).fetchone()[0],
-            6,
+            8,
         )
         self.assertEqual(
             self.con.execute(
@@ -167,8 +167,8 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         manager_events = [e for e in events if e["actor_id"] == manager["participant_id"]]
         self.assertEqual(manager_events, [])
         # Yet the manager is included during both the branch proposal and approval.
-        self.assertIn(proposal["seq"], receipt["manager_present_event_seqs"])
-        self.assertIn(selection["seq"], receipt["manager_present_event_seqs"])
+        self.assertIn(route_a_proposal["seq"], receipt["manager_present_event_seqs"])
+        self.assertIn(route_c_decisions[0]["seq"], receipt["manager_present_event_seqs"])
 
     def test_type_is_optional_defaults_to_human_and_agent_is_explicit(self):
         roster_csv = self.root / "typed-participants.csv"
