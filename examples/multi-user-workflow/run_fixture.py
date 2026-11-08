@@ -44,6 +44,12 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({
             "completed": True,
             "registered_participants": receipt["participant_import"]["registered_count"],
+            "human_participants": sum(
+                p["participant_type"] == "human" for p in receipt["ledger"]["participants"]
+            ),
+            "agent_participants": sum(
+                p["participant_type"] == "ai_agent" for p in receipt["ledger"]["participants"]
+            ),
             "workflow_steps": len(receipt["steps"]),
             "ledger_events": receipt["last_event_seq"],
             "manager_present_event_count": len(receipt["manager_present_event_seqs"]),
