@@ -330,7 +330,7 @@ class CSVParticipantFixtureTests(unittest.TestCase):
             self.assertNotIn(private_fixture_value.casefold(), lowered)
 
         self.assertIn("source", second_skill["summary"].casefold())
-        self.assertIn("comparison", second_skill["summary"].casefold())
+        self.assertIn("compare", second_skill["summary"].casefold())
         self.assertTrue(second_skill["generalised_method"])
         self.assertTrue(second_skill["applicability"])
         self.assertTrue(second_skill["limitations"])
