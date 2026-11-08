@@ -5,7 +5,7 @@
   "title": "Check relationships across processing boundaries",
   "maturity": "candidate",
   "distribution_scope": "team_reusable_candidate",
-  "summary": "When work is split into bounded chunks, validate not only each chunk but also relationships that cross chunk boundaries.",
+  "summary": "When work is split into bounded chunks, validate not only each chunk but also cross-boundary relationships.",
   "problem_pattern": {
     "conditions": [
       "An input must be divided into chunks or batches.",
