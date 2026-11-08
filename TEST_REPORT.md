@@ -45,7 +45,7 @@
 - The correction derives attribution from the registered speaker. The skill generalises this into a review method for adding actor types to shared event-writing paths.
 - Provenance points to the public repository, merged PR, commit, source files and tests. The portable file excludes participant names/IDs, account/project/chat identifiers and raw conversation text.
 - The test verifies that this record uses the same 14 top-level fields as both synthetic skills, that its source references are correct, and that its review status remains pending before adoption.
-- CI [run #474](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469572953) passed 90 tests on all three Python versions.
+- CI [run #478](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469697312) passed 90 tests on all three Python versions.
 - This is a real repository engineering correction, not a production incident. No live hosted multi-agent platform was tested. The extraction itself remains a candidate pending independent human/team review.
 
 ## Prior coverage retained
