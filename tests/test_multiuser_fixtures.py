@@ -131,6 +131,9 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         self.assertEqual(by_step[16]["actor_id"], implementer["participant_id"])
         self.assertEqual(by_step[17]["actor_id"], validator["participant_id"])
         self.assertEqual(by_step[22]["actor_id"], validator["participant_id"])
+        for step in (10, 11, 12, 16, 17, 21, 22):
+            self.assertEqual(by_step[step]["provenance"], "assistant")
+            self.assertEqual(by_step[step]["authority"], "none")
 
         route_a_proposal = next(
             e for e in events if e["event_type"] == "branch.proposed" and e["branch_id"] == "route-a"
