@@ -393,7 +393,14 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         self.assertTrue(skill["generalised_method"])
         self.assertTrue(skill["applicability"])
         self.assertTrue(skill["limitations"])
-        self.assertEqual(skill["validation"]["status"], "tested_in_originating_repository")
+        self.assertEqual(
+            skill["validation"]["status"],
+            "tested_in_originating_repository_pending_skill_review",
+        )
+        self.assertEqual(
+            skill["validation"]["skill_review_status"],
+            "pending_independent_human_review_before_adoption",
+        )
         self.assertTrue(skill["reuse_guidance"])
 
     def test_type_is_optional_defaults_to_human_and_agent_is_explicit(self):
