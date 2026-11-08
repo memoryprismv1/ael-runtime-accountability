@@ -1,4 +1,5 @@
 import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -74,9 +75,12 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         requester = participants["requester"]
         approver = participants["approver"]
         assistant = participants["assistant"]
+        reviewer = participants["reviewer"]
+        implementer = participants["implementer"]
+        validator = participants["validator"]
 
-        self.assertEqual(receipt["participant_import"]["registered_count"], 6)
-        self.assertEqual(len(receipt["steps"]), 16)
+        self.assertEqual(receipt["participant_import"]["registered_count"], 8)
+        self.assertEqual(len(receipt["steps"]), 27)
         self.assertGreater(len(receipt["manager_present_event_seqs"]), 0)
         self.assertFalse(receipt["manager_performed_actions"])
         self.assertEqual(len(manager["participation_periods"]), 1)
@@ -106,12 +110,59 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         self.assertNotIn(manager["participant_id"], {p["participant_id"] for p in at_end})
 
         events = exported["events"]
-        selection = next(e for e in events if e["event_type"] == "branch.selected")
-        proposal = next(e for e in events if e["event_type"] == "branch.proposed")
-        self.assertEqual(proposal["actor_id"], assistant["participant_id"])
-        self.assertEqual(selection["actor_id"], approver["participant_id"])
-        self.assertEqual(selection["authority"], "user_direct")
-        self.assertNotEqual(proposal["actor_id"], selection["actor_id"])
+        by_step = {
+            event.get("metadata_json") and json.loads(event["metadata_json"]).get("fixture_step"): event
+            for event in events
+            if event.get("metadata_json")
+        }
+        self.assertEqual(by_step[9]["actor_id"], requester["participant_id"])
+        self.assertEqual(by_step[9]["provenance"], "user")
+        self.assertEqual(by_step[9]["authority"], "user_direct")
+
+        # Agent messages are attributed to the registered agent, not flattened
+        # into user statements or given human authority.
+        self.assertEqual(by_step[10]["actor_id"], assistant["participant_id"])
+        self.assertEqual(by_step[10]["provenance"], "assistant")
+        self.assertEqual(by_step[10]["authority"], "none")
+        self.assertEqual(by_step[11]["actor_id"], reviewer["participant_id"])
+        self.assertEqual(by_step[11]["provenance"], "assistant")
+        self.assertEqual(by_step[16]["actor_id"], implementer["participant_id"])
+        self.assertEqual(by_step[17]["actor_id"], validator["participant_id"])
+        self.assertEqual(by_step[22]["actor_id"], validator["participant_id"])
+
+        route_a_proposal = next(
+            e for e in events if e["event_type"] == "branch.proposed" and e["branch_id"] == "route-a"
+        )
+        route_b_proposal = next(
+            e for e in events if e["event_type"] == "branch.proposed" and e["branch_id"] == "route-b"
+        )
+        route_c_proposal = next(
+            e for e in events if e["event_type"] == "branch.proposed" and e["branch_id"] == "route-c"
+        )
+        self.assertEqual(route_a_proposal["actor_id"], assistant["participant_id"])
+        self.assertEqual(route_b_proposal["actor_id"], reviewer["participant_id"])
+        self.assertEqual(route_c_proposal["actor_id"], reviewer["participant_id"])
+
+        route_a_decisions = [
+            e for e in events if e["branch_id"] == "route-a"
+            and e["event_type"] in {"branch.selected", "branch.rejected"}
+        ]
+        self.assertEqual([e["event_type"] for e in route_a_decisions],
+                         ["branch.selected", "branch.rejected"])
+        self.assertTrue(all(e["actor_id"] == approver["participant_id"] for e in route_a_decisions))
+        self.assertTrue(all(e["authority"] == "user_direct" for e in route_a_decisions))
+        route_c_decisions = [
+            e for e in events if e["branch_id"] == "route-c"
+            and e["event_type"] in {"branch.selected", "branch.completed"}
+        ]
+        self.assertEqual([e["event_type"] for e in route_c_decisions],
+                         ["branch.selected", "branch.completed"])
+        self.assertTrue(all(e["actor_id"] == approver["participant_id"] for e in route_c_decisions))
+        self.assertTrue(all(e["authority"] == "user_direct" for e in route_c_decisions))
+
+        # The ledger preserves each agent as a distinct participant identity.
+        for agent in (assistant, reviewer, implementer, validator):
+            self.assertEqual(agent["participant_type"], "ai_agent")
 
         manager_events = [e for e in events if e["actor_id"] == manager["participant_id"]]
         self.assertEqual(manager_events, [])
