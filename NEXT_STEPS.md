@@ -2,8 +2,8 @@
 
 **Runtime feature baseline:** `45688bdee538bb6f51a4fdd6c1400618554719ef`  
 **Latest merged feature:** PR [#36](https://github.com/memoryprismv1/ael-runtime-accountability/pull/36), second portable-skill scenario and record-format compatibility test.  
-**Current phase:** Test the portable record against a repository-derived engineering lesson. Three examples now share the same outer fields: two synthetic scenarios and one real code-path correction. The third candidate remains pending independent human/team review.  
-**Latest merged CI:** PR [#36](https://github.com/memoryprismv1/ael-runtime-accountability/pull/36), run [#468](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42468770147), passed 89 tests on Python 3.11, 3.12 and 3.13.
+**Current candidate:** PR [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37), a repository-derived actor/provenance/authority skill. The candidate has real repository and test provenance but remains pending independent human/team review.  
+**Latest CI:** PR [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37), run [#474](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469572953), passed 90 tests on Python 3.11, 3.12 and 3.13.
 
 ## Scope clarification — 7 November 2026
 
@@ -25,10 +25,10 @@ Review whether AEL should record an attributed action attempt and flag its relat
 
 ## Next design work
 
-1. **Review the repository-derived skill:** Check whether the generalisation is faithful to the PR #35 code change and whether the method is useful outside the AEL fixture. The candidate is explicitly marked pending independent human/team review.
+1. **Human review of the repository-derived candidate:** Check whether the generalisation is faithful to the PR #35 correction and useful outside the AEL fixture. It remains pending independent approval; repository CI does not approve the skill.
 2. **Compare provenance needs:** Synthetic lessons point to fixture files and step numbers; a real engineering lesson points to a public repository, PR, commit, files and tests. Preserve this flexibility without weakening source traceability.
-3. **Inspect the 14 shared top-level fields:** Three lessons now fit the same outer shape, but this is still a small sample. Identify fields that are truly universal and distinguish required fields from domain-specific detail.
-4. **Keep extraction manual:** Do not build an automatic extractor yet. First test a human review and approval path on a real, non-sensitive lesson, including who can approve reuse and what happens when the candidate is revised or rejected.
+3. **Inspect the 14 shared top-level fields:** Three lessons now fit the same outer shape, but this remains a small sample. Identify which fields are genuinely universal and which should be optional or domain-specific.
+4. **Keep extraction manual:** Do not build an automatic extractor yet. First test human review and approval, including who may approve reuse and what happens when a candidate is revised or rejected.
 5. **Controlled context reuse:** Continue to examine how a new project can selectively reuse reviewed skills without importing whole conversations or project-sensitive information.
 6. **Attempt versus acceptance:** Review whether AEL should preserve and flag attributed action attempts outside a recorded participation period rather than reject them before an accountability record exists.
 7. **Supporting-operation evidence:** Review memory lifecycle, revision decisions and checkpoints for complete actor/source/version receipts. This is accountability coverage, not global workflow enforcement.
