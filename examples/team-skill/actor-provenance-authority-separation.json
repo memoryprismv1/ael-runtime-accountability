@@ -88,7 +88,7 @@
     "source_steps": [],
     "source_tests": [
       "test_full_workflow_proves_presence_without_action_and_reentry",
-      "test_second_scenario_reuses_skill_record_shape_for_source_reconciliation"
+      "test_portable_skill_log_is_generalised_and_keeps_synthetic_provenance"
     ],
     "source_diff_url": "https://github.com/memoryprismv1/ael-runtime-accountability/pull/35/files",
     "participant_names_included": false,
