@@ -1,6 +1,7 @@
 # AEL Runtime Test Report — V2.8.1 prototype and multi-user/context extensions
 
-**Latest AEL-only CI (8 November 2026):** PR [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37), workflow run [#474](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469572953), passed **90 tests on each of Python 3.11, 3.12 and 3.13**. The run includes compilation of the runtime and tests before executing the full unittest suite. It adds a third portable skill candidate grounded in a real AEL code-path correction, verifies its provenance and confirms compatibility with the same 14 top-level fields used by the two synthetic candidates. The new skill is pending independent human/team review; no live multi-agent adapter or automatic extractor is added.
+**Latest merged-feature CI:** PR [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37), run [#478](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469697312), passed **90 tests on Python 3.11, 3.12 and 3.13**.  
+**Critical skill-review CI:** PR [#39](https://github.com/memoryprismv1/ael-runtime-accountability/pull/39), run [#487](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42472507493), passed **90 tests on each of Python 3.11, 3.12 and 3.13**. This run includes the narrowed candidate, explicit scope review and stronger assertions. The candidate remains pending independent human/team adoption review.
 
 **Prior merged baseline:** PR [#31](https://github.com/memoryprismv1/ael-runtime-accountability/pull/31), workflow run [#442](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42375531422), passed 82 tests on Python 3.11/3.12/3.13. PR [#30](https://github.com/memoryprismv1/ael-runtime-accountability/pull/30) introduced the schema-v3 participant registry and actor attribution. The 3 shared-logger tests and experiment/method/historical-analysis tests are in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence), not this AEL suite.
 
@@ -47,6 +48,16 @@
 - The test verifies that this record uses the same 14 top-level fields as both synthetic skills, that its source references are correct, and that its review status remains pending before adoption.
 - CI [run #478](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469697312) passed 90 tests on all three Python versions.
 - This is a real repository engineering correction, not a production incident. No live hosted multi-agent platform was tested. The extraction itself remains a candidate pending independent human/team review.
+
+
+## Critical scope review of the repository-derived skill
+
+- Reviewed the skill against the actual PR #35 diff and fixture integration test.
+- Narrowed the source claim to the deterministic CSV fixture runner; no production adapter or core ledger append change is implied.
+- Made clear that the fixture's human `user_direct` value is a scenario convention, not authentication or permission evidence.
+- Removed unsupported generalisation about represented-principal and recorder fields. Recorded that service/system/unknown branches in the mapping are not all independently exercised by the PR #35 scenario.
+- Added `examples/team-skill/REVIEW_ACTOR_PROVENANCE_SKILL.md` and tests for the corrected source scope, authority warning, and coverage limitation.
+- The candidate's critical scope review is complete; independent human/team adoption review remains pending. CI does not approve skill adoption.
 
 ## Prior coverage retained
 

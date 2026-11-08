@@ -2,8 +2,8 @@
 
 **Runtime feature baseline:** `b0984e4231d41ccd08db2ce933fda7a52c69dfd4`  
 **Latest merged feature:** PR [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37), repository-derived actor/provenance/authority skill candidate and provenance tests.  
-**Current review item:** `examples/team-skill/actor-provenance-authority-separation.json` is merged but explicitly pending independent human/team review before adoption.  
-**Latest CI:** PR [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37), final run [#478](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469697312), passed 90 tests on Python 3.11, 3.12 and 3.13.
+**Current review item:** PR [#39](https://github.com/memoryprismv1/ael-runtime-accountability/pull/39) critically narrows the repository-derived candidate. The critical scope review is complete; human/team adoption review remains pending.  
+**Latest scope-review CI:** PR #39 run [#487](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42472507493), passed 90 tests on Python 3.11, 3.12 and 3.13.
 
 ## Scope clarification — 7 November 2026
 
@@ -27,7 +27,7 @@ Review whether AEL should record an attributed action attempt and flag its relat
 
 ## Next design work
 
-1. **Human review of the repository-derived candidate:** Check whether the generalisation is faithful to the PR #35 correction and useful outside the AEL fixture. It remains pending independent approval; repository CI does not approve the skill.
+1. **Independent human/team adoption review:** PR #39 completes the critical scope review ([review note](examples/team-skill/REVIEW_ACTOR_PROVENANCE_SKILL.md)). A receiving engineer still needs to check whether the narrowed practice is useful outside the AEL fixture. Keep adoption pending until that is explicitly recorded; repository CI does not approve a skill.
 2. **Compare provenance needs:** Synthetic lessons point to fixture files and step numbers; a real engineering lesson points to a public repository, PR, commit, files and tests. Preserve this flexibility without weakening source traceability.
 3. **Inspect the 14 shared top-level fields:** Three lessons now fit the same outer shape, but this remains a small sample. Identify which fields are genuinely universal and which should be optional or domain-specific.
 4. **Keep extraction manual:** Do not build an automatic extractor yet. First test human review and approval, including who may approve reuse and what happens when a candidate is revised or rejected.

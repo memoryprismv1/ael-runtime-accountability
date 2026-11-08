@@ -165,3 +165,38 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 **Verification:** PR CI [run #478](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469697312) passed 90 tests on Python 3.11, 3.12 and 3.13.
 
 **Boundary:** This is a real AEL repository engineering correction and code/test evidence, not a production incident or live hosted-platform integration. The extraction is pending independent human/team review. It does not add an automatic extractor, permission system or organisation-wide distribution mechanism.
+
+
+## 8 November 2026 — Critical scope review of repository-derived actor attribution skill
+
+**Work branch:** `review-refine-actor-attribution-skill` (PR pending)
+
+**Why:** The first skill extraction was faithful to the existence of the PR #35 correction, but its method extended beyond the demonstrated source. In particular, it blurred a fixture runner with a production event path, treated a fixture's human `user_direct` convention too much like authority evidence, and discussed represented principals/recorders as if the change exercised them.
+
+**Review and corrections:**
+
+- Narrowed the source scope to `ael/multiuser_fixtures.py`'s deterministic CSV fixture runner. It does not demonstrate that the core ledger append boundary or a live host adapter performs the same mapping.
+- Clarified that the fixture maps a human participant to `user_direct` as a scenario convention. That is not authentication, permission or authorisation evidence and must not be copied as a production default.
+- Made the receiving system inspect its own fields and transport evidence instead of assuming that participant type alone proves event source/provenance.
+- Removed implied evidence for represented-principal and recorder fields; an on-behalf-of relationship is now conditional on an actual supported field and explicit evidence.
+- Recorded that the PR #35 integration scenario asserts human and agent cases, but does not independently exercise every service/system/unknown mapping present in the code.
+- Added [`REVIEW_ACTOR_PROVENANCE_SKILL.md`](examples/team-skill/REVIEW_ACTOR_PROVENANCE_SKILL.md), an explicit critical review with findings, corrections, refined practice and limits.
+- Updated the portable record validation status to `originating_fixture_reviewed_human_adoption_pending`. Critical scope review is complete; independent human/team adoption remains pending.
+- Strengthened the existing skill test to check the narrowed source scope, the authority caveat and the untested-branch limitation.
+
+**Boundary:** This review does not implement new authentication, permission handling, recorder attribution or on-behalf-of fields. It only improves the fidelity and portability of the extracted candidate. AEL CI validates the fixture/test behaviour, not adoption or utility at another organisation.
+
+
+## 8 November 2026 — PR #39: critical scope review of actor attribution skill
+
+**PR:** [#39](https://github.com/memoryprismv1/ael-runtime-accountability/pull/39) (review branch; merge pending)
+
+**Why:** The initial extraction from PR #35 was directionally useful but broader than the source evidence. It blurred the fixture runner with production infrastructure and associated a human fixture default too closely with real authority.
+
+**Review:** Added [`REVIEW_ACTOR_PROVENANCE_SKILL.md`](examples/team-skill/REVIEW_ACTOR_PROVENANCE_SKILL.md). Narrowed the skill to speaker-aware classification in a shared message/event path; named the deterministic fixture runner as the actual source; warned that fixture `user_direct` is not authentication or permission evidence; removed implied evidence for recorder/represented-principal fields; and recorded the service/system/unknown branch coverage gap in the PR #35 scenario.
+
+**Validation status:** The skill now says `originating_fixture_reviewed_human_adoption_pending`. Critical scope review is complete; independent human/team adoption remains pending. The strengthened test checks the exact evidence boundary and authority warning.
+
+**Verification:** PR #39 CI [run #487](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42472507493) passed 90 tests on Python 3.11, 3.12 and 3.13.
+
+**Boundary:** No runtime code, authentication, permissions, recorder model or delegated-principal implementation changed. This work improves the extracted candidate's accuracy and portability; it does not certify independent adoption or general effectiveness.

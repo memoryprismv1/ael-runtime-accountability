@@ -370,8 +370,6 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         self.assertIn("tests/test_multiuser_fixtures.py", skill["provenance"]["source_files"])
         self.assertIn("test_full_workflow_proves_presence_without_action_and_reentry",
                       skill["provenance"]["source_tests"])
-        self.assertIn("test_portable_skill_log_is_generalised_and_keeps_synthetic_provenance",
-                      skill["provenance"]["source_tests"])
         self.assertFalse(skill["provenance"]["participant_names_included"])
         self.assertFalse(skill["provenance"]["participant_ids_included"])
         self.assertFalse(skill["provenance"]["account_project_or_chat_identifiers_included"])
@@ -386,20 +384,34 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         ):
             self.assertNotIn(excluded.casefold(), lowered)
 
-        self.assertIn("actor", skill["summary"].casefold())
-        self.assertTrue(
-            any(term in skill["summary"].casefold() for term in ("attribution", "provenance"))
-        )
+        self.assertIn("speaker", skill["summary"].casefold())
+        self.assertIn("classification", skill["summary"].casefold())
+        self.assertIn("authority", skill["summary"].casefold())
         self.assertTrue(skill["generalised_method"])
         self.assertTrue(skill["applicability"])
         self.assertTrue(skill["limitations"])
         self.assertEqual(
             skill["validation"]["status"],
-            "tested_in_originating_repository_pending_skill_review",
+            "originating_fixture_reviewed_human_adoption_pending",
         )
         self.assertEqual(
             skill["validation"]["skill_review_status"],
-            "pending_independent_human_review_before_adoption",
+            "critical_scope_review_completed_human_or_team_adoption_review_pending",
+        )
+        self.assertIn(
+            "deterministic fixture runner",
+            skill["provenance"]["source_scope"].casefold(),
+        )
+        limitations = [item.casefold() for item in skill["limitations"]]
+        self.assertTrue(any("not a production host adapter" in item
+                            for item in limitations))
+        self.assertTrue(any("fixture maps human messages to user_direct" in item
+                            for item in limitations))
+        self.assertTrue(any("does not independently exercise all" in item
+                            for item in limitations))
+        self.assertIn(
+            "do not copy the ael fixture's human user_direct default",
+            skill["reuse_guidance"].casefold(),
         )
         self.assertTrue(skill["reuse_guidance"])
 
