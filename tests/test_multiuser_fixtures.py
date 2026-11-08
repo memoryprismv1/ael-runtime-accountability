@@ -400,17 +400,18 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         )
         self.assertIn(
             "deterministic fixture runner",
-            skill["provenance"]["source_scope"],
+            skill["provenance"]["source_scope"].casefold(),
         )
+        limitations = [item.casefold() for item in skill["limitations"]]
         self.assertTrue(any("not a production host adapter" in item
-                            for item in skill["limitations"]))
+                            for item in limitations))
         self.assertTrue(any("fixture maps a human participant" in item
-                            for item in skill["limitations"]))
+                            for item in limitations))
         self.assertTrue(any("does not independently exercise all" in item
-                            for item in skill["limitations"]))
+                            for item in limitations))
         self.assertIn(
-            "Do not copy the AEL fixture's human user_direct default",
-            skill["reuse_guidance"],
+            "do not copy the ael fixture's human user_direct default",
+            skill["reuse_guidance"].casefold(),
         )
         self.assertTrue(skill["reuse_guidance"])
 
