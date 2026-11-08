@@ -170,6 +170,43 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         self.assertIn(route_a_proposal["seq"], receipt["manager_present_event_seqs"])
         self.assertIn(route_c_decisions[0]["seq"], receipt["manager_present_event_seqs"])
 
+    def test_portable_skill_log_is_generalised_and_keeps_synthetic_provenance(self):
+        skill_path = ROOT / "examples" / "team-skill" / "portable-skill-log.json"
+        skill_text = skill_path.read_text(encoding="utf-8")
+        skill = json.loads(skill_text)
+
+        self.assertEqual(skill["record_type"], "portable_team_skill")
+        self.assertEqual(skill["maturity"], "candidate")
+        self.assertEqual(
+            skill["provenance"]["source_kind"],
+            "synthetic_multi_agent_ledger_fixture",
+        )
+        self.assertEqual(
+            skill["provenance"]["source_file"],
+            "examples/multi-user-workflow/workflow.csv",
+        )
+        self.assertTrue(skill["provenance"]["source_steps"])
+        self.assertFalse(skill["provenance"]["participant_names_included"])
+        self.assertFalse(skill["provenance"]["participant_ids_included"])
+        self.assertFalse(skill["provenance"]["account_project_or_chat_identifiers_included"])
+        self.assertFalse(skill["provenance"]["raw_conversation_text_included"])
+
+        # The portable form must not carry identities or scope identifiers from
+        # the fixture it was distilled from.
+        lowered = skill_text.casefold()
+        for private_fixture_value in (
+            "ari coordinator", "riley requester", "morgan manager",
+            "sam approver", "example-org", "coordinator-01",
+            "fixture-account", "multi-user-demo", "approval-workflow-demo",
+            "agent:fixture:",
+        ):
+            self.assertNotIn(private_fixture_value.casefold(), lowered)
+
+        self.assertIn("cross-boundary", skill["summary"])
+        self.assertIn("passed_within_synthetic_fixture_only", skill["validation"]["status"])
+        self.assertTrue(skill["limitations"])
+        self.assertTrue(skill["reuse_guidance"])
+
     def test_type_is_optional_defaults_to_human_and_agent_is_explicit(self):
         roster_csv = self.root / "typed-participants.csv"
         roster_csv.write_text(
