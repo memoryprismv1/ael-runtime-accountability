@@ -7,7 +7,8 @@ These examples test one portable record structure against three different classe
 - [`portable-skill-log.json`](portable-skill-log.json) — check relationships across processing boundaries when work is divided into chunks. Synthetic scenario.
 - [`source-grounded-claim-reconciliation.json`](source-grounded-claim-reconciliation.json) — preserve source definitions, populations and periods when synthesising findings that appear to conflict. Synthetic scenario.
 - [`actor-provenance-authority-separation.json`](actor-provenance-authority-separation.json) — add explicit speaker-aware classification to a shared event path without inferring authority from speaker type. Derived from a real AEL fixture-runner correction; the extraction has had a critical scope review and remains pending human/team adoption review.
-- [`REAL_REPOSITORY_LESSON.md`](REAL_REPOSITORY_LESSON.md) — source experience, review findings and validation boundary for the third example.
+- [`REAL_REPOSITORY_LESSON.md`](REAL_REPOSITORY_LESSON.md) — source experience and evidence boundary.
+- [`REVIEW_ACTOR_PROVENANCE_SKILL.md`](REVIEW_ACTOR_PROVENANCE_SKILL.md) — critical scope review, corrections and outstanding adoption review.
 
 ## Why three examples?
 
@@ -44,7 +45,7 @@ The repository-derived record also excludes fixture participant names/IDs, accou
 - The third lesson is based on a real AEL fixture-runner correction and its integration test, not a production incident or live hosted platform.
 - The fixture maps human messages to `user_direct` as a scenario convention. That is not authentication or permission evidence and must not be copied as a production default.
 - The third scenario asserts human and agent cases; service/system/unknown branches are not all independently exercised there.
-- The third extraction has had a critical scope review but remains pending human/team adoption review.
+- The third extraction has had a critical scope review (see `REVIEW_ACTOR_PROVENANCE_SKILL.md`) but remains pending human/team adoption review.
 - Three examples do not establish a universal skill schema or automatic extraction process.
 - Applicability and source quality must be checked again in the receiving team's context.
 
