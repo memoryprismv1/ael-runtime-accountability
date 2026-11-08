@@ -1,0 +1,20 @@
+step,action,actor_key,participant_key,role,workflow_id,content,event_type,branch_id,label,tradeoff,strategy_key,status,decision_path,note
+1,join,system,requester,requester,,,,,,,,,,
+2,join,requester,approver,decision_owner,,,,,,,,,,
+3,message,requester,requester,,,Prepare a short source-grounded brief about a change reported by two measurement sources. Do not assume the reported figures are directly comparable.,user_message,,,,,,,
+4,join,requester,researcher,evidence_research,,,,,,,,,,
+5,join,requester,counterreviewer,counterevidence_review,,,,,,,,,,
+6,join,requester,synthesizer,synthesis,,,,,,,,,,
+7,join,requester,verifier,verification,,,,,,,,,,
+8,message,researcher,researcher,,,Synthetic Source S1: metered consumption decreased by 12% from Q1 to Q2 across three monitored districts. The source does not report a causal explanation.,source_finding,,,,,,,
+9,message,counterreviewer,counterreviewer,,,Synthetic Source S2: billed consumption increased by 4% from the prior-year quarter to the current-year quarter across eight districts. It measures billed rather than metered consumption.,source_finding,,,,,,,
+10,message,synthesizer,synthesizer,,,"The two percentages point in different directions. A single narrative could be written, but the figures may represent different populations, metrics and comparison periods.",agent_analysis,,,,,,,
+11,message,verifier,verifier,,,"The figures cannot yet be treated as contradictory evidence: the metric, district coverage and comparison periods differ. Neither source establishes why the measurement changed.",agent_verification,,,,,,,
+12,branch_proposed,synthesizer,,,,,,interpretation-a,Present one combined trend and explain the difference as a behavioural change.,This is concise but asserts comparability and a cause that the source material does not establish.,combined-causal-narrative,,,
+13,branch_proposed,counterreviewer,,,,,,interpretation-b,Report the two source findings separately with their measurement boundaries.,"Less tidy, but preserves the source-specific metric, coverage, period and uncertainty.",separate-qualified-findings,,,
+14,branch_decided,approver,,,,,,interpretation-a,,,,rejected,direct,Reject the combined causal narrative: the available sources do not establish comparability or cause.
+15,branch_decided,approver,,,,,,interpretation-b,,,,selected,direct,Select the source-separated brief with explicit qualifiers and unresolved comparability.
+16,message,synthesizer,synthesizer,,,"Revised brief: Source S1 reports a 12% decrease in metered consumption between Q1 and Q2 across three monitored districts. Source S2 reports a 4% increase in billed consumption between the prior-year and current-year quarters across eight districts. These figures describe different measures, coverage and comparison periods and should not be combined into one trend. The sources do not establish a cause.",revised_brief,,,,,,,
+17,message,verifier,verifier,,,"Verification: both figures retain their source labels, metric, coverage and comparison period; no causal explanation or direct comparison has been added. This check verifies only the wording against the two synthetic source statements.",agent_validation,,,,,,,
+18,branch_decided,approver,,,,,,interpretation-b,,,,completed,direct,Complete the brief with the non-comparability and causal limitations retained.
+19,message,requester,requester,,,The approved brief is ready for use within the stated source limits.,user_message,,,,,,,

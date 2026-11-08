@@ -121,3 +121,25 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 **Verification:** PR CI [run #462](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42467690594) passed 88 tests on Python 3.11, 3.12 and 3.13.
 
 **Boundary:** The scenario is deterministic and synthetic; it does not simulate independent model cognition or a live multi-agent host. The skill file is manually curated, not automatically extracted, and is validated only within this fixture. It is a candidate for reuse, not a universal rule. No workflow permission system or organisation ACL was added.
+
+
+## 8 November 2026 — PR #36: second portable-skill scenario
+
+**PR:** [#36](https://github.com/memoryprismv1/ael-runtime-accountability/pull/36)
+
+**Why:** A single example could overfit the portable skill record to one engineering/process lesson. A materially different scenario was needed to test whether the same record structure could carry a different class of team learning without flattening its meaning.
+
+**Changed:**
+
+- Added a separate clean-database fixture for source-grounded evidence synthesis, with one human requester, one human decision-maker and four distinct agents for research, counterevidence, synthesis and verification.
+- Used two synthetic source statements with different measures, coverage and comparison periods. The agents identify that apparent disagreement does not establish a directly comparable trend or cause.
+- Recorded a proposed combined causal narrative, the human's rejection of that interpretation, a source-separated alternative, independent wording verification, and human completion.
+- Added [a second portable skill candidate](examples/team-skill/source-grounded-claim-reconciliation.json). It uses the same 14 top-level fields as the chunk-boundary candidate but contains a different problem pattern, method, applicability and limitations.
+- The portable record omits participant names/IDs, account/project/chat identifiers and the scenario's source-specific percentages. Source file and step references are retained for traceability to the synthetic evidence.
+- Added tests for isolated database execution, speaker attribution, agent/human provenance, human decisions, identity/scope/number exclusion and top-level record compatibility. Updated the skill examples README and repository documentation.
+
+**Verification:** PR CI [run #468](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42468770147) passed 89 tests on Python 3.11, 3.12 and 3.13.
+
+**What this establishes:** The same outer record fields can express two different lessons from two synthetic scenarios. It is a compatibility signal for the current examples, not proof of a complete or universal skill schema.
+
+**Boundary:** Both source scenarios are synthetic and each skill is validated only within its own fixture. The extraction remains manual. No automatic extractor, organisation-wide distribution service, permission system or real-world evidence-quality claim was added.
