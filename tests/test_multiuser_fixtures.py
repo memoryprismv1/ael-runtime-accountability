@@ -14,6 +14,7 @@ from ael.multiuser_fixtures import run_workflow_csv
 
 
 FIXTURE = ROOT / "examples" / "multi-user-workflow"
+EVIDENCE_FIXTURE = ROOT / "examples" / "evidence-reconciliation"
 
 
 class CSVParticipantFixtureTests(unittest.TestCase):
@@ -211,6 +212,133 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         self.assertIn("passed_within_synthetic_fixture_only", skill["validation"]["status"])
         self.assertTrue(skill["limitations"])
         self.assertTrue(skill["reuse_guidance"])
+
+    def test_second_scenario_reuses_skill_record_shape_for_source_reconciliation(self):
+        # Use a new database so the result cannot depend on prior fixture state.
+        evidence_con = runtime.connect(self.root / "evidence-reconciliation.sqlite3")
+        try:
+            receipt = run_workflow_csv(
+                evidence_con,
+                participants_csv=EVIDENCE_FIXTURE / "participants.csv",
+                workflow_csv=EVIDENCE_FIXTURE / "workflow.csv",
+                account="evidence-fixture-account",
+                project="source-brief-demo",
+                chat="source-reconciliation-demo",
+            )
+            self.assertEqual(receipt["participant_import"]["registered_count"], 6)
+            self.assertEqual(len(receipt["steps"]), 19)
+
+            participants = {
+                p.get("metadata", {}).get("fixture_key"): p
+                for p in receipt["ledger"]["participants"]
+            }
+            approver = participants["approver"]
+            researcher = participants["researcher"]
+            counterreviewer = participants["counterreviewer"]
+            synthesizer = participants["synthesizer"]
+            verifier = participants["verifier"]
+
+            events = receipt["ledger"]["events"]
+            by_step = {
+                json.loads(event["metadata_json"]).get("fixture_step"): event
+                for event in events
+                if event.get("metadata_json")
+                and json.loads(event["metadata_json"]).get("fixture_step") is not None
+            }
+            self.assertEqual(by_step[3]["actor_id"], participants["lead"]["participant_id"])
+            self.assertEqual(by_step[8]["actor_id"], researcher["participant_id"])
+            self.assertEqual(by_step[9]["actor_id"], counterreviewer["participant_id"])
+            self.assertEqual(by_step[10]["actor_id"], synthesizer["participant_id"])
+            self.assertEqual(by_step[11]["actor_id"], verifier["participant_id"])
+            self.assertEqual(by_step[16]["actor_id"], synthesizer["participant_id"])
+            self.assertEqual(by_step[17]["actor_id"], verifier["participant_id"])
+            self.assertEqual(by_step[19]["actor_id"], participants["lead"]["participant_id"])
+
+            for step in (8, 9, 10, 11, 16, 17):
+                self.assertEqual(by_step[step]["provenance"], "assistant")
+                self.assertEqual(by_step[step]["authority"], "none")
+            self.assertEqual(by_step[3]["provenance"], "user")
+            self.assertEqual(by_step[19]["provenance"], "user")
+
+            combined = next(
+                e for e in events
+                if e["event_type"] == "branch.proposed" and e["branch_id"] == "interpretation-a"
+            )
+            qualified = next(
+                e for e in events
+                if e["event_type"] == "branch.proposed" and e["branch_id"] == "interpretation-b"
+            )
+            self.assertEqual(combined["actor_id"], synthesizer["participant_id"])
+            self.assertEqual(qualified["actor_id"], counterreviewer["participant_id"])
+
+            combined_decisions = [
+                e for e in events if e["branch_id"] == "interpretation-a"
+                and e["event_type"] == "branch.rejected"
+            ]
+            qualified_decisions = [
+                e for e in events if e["branch_id"] == "interpretation-b"
+                and e["event_type"] in {"branch.selected", "branch.completed"}
+            ]
+            self.assertEqual(len(combined_decisions), 1)
+            self.assertEqual(
+                [e["event_type"] for e in qualified_decisions],
+                ["branch.selected", "branch.completed"],
+            )
+            self.assertEqual(combined_decisions[0]["actor_id"], approver["participant_id"])
+            self.assertTrue(all(e["actor_id"] == approver["participant_id"] for e in qualified_decisions))
+            self.assertTrue(all(e["authority"] == "user_direct" for e in qualified_decisions))
+
+        finally:
+            evidence_con.close()
+
+        first_skill_path = ROOT / "examples" / "team-skill" / "portable-skill-log.json"
+        second_skill_path = ROOT / "examples" / "team-skill" / "source-grounded-claim-reconciliation.json"
+        first_skill_text = first_skill_path.read_text(encoding="utf-8")
+        second_skill_text = second_skill_path.read_text(encoding="utf-8")
+        first_skill = json.loads(first_skill_text)
+        second_skill = json.loads(second_skill_text)
+
+        # The outer record structure must work for a different lesson.
+        self.assertEqual(set(second_skill), set(first_skill))
+        self.assertEqual(second_skill["format_version"], first_skill["format_version"])
+        self.assertEqual(second_skill["record_type"], "portable_team_skill")
+        self.assertEqual(second_skill["maturity"], "candidate")
+        self.assertNotEqual(second_skill["skill_id"], first_skill["skill_id"])
+        self.assertEqual(
+            second_skill["provenance"]["source_kind"],
+            "synthetic_evidence_reconciliation_fixture",
+        )
+        self.assertEqual(
+            second_skill["provenance"]["source_file"],
+            "examples/evidence-reconciliation/workflow.csv",
+        )
+        self.assertTrue(second_skill["provenance"]["source_steps"])
+        self.assertFalse(second_skill["provenance"]["participant_names_included"])
+        self.assertFalse(second_skill["provenance"]["participant_ids_included"])
+        self.assertFalse(second_skill["provenance"]["account_project_or_chat_identifiers_included"])
+        self.assertFalse(second_skill["provenance"]["raw_conversation_text_included"])
+
+        # Ensure the portable skill contains no fixture identities, scope IDs,
+        # or source-specific numerical findings.
+        lowered = second_skill_text.casefold()
+        for private_fixture_value in (
+            "brief owner", "decision owner", "synthetic-org",
+            "evidence-fixture-account", "source-brief-demo",
+            "source-reconciliation-demo", "agent:synthetic:",
+            "12%", "4%", "source s1", "source s2",
+        ):
+            self.assertNotIn(private_fixture_value.casefold(), lowered)
+
+        self.assertIn("source", second_skill["summary"].casefold())
+        self.assertIn("comparison", second_skill["summary"].casefold())
+        self.assertTrue(second_skill["generalised_method"])
+        self.assertTrue(second_skill["applicability"])
+        self.assertTrue(second_skill["limitations"])
+        self.assertEqual(
+            second_skill["validation"]["status"],
+            "passed_within_synthetic_fixture_only",
+        )
+        self.assertTrue(second_skill["reuse_guidance"])
 
     def test_type_is_optional_defaults_to_human_and_agent_is_explicit(self):
         roster_csv = self.root / "typed-participants.csv"
