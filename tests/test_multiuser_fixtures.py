@@ -37,8 +37,10 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         self.assertEqual(second["registered_count"], 8)
         roster = {p["fixture_key"]: p for p in first["participants"]}
         self.assertEqual(roster["coordinator"]["type"], "human")
-        self.assertEqual(roster["assistant"]["type"], "agent")
-        self.assertEqual(roster["assistant"]["participant_type"], "ai_agent")
+        for key in ("assistant", "reviewer", "implementer", "validator"):
+            self.assertEqual(roster[key]["type"], "agent")
+            self.assertEqual(roster[key]["participant_type"], "ai_agent")
+        self.assertEqual(roster["requester"]["type"], "human")
         self.assertFalse(first["membership_created"])
         self.assertEqual(
             self.con.execute(
