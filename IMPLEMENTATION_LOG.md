@@ -185,3 +185,18 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 - Strengthened the existing skill test to check the narrowed source scope, the authority caveat and the untested-branch limitation.
 
 **Boundary:** This review does not implement new authentication, permission handling, recorder attribution or on-behalf-of fields. It only improves the fidelity and portability of the extracted candidate. AEL CI validates the fixture/test behaviour, not adoption or utility at another organisation.
+
+
+## 8 November 2026 — PR #39: critical scope review of actor attribution skill
+
+**PR:** [#39](https://github.com/memoryprismv1/ael-runtime-accountability/pull/39) (review branch; merge pending)
+
+**Why:** The initial extraction from PR #35 was directionally useful but broader than the source evidence. It blurred the fixture runner with production infrastructure and associated a human fixture default too closely with real authority.
+
+**Review:** Added [`REVIEW_ACTOR_PROVENANCE_SKILL.md`](examples/team-skill/REVIEW_ACTOR_PROVENANCE_SKILL.md). Narrowed the skill to speaker-aware classification in a shared message/event path; named the deterministic fixture runner as the actual source; warned that fixture `user_direct` is not authentication or permission evidence; removed implied evidence for recorder/represented-principal fields; and recorded the service/system/unknown branch coverage gap in the PR #35 scenario.
+
+**Validation status:** The skill now says `originating_fixture_reviewed_human_adoption_pending`. Critical scope review is complete; independent human/team adoption remains pending. The strengthened test checks the exact evidence boundary and authority warning.
+
+**Verification:** PR #39 CI [run #487](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42472507493) passed 90 tests on Python 3.11, 3.12 and 3.13.
+
+**Boundary:** No runtime code, authentication, permissions, recorder model or delegated-principal implementation changed. This work improves the extracted candidate's accuracy and portability; it does not certify independent adoption or general effectiveness.
