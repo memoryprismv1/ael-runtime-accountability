@@ -23,7 +23,7 @@ Importing the roster registers identities; it does **not** add them to a convers
 6. The implementation agent reports the prototype ready; an independent validation agent finds a boundary defect.
 7. The human rejects the initial approach. The review agent proposes overlap-aware processing and boundary reconciliation.
 8. The human selects the revised approach; the implementation agent reports the change; the validation agent records a pass for the synthetic boundary cases; the human records completion.
-9. A passive manager leaves without ever acting. The requester leaves and rejoins, retaining the same identity across two participation periods.
+9. A passive manager, who joined after the initial problem statement, leaves without ever acting. The requester leaves and rejoins, retaining the same identity across two participation periods.
 
 Agent messages are stored with the registered agent as actor, assistant provenance, and no human decision authority. Human messages retain user provenance. Human branch decisions retain the human actor and direct-user authority attribution. Distinct agent identities are not collapsed into one generic assistant.
 
