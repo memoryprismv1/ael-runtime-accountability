@@ -1,32 +1,39 @@
-# Third portable-skill example: actor, provenance and authority
+# Third portable-skill example: actor identity, event classification and authority
 
-This example is distilled from a real engineering change in the AEL repository, rather than a synthetic workflow.
+This candidate is distilled from a real AEL repository code correction. The source was a deterministic fixture runner, not a production service.
 
-## Source experience
+## What actually happened
 
-When the multi-agent fixture was added, its shared `message` path still used human-only defaults: user provenance, direct-user authority and user-statement classification. That was harmless while every speaker in the fixture was human, but wrong once separately identified agents could send messages through the same path.
+When the multi-agent fixture was added, its shared `message` branch still applied human-only defaults to every speaker:
 
-PR [#35](https://github.com/memoryprismv1/ael-runtime-accountability/pull/35) corrected the path to resolve the registered speaker and map the event fields appropriately. The accompanying tests assert that agent messages retain their own actor identity and assistant provenance and do not acquire human direct-user authority, while human messages and decisions remain separately attributed.
+- user provenance;
+- direct-user authority;
+- user-statement classification.
 
-This was a real repository implementation issue found and corrected during development. It was not a production incident, and it is not evidence that a live multi-agent host has been integrated.
+That was no longer a sound description once separately identified agents could send messages through the same fixture path.
 
-## Generalised skill
+PR [#35](https://github.com/memoryprismv1/ael-runtime-accountability/pull/35) changed the fixture runner to resolve the registered speaker and select a mapping for the participant type. The integration scenario asserts that agent messages retain their own participant identity, use assistant provenance and do not receive human direct-user authority. It also checks that human messages and human branch decisions remain separately attributed.
 
-[`actor-provenance-authority-separation.json`](actor-provenance-authority-separation.json) turns that experience into a reusable review method: when adding actor types to a shared event path, trace all attribution fields and test both correct mappings and forbidden substitutions.
+## Critical review and corrections
 
-The skill is intentionally careful about boundaries. Participant type is not authentication. Membership is not permission. A role label is not authority. The host must provide trusted identity and delegation evidence.
+The first extraction was broader than its evidence. This review found and corrected three overstatements:
 
-The extracted skill remains a candidate. Its validation evidence is drawn from the merged code change and repository tests, but the extraction itself is marked as pending independent human/team review before adoption.
+1. **Fixture versus production:** The change is in `ael/multiuser_fixtures.py`. It does not demonstrate that the core ledger append boundary or a live hosted multi-agent adapter performs the same mapping.
+2. **Speaker type versus authority:** The fixture still maps a `human` participant to `user_direct`. That is a deterministic scenario convention, not proof of authentication, permission or actual authorisation. The portable skill now explicitly warns receiving systems not to copy it as an authority rule.
+3. **Fields not exercised:** The earlier extraction discussed represented principals and recorders as though they were demonstrated by this change. They were not. The revised skill limits its core method to fields actually present in the path and mentions on-behalf-of data only conditionally, where a receiving system explicitly supports it.
 
-## Provenance and privacy
+The PR #35 test scenario asserts the human and agent cases. Although the fixture mapping also includes service, system and unknown categories, that scenario does not independently test all those branches. The revised skill says so.
 
-The skill points to the public AEL repository, PR, commit and source files so its origin can be checked. It does not contain participant names, participant IDs, account/project/chat scope IDs or raw conversation text.
+## Generalised practice
 
-This provenance is intentionally different from the two synthetic examples. The source is a real code change with a merged implementation and test evidence, not a numbered synthetic conversation. The common top-level skill record remains the same.
+The transferable lesson is narrower and stronger:
 
-## Validation boundary
+**When a shared message or event path gains new kinds of speakers, replace implicit human-only defaults with explicit speaker-aware classification, and establish authority separately from speaker type.**
 
-- The change and its tests were exercised in the AEL repository.
-- CI passed 88 tests across Python 3.11, 3.12 and 3.13 after PR #35.
-- No live hosted platform or production multi-agent environment was tested.
-- The lesson is a candidate engineering practice, pending independent human/team review. Its use elsewhere still requires mapping the fields to that system's actual identity, provenance and authority model.
+For another team, this means examining its actual writer and fields, using the host's trusted identity evidence, separating event source from authority, and writing positive and negative tests through the real receiving path. A registry label or role is not authentication; a speaker's ability to send a message is not permission to perform every action.
+
+## Provenance and review status
+
+The machine-readable skill points to the public AEL repository, PR, commit, changed source files and the relevant integration test. It excludes participant names/IDs, account/project/chat identifiers and raw conversation text. The source scope is explicitly labelled as the deterministic fixture runner.
+
+This is a real repository implementation correction, not a production incident. The critical scope review has been completed, but the extracted practice remains a candidate pending your or another team's adoption review. The code tests validate the fixture correction; they do not certify the skill for general use.
