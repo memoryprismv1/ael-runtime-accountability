@@ -1,7 +1,7 @@
-fixture_key,participant_type,identity_source,issuer,external_id,participant_id,display_name
-coordinator,human,organisation,example-org,coordinator-01,,Ari Coordinator
-requester,human,organisation,example-org,requester-02,,Riley Requester
-manager,human,organisation,example-org,manager-03,,Morgan Manager
-approver,human,organisation,example-org,approver-04,,Sam Approver
-implementer,human,organisation,example-org,implementer-05,,Casey Implementer
-assistant,ai_agent,provider,,,agent:fixture:assistant,Fixture Assistant Agent
+fixture_key,type,identity_source,issuer,external_id,participant_id,display_name
+coordinator,,organisation,example-org,coordinator-01,,Ari Coordinator
+requester,,organisation,example-org,requester-02,,Riley Requester
+manager,,organisation,example-org,manager-03,,Morgan Manager
+approver,,organisation,example-org,approver-04,,Sam Approver
+implementer,,organisation,example-org,implementer-05,,Casey Implementer
+assistant,agent,provider,,,agent:fixture:assistant,Fixture Assistant Agent
