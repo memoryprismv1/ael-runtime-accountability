@@ -1,9 +1,9 @@
 # AEL Runtime — Next Steps / Handoff
 
-**Runtime feature baseline:** `44561c1b10948e34e671b495d6fe486f89a0a2fc`  
-**Latest merged feature:** PR [#35](https://github.com/memoryprismv1/ael-runtime-accountability/pull/35), multi-agent accountability fixture and portable skill-log example.  
-**Current phase:** Evaluate portable team-skill building from accountable ledger evidence. Keep the first skill as a synthetic candidate; test the record format against a second, unrelated scenario before considering extraction automation.  
-**Latest CI:** PR [#35](https://github.com/memoryprismv1/ael-runtime-accountability/pull/35), run [#462](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42467690594), passed 88 tests on Python 3.11, 3.12 and 3.13.
+**Runtime feature baseline:** `45688bdee538bb6f51a4fdd6c1400618554719ef`  
+**Latest merged feature:** PR [#36](https://github.com/memoryprismv1/ael-runtime-accountability/pull/36), second portable-skill scenario and record-format compatibility test.  
+**Current phase:** Test the portable record against a repository-derived engineering lesson. Three examples now share the same outer fields: two synthetic scenarios and one real code-path correction. The third candidate remains pending independent human/team review.  
+**Latest merged CI:** PR [#36](https://github.com/memoryprismv1/ael-runtime-accountability/pull/36), run [#468](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42468770147), passed 89 tests on Python 3.11, 3.12 and 3.13.
 
 ## Scope clarification — 7 November 2026
 
@@ -25,14 +25,14 @@ Review whether AEL should record an attributed action attempt and flag its relat
 
 ## Next design work
 
-1. **Compare the two candidate records:** Review which fields are genuinely common and which may be optional or domain-specific. Two synthetic fixtures are only an initial compatibility check, not enough to declare a universal schema.
-2. **Define the curation boundary:** Separate source evidence, generalised lesson, sensitive details that must be withheld, human review, validation and reuse status. Do not equate anonymisation with proof that a lesson is safe or universally applicable.
-3. **Try one reviewed, non-sensitive real team lesson before automation:** A real example can expose details that synthetic cases cannot—source restrictions, contextual dependencies, redaction risk and whether the resulting skill is actually useful to another team. Keep the source history local and select only material explicitly suitable for reuse.
-4. **Keep extraction manual for now:** The two examples in `examples/team-skill/` are manually curated candidates. Do not build an automatic extractor until the record has been tested against real curation and review needs.
-4. **Controlled context reuse:** Continue to examine how a new project can selectively reuse reviewed skills without importing whole conversations or project-sensitive information.
-5. **Attempt versus acceptance:** Review whether AEL should preserve and flag attributed action attempts outside a recorded participation period rather than reject them before an accountability record exists.
-6. **Supporting-operation evidence:** Review memory lifecycle, revision decisions and checkpoints for complete actor/source/version receipts. This is accountability coverage, not global workflow enforcement.
-7. **Host boundary:** The host/organisation remains responsible for authentication, access control and retrieval permissions. AEL records origins, choices and model-context use; it does not administer organisation permissions.
+1. **Review the repository-derived skill:** Check whether the generalisation is faithful to the PR #35 code change and whether the method is useful outside the AEL fixture. The candidate is explicitly marked pending independent human/team review.
+2. **Compare provenance needs:** Synthetic lessons point to fixture files and step numbers; a real engineering lesson points to a public repository, PR, commit, files and tests. Preserve this flexibility without weakening source traceability.
+3. **Inspect the 14 shared top-level fields:** Three lessons now fit the same outer shape, but this is still a small sample. Identify fields that are truly universal and distinguish required fields from domain-specific detail.
+4. **Keep extraction manual:** Do not build an automatic extractor yet. First test a human review and approval path on a real, non-sensitive lesson, including who can approve reuse and what happens when the candidate is revised or rejected.
+5. **Controlled context reuse:** Continue to examine how a new project can selectively reuse reviewed skills without importing whole conversations or project-sensitive information.
+6. **Attempt versus acceptance:** Review whether AEL should preserve and flag attributed action attempts outside a recorded participation period rather than reject them before an accountability record exists.
+7. **Supporting-operation evidence:** Review memory lifecycle, revision decisions and checkpoints for complete actor/source/version receipts. This is accountability coverage, not global workflow enforcement.
+8. **Host boundary:** The host/organisation remains responsible for authentication, access control and retrieval permissions. AEL records origins, choices and model-context use; it does not administer organisation permissions.
 
 ## Reuse direction — prefer selective pull, not blanket propagation
 
