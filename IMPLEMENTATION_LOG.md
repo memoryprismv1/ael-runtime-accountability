@@ -88,3 +88,16 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 **Recorded boundary:** AEL provides accountability, optionality and thinking space; it does not manage end-to-end workflows or administer organisational permissions. PR #32's active-membership rejection gate is under design review because an out-of-period action attempt may itself be evidence worth preserving. Cross-project work is framed as controlled, selective reuse of applicable knowledge with provenance and sensitivity boundaries, not blanket context propagation.
 
 **Verification:** Documentation-only PR [#33](https://github.com/memoryprismv1/ael-runtime-accountability/pull/33), workflow run [#455](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42394886609), passed the existing 85-test suite on Python 3.11, 3.12 and 3.13. No runtime code changed.
+
+
+## 8 November 2026 — PR #34: simple human/agent participant roster type
+
+**PR:** [#34](https://github.com/memoryprismv1/ael-runtime-accountability/pull/34)
+
+**Why:** The example participant roster required the internal `participant_type` vocabulary, even though the roster only needs to distinguish humans from agents. This made the list unnecessarily cumbersome and exposed runtime-specific categories to fixture authors.
+
+**Changed:** Added an optional `type` column accepting only `human` or `agent`. Blank values and an omitted column default to `human`; agents must be explicitly marked `agent`. The importer maps `agent` to the existing internal `ai_agent` value so the database's system/service/unknown distinctions remain intact. Legacy `participant_type` CSVs remain accepted; specifying both columns is rejected as ambiguous. Updated the example roster and fixture documentation.
+
+**Verification:** PR CI [run #459](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42466162643) passed 87 tests on Python 3.11, 3.12 and 3.13. Tests cover blank/default human, omitted column, explicit agent mapping, invalid values rejected before any identity is written, and the mixed participant example.
+
+**Boundary:** This changes roster representation and fixture import only. It does not change identity authentication, membership, authority, action attribution or workflow behavior.
