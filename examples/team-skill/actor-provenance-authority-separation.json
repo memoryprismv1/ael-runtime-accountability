@@ -4,7 +4,7 @@
   "skill_id": "separate-actor-provenance-and-authority",
   "title": "Keep speaker, source and authority distinct in shared event paths",
   "maturity": "candidate",
-  "distribution_scope": "team_reusable_candidate",
+  "distribution_scope": "team_reusable_candidate_pending_review",
   "summary": "When adding new actor types to a shared message or event path, audit every attribution field instead of letting new speakers inherit assumptions designed for the original human-only path.",
   "problem_pattern": {
     "conditions": [
@@ -58,20 +58,23 @@
     "This candidate comes from a real code-path correction in the AEL repository and its test suite, not from a production incident or an independently evaluated external team."
   ],
   "validation": {
-    "status": "tested_in_originating_repository",
+    "status": "tested_in_originating_repository_pending_skill_review",
     "checks": [
       "The pre-change shared message path applied user provenance, direct-user authority and user-statement classification to every speaker.",
       "The corrected path resolves the registered speaker and records human, agent, service, system and unknown speaker defaults separately.",
       "The multi-agent fixture asserts distinct registered agent actor IDs, assistant provenance and no human direct-user authority for agent messages.",
       "The fixture also asserts that human messages and human decisions remain separately attributed.",
-      "The AEL CI suite passed 88 tests on Python 3.11, 3.12 and 3.13 after the change."
+      "The AEL CI suite passed 88 tests on Python 3.11, 3.12 and 3.13 after the change.",
+      "The source code diff and merged PR history were inspected to distinguish the original defect, the implemented correction and the limits of the available test evidence."
     ],
     "not_established": [
       "Authentication behaviour of a live hosted chat or multi-agent platform.",
       "Correctness of every possible host-specific provenance or delegation mapping.",
       "A production incident rate or measured reduction in attribution errors.",
-      "Universal applicability without adapting the field mapping to the receiving system."
-    ]
+      "Universal applicability without adapting the field mapping to the receiving system.",
+      "Independent human/team review and adoption of this extracted skill."
+    ],
+    "skill_review_status": "pending_independent_human_review_before_adoption"
   },
   "provenance": {
     "source_kind": "real_repository_engineering_change",
