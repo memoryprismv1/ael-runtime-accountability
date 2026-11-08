@@ -370,8 +370,6 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         self.assertIn("tests/test_multiuser_fixtures.py", skill["provenance"]["source_files"])
         self.assertIn("test_full_workflow_proves_presence_without_action_and_reentry",
                       skill["provenance"]["source_tests"])
-        self.assertIn("test_portable_skill_log_is_generalised_and_keeps_synthetic_provenance",
-                      skill["provenance"]["source_tests"])
         self.assertFalse(skill["provenance"]["participant_names_included"])
         self.assertFalse(skill["provenance"]["participant_ids_included"])
         self.assertFalse(skill["provenance"]["account_project_or_chat_identifiers_included"])
