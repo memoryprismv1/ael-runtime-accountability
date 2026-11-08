@@ -1,25 +1,43 @@
-# Portable team skill-log example
+# Portable team skill-log examples
 
-This example shows one possible output of distilling a general lesson from an AEL ledger without distributing the project transcript or participant identity data.
+These examples test one portable record structure against two different classes of team learning. Both are manually curated from synthetic AEL ledger fixtures; neither is an automatic extraction.
 
 ## Files
 
-- `portable-skill-log.json` is a manually curated, machine-readable example of a portable team skill record.
+- [`portable-skill-log.json`](portable-skill-log.json) — check relationships across processing boundaries when work is divided into chunks.
+- [`source-grounded-claim-reconciliation.json`](source-grounded-claim-reconciliation.json) — preserve source definitions, population and periods when synthesising findings that appear to conflict.
 
-## What it demonstrates
+## Why two examples?
 
-The synthetic multi-agent fixture records an initial bounded-processing proposal, an independent challenge about cross-boundary dependencies, a human decision to evaluate the first approach, a validation finding, a revised approach, and a final human decision after independent validation.
+The first scenario is an engineering/process lesson: locally correct chunks do not guarantee correctness across chunk boundaries.
 
-The portable record extracts only the general lesson: locally correct chunks do not guarantee correctness across chunk boundaries. It records applicability conditions, a reusable method, limitations, validation status and a reference to the synthetic fixture steps that support the extraction.
+The second scenario is an evidence-synthesis lesson: apparently conflicting figures may not be comparable if they measure different things, populations or periods. The candidate method keeps source claims separate until their comparability is established and avoids adding unsupported causation.
 
-It intentionally excludes participant names and IDs, account/project/chat identifiers, and raw conversation text. The source step references preserve a route back to the synthetic evidence without embedding that evidence in the portable file.
+The two examples use the same top-level record fields:
 
-## Important limits
+- identity and maturity of the candidate skill;
+- problem pattern and conditions;
+- generalised method;
+- applicability;
+- limitations;
+- validation status and what remains unestablished;
+- provenance back to a synthetic source fixture;
+- reuse guidance.
 
-- This is a manually curated demonstration, not an automatic skill extractor.
-- The source scenario is synthetic. The skill has only passed within that fixture; external applicability is untested.
-- This is a candidate skill, not an instruction that every team must follow.
-- Anonymising an experience does not prove the resulting lesson is universally applicable.
-- In a real deployment, source evidence would remain subject to its original access and retention boundaries. Only the reviewed, generalised skill would be distributed.
+The content of the lessons differs. The format is intended to preserve that difference rather than force unrelated knowledge into one generic recipe.
 
-The intent is to explore a file that can travel with a team's repository and provide useful prior learning even when a test starts with a clean database.
+## Privacy and evidence boundaries
+
+Both portable records intentionally exclude participant names and IDs, account/project/chat identifiers, and raw conversation text. Each retains a source file and step references so the source evidence can be found in the repository without embedding the transcript in the portable skill.
+
+These examples demonstrate a deliberately reduced, reviewed record. They do not establish that anonymisation alone makes knowledge safe to distribute. In real use, source evidence would remain subject to its original access and retention boundaries; only reviewed generalised knowledge would be considered for wider reuse.
+
+## Validation limits
+
+- Both source scenarios are synthetic; neither proves real-world effectiveness.
+- Each skill is validated only within its own fixture.
+- The examples do not establish a universal skill format, automatic extraction process, or approval system.
+- A matching outer record structure is a useful compatibility signal, not proof that the format captures every kind of team learning.
+- Applicability and source quality must be checked again in the receiving team's context.
+
+The goal at this stage is modest: see whether a team can carry useful, appropriately qualified knowledge as a file into a clean environment, without carrying the whole project history or depending on its database.
