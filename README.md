@@ -54,7 +54,7 @@ See [`DELTA_FIRST_DELIVERY.md`](DELTA_FIRST_DELIVERY.md).
 
 The canonical ledger export is schema version 3. It contains a de-duplicated `participants` array and an event stream that references registered actors. Each participant can have multiple half-open participation periods, so joining, leaving, rejoining and role changes remain historically reconstructable. See [`MULTI_USER_LEDGER_FORMAT.md`](MULTI_USER_LEDGER_FORMAT.md) for the format, migration rules and current membership enforcement boundary. [`CONTEXT_INTERVENTIONS.md`](CONTEXT_INTERVENTIONS.md) explains how shared/context-file changes are recorded separately from visible chat messages.
 
-The deterministic [multi-agent fixture](examples/multi-user-workflow/README.md) covers separate analysis, review, implementation and validation agents, agent disagreement, human decisions, and independent validation. A second, unrelated [evidence-reconciliation fixture](examples/evidence-reconciliation/README.md) tests source-grounded synthesis and non-comparable measurements. Together they exercise two different candidate skills using the same [portable skill-log record format](examples/team-skill/README.md), without carrying participant identities or raw conversations into the portable files. Both skills are synthetic, manually curated candidates—not automatically extracted or universally validated rules.
+The deterministic [multi-agent fixture](examples/multi-user-workflow/README.md) covers separate analysis, review, implementation and validation agents, agent disagreement, human decisions, and independent validation. A second, unrelated [evidence-reconciliation fixture](examples/evidence-reconciliation/README.md) tests source-grounded synthesis and non-comparable measurements. The [portable skill-log examples](examples/team-skill/README.md) now include those two synthetic lessons plus a third candidate grounded in a real AEL code-path correction. All three share the same 14 top-level fields; the repository-derived candidate retains public PR/commit/source-file provenance and is awaiting independent human review.
 
 ## Implementation history and handoff
 
@@ -68,7 +68,7 @@ Run from this directory:
 python -m unittest discover -s tests -v
 ```
 
-**89 AEL tests** cover the runtime and mocked local bridge, including active-participant action boundaries and context interventions. The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md) for the per-version CI result.
+**90 AEL tests** cover the runtime and mocked local bridge, including active-participant action boundaries and context interventions. The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md) for the per-version CI result.
 
 ## Quick start
 

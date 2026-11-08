@@ -143,3 +143,24 @@ This is the chronological engineering record for changes to the AEL Runtime repo
 **What this establishes:** The same outer record fields can express two different lessons from two synthetic scenarios. It is a compatibility signal for the current examples, not proof of a complete or universal skill schema.
 
 **Boundary:** Both source scenarios are synthetic and each skill is validated only within its own fixture. The extraction remains manual. No automatic extractor, organisation-wide distribution service, permission system or real-world evidence-quality claim was added.
+
+
+## 8 November 2026 — PR #37: portable skill from real actor-attribution correction
+
+**PR:** [#37](https://github.com/memoryprismv1/ael-runtime-accountability/pull/37)
+
+**Why:** After two synthetic examples, a third lesson was needed from an actual engineering change to test the portable format against real repository provenance and test evidence.
+
+**Source experience:** Before PR #35, the shared fixture `message` path applied human-only defaults—user provenance, direct-user authority and user-statement classification—to every speaker. Adding agents made that mapping incorrect. PR #35 corrected the path to resolve the registered speaker and map the event fields appropriately.
+
+**Changed:**
+
+- Added [`actor-provenance-authority-separation.json`](examples/team-skill/actor-provenance-authority-separation.json), a portable candidate advising teams to trace actor identity, provenance and authority through shared event-writing paths when adding actor types.
+- Preserved public source provenance: repository, PR #35, merged commit, source files and test names. Excluded participant names/IDs, account/project/chat identifiers and raw conversation text.
+- Explicitly marked the skill as `tested_in_originating_repository_pending_skill_review` with `pending_independent_human_review_before_adoption`. Passing code tests is not approval of the extracted lesson.
+- Added tests that compare the new record's 14 top-level fields with both existing skill examples, validate its source references and exclusions, and check its pending-review status.
+- Updated the portable-skill guide, repository README and handoff.
+
+**Verification:** PR CI [run #474](https://github.com/memoryprismv1/ael-runtime-accountability/actions/runs/42469572953) passed 90 tests on Python 3.11, 3.12 and 3.13.
+
+**Boundary:** This is a real AEL repository engineering correction and code/test evidence, not a production incident or live hosted-platform integration. The extraction is pending independent human/team review. It does not add an automatic extractor, permission system or organisation-wide distribution mechanism.

@@ -1,19 +1,23 @@
 # Portable team skill-log examples
 
-These examples test one portable record structure against two different classes of team learning. Both are manually curated from synthetic AEL ledger fixtures; neither is an automatic extraction.
+These examples test one portable record structure against three different classes of team learning. Two are manually curated from synthetic AEL ledger fixtures; one is derived from a real, public AEL repository change. None is an automatic extraction.
 
 ## Files
 
-- [`portable-skill-log.json`](portable-skill-log.json) — check relationships across processing boundaries when work is divided into chunks.
-- [`source-grounded-claim-reconciliation.json`](source-grounded-claim-reconciliation.json) — preserve source definitions, population and periods when synthesising findings that appear to conflict.
+- [`portable-skill-log.json`](portable-skill-log.json) — check relationships across processing boundaries when work is divided into chunks. Synthetic scenario.
+- [`source-grounded-claim-reconciliation.json`](source-grounded-claim-reconciliation.json) — preserve source definitions, populations and periods when synthesising findings that appear to conflict. Synthetic scenario.
+- [`actor-provenance-authority-separation.json`](actor-provenance-authority-separation.json) — keep speaker identity, provenance and authority distinct when extending shared event paths. Derived from a real AEL code-path correction; independent skill review is still pending.
+- [`REAL_REPOSITORY_LESSON.md`](REAL_REPOSITORY_LESSON.md) — origin, evidence and review limits for the third example.
 
-## Why two examples?
+## Why three examples?
 
 The first scenario is an engineering/process lesson: locally correct chunks do not guarantee correctness across chunk boundaries.
 
 The second scenario is an evidence-synthesis lesson: apparently conflicting figures may not be comparable if they measure different things, populations or periods. The candidate method keeps source claims separate until their comparability is established and avoids adding unsupported causation.
 
-The two examples use the same top-level record fields:
+The third example comes from real repository work. When the AEL fixture gained multiple agents, its shared message path still applied human-only defaults to every speaker. The correction mapped message attribution using the registered speaker and added tests to prevent agent events acquiring human decision authority. The extracted practice is to audit every attribution field when new actor types enter an existing event path.
+
+The three records use the same 14 top-level fields:
 
 - identity and maturity of the candidate skill;
 - problem pattern and conditions;
@@ -21,23 +25,26 @@ The two examples use the same top-level record fields:
 - applicability;
 - limitations;
 - validation status and what remains unestablished;
-- provenance back to a synthetic source fixture;
+- provenance;
 - reuse guidance.
 
-The content of the lessons differs. The format is intended to preserve that difference rather than force unrelated knowledge into one generic recipe.
+The content of the lessons differs. The examples also show that provenance details need not be identical: a synthetic scenario can point to a fixture and step numbers, while a real code change can point to a repository, pull request, commit, files and tests.
 
 ## Privacy and evidence boundaries
 
-Both portable records intentionally exclude participant names and IDs, account/project/chat identifiers, and raw conversation text. Each retains a source file and step references so the source evidence can be found in the repository without embedding the transcript in the portable skill.
+The two synthetic portable records exclude participant names and IDs, account/project/chat identifiers, and raw conversation text.
 
-These examples demonstrate a deliberately reduced, reviewed record. They do not establish that anonymisation alone makes knowledge safe to distribute. In real use, source evidence would remain subject to its original access and retention boundaries; only reviewed generalised knowledge would be considered for wider reuse.
+The repository-derived record also excludes participant names/IDs, account/project/chat identifiers and raw conversation text. It retains the public repository, PR, commit and source-file references so the implementation evidence can be independently inspected. That is source traceability, not anonymisation of the public project itself.
+
+These examples demonstrate deliberately reduced records. They do not establish that anonymisation alone makes knowledge safe to distribute. In real use, source evidence remains subject to its original access and retention boundaries; only reviewed generalised knowledge should be considered for wider reuse.
 
 ## Validation limits
 
-- Both source scenarios are synthetic; neither proves real-world effectiveness.
-- Each skill is validated only within its own fixture.
-- The examples do not establish a universal skill format, automatic extraction process, or approval system.
+- The first two source scenarios are synthetic; each skill has passed only within its own fixture.
+- The third lesson is grounded in a real merged code change and repository tests, but the extracted skill is still a candidate awaiting independent human/team review.
+- The repository change does not establish that a live hosted multi-agent platform was integrated or that a production incident occurred.
+- The examples do not establish a universal skill format or automatic extraction process.
 - A matching outer record structure is a useful compatibility signal, not proof that the format captures every kind of team learning.
 - Applicability and source quality must be checked again in the receiving team's context.
 
-The goal at this stage is modest: see whether a team can carry useful, appropriately qualified knowledge as a file into a clean environment, without carrying the whole project history or depending on its database.
+The goal is to carry useful, appropriately qualified knowledge as a file into a clean environment, without carrying the whole project history or depending on its database.
