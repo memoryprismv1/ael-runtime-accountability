@@ -68,7 +68,7 @@ Run from this directory:
 python -m unittest discover -s tests -v
 ```
 
-**88 AEL tests** cover the runtime and mocked local bridge, including active-participant action boundaries and context interventions. The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md) for the per-version CI result.
+**89 AEL tests** cover the runtime and mocked local bridge, including active-participant action boundaries and context interventions. The shared Q-Batch logger, experiment harnesses, methodology tests and historical-analysis tests now live and run in the separate [Q-Batch repository](https://github.com/memoryprismv1/q-batch-of-evidence). AEL tests establish local invariants and adapter serialization behaviour; they do not establish that the actual Ollama application or a local model is installed or that every AEL mechanism is complete. See [`TEST_REPORT.md`](TEST_REPORT.md) for the per-version CI result.
 
 ## Quick start
 
