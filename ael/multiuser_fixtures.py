@@ -59,6 +59,7 @@ def run_workflow_csv(
     """Import identities then execute explicit, ordered membership/action steps."""
     imported = import_participants_csv(con, participants_csv, account=account)
     ids = imported["by_fixture_key"]
+    participants_by_key = {p["fixture_key"]: p for p in imported["participants"]}
     steps = _read_steps(workflow_csv)
     results: list[dict[str, Any]] = []
 
@@ -106,20 +107,48 @@ def run_workflow_csv(
                 "role": period["role"],
             }
         elif action == "message":
-            participant_id = resolve(participant_key, "participant_key")
+            message_actor_key = row["actor_key"]
+            if participant_key and participant_key != message_actor_key:
+                raise ValueError(
+                    f"Workflow step {row['step']}: for message actions actor_key and participant_key "
+                    "must identify the same speaker"
+                )
             if not row.get("content"):
                 raise ValueError(f"Workflow step {row['step']}: message requires content")
+
+            participant = participants_by_key.get(message_actor_key)
+            participant_type = (
+                participant["participant_type"] if participant
+                else "system" if message_actor_key == "system"
+                else "unknown"
+            )
+            # Keep the message's source and authority aligned with the registered
+            # speaker. An agent contribution is not a human statement or approval.
+            message_facts = {
+                "human": ("user", "user_direct", "user_statement", "not_applicable", "user_message"),
+                "ai_agent": ("assistant", "none", "inference", "unverified", "agent_message"),
+                "service": ("system", "system_process", "process_event", "not_applicable", "service_message"),
+                "system": ("system", "system_process", "process_event", "not_applicable", "system_message"),
+                "unknown": ("external", "none", "unspecified", "unverified", "external_message"),
+            }
+            provenance, authority, inference_kind, truth_status, default_event_type = (
+                message_facts[participant_type]
+            )
             event = append_event(
                 con, account=account, project=project, chat=chat,
-                event_type=row.get("event_type") or "user_message",
-                provenance="user", authority="user_direct",
-                inference_kind="user_statement", truth_status="not_applicable",
-                actor_id=participant_id, content=row["content"],
-                metadata={"fixture_step": int(row["step"]), "fixture_key": participant_key},
+                event_type=row.get("event_type") or default_event_type,
+                provenance=provenance, authority=authority,
+                inference_kind=inference_kind, truth_status=truth_status,
+                actor_id=actor_id, content=row["content"],
+                metadata={
+                    "fixture_step": int(row["step"]),
+                    "fixture_key": message_actor_key,
+                    "participant_type": participant_type,
+                },
             )
             result = {
                 "step": int(row["step"]), "action": action,
-                "participant_key": participant_key, "actor_id": participant_id,
+                "actor_key": message_actor_key, "actor_id": actor_id,
                 "event_id": event["event_id"], "seq": event["seq"],
             }
         elif action == "branch_proposed":
