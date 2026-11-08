@@ -34,6 +34,10 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         )
         self.assertEqual(first["registered_count"], 6)
         self.assertEqual(second["registered_count"], 6)
+        roster = {p["fixture_key"]: p for p in first["participants"]}
+        self.assertEqual(roster["coordinator"]["type"], "human")
+        self.assertEqual(roster["assistant"]["type"], "agent")
+        self.assertEqual(roster["assistant"]["participant_type"], "ai_agent")
         self.assertFalse(first["membership_created"])
         self.assertEqual(
             self.con.execute(
@@ -114,6 +118,53 @@ class CSVParticipantFixtureTests(unittest.TestCase):
         # Yet the manager is included during both the branch proposal and approval.
         self.assertIn(proposal["seq"], receipt["manager_present_event_seqs"])
         self.assertIn(selection["seq"], receipt["manager_present_event_seqs"])
+
+    def test_type_is_optional_defaults_to_human_and_agent_is_explicit(self):
+        roster_csv = self.root / "typed-participants.csv"
+        roster_csv.write_text(
+            "fixture_key,type,identity_source,display_name,participant_id\n"
+            "person,,self_generated,Default Human,\n"
+            "agent,agent,provider,Named Agent,agent:fixture:typed-agent\n",
+            encoding="utf-8",
+        )
+        result = import_participants_csv(
+            self.con, roster_csv, account="typed-account"
+        )
+        roster = {p["fixture_key"]: p for p in result["participants"]}
+        self.assertEqual(roster["person"]["type"], "human")
+        self.assertEqual(roster["person"]["participant_type"], "human")
+        self.assertEqual(roster["agent"]["type"], "agent")
+        self.assertEqual(roster["agent"]["participant_type"], "ai_agent")
+
+        # A roster can omit the optional type column entirely; it still defaults
+        # to human for every row.
+        no_type_csv = self.root / "no-type-participants.csv"
+        no_type_csv.write_text(
+            "fixture_key,identity_source,display_name,participant_id\n"
+            "person,self_generated,Implicit Human,\n",
+            encoding="utf-8",
+        )
+        no_type = import_participants_csv(
+            self.con, no_type_csv, account="no-type-account"
+        )
+        self.assertEqual(no_type["participants"][0]["type"], "human")
+
+    def test_invalid_type_is_rejected_before_any_identity_is_written(self):
+        bad_csv = self.root / "bad-type-participants.csv"
+        bad_csv.write_text(
+            "fixture_key,type,identity_source,display_name,participant_id\n"
+            "valid,,self_generated,Valid Human,\n"
+            "bad,bot,provider,Invalid Type,agent:fixture:bad-type\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(ValueError, "type must be 'human' or 'agent'"):
+            import_participants_csv(self.con, bad_csv, account="bad-type-account")
+        self.assertEqual(
+            self.con.execute(
+                "SELECT COUNT(*) FROM participants WHERE account_id='bad-type-account'"
+            ).fetchone()[0],
+            0,
+        )
 
     def test_invalid_roster_is_rejected_before_any_identity_is_written(self):
         bad_csv = self.root / "bad-participants.csv"

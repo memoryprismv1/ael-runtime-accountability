@@ -36,6 +36,8 @@ Identity rules:
 - Organisation identities are namespaced as `org:<issuer>:<external_id>`.
 - When an organisation identity is unavailable, AEL can generate a stable UUID-based participant ID.
 - AI agents, tools/services, and system processes are participants too.
+- In participant roster CSVs, the optional `type` field is deliberately simple: `human` or `agent`. Blank or omitted means `human`; an agent must be explicitly typed. The importer maps `agent` to the internal `participant_type: "ai_agent"` value. This keeps the roster easy to maintain without collapsing the runtime's separate system, service and unattributed identity categories.
+- The older roster field `participant_type` is still accepted for compatibility. Do not provide both `type` and `participant_type` in one CSV.
 - Display names are descriptive, not identity keys. Matching names never merges identities.
 - Explicit actor IDs must be registered before use. A misspelled ID is rejected rather than silently added as a new person.
 

@@ -29,6 +29,8 @@ Use `--participants`, `--workflow`, `--account`, `--project`, `--chat` and `--ou
 ## Fixture semantics
 
 - `fixture_key` is only a local CSV alias; it is not the participant's identity.
+- The optional `type` column accepts `human` or `agent`. A blank value, or an omitted column, defaults to `human`; agents must be explicitly marked `agent`.
+- The importer maps roster `agent` to AEL's internal `ai_agent` participant type. The older `participant_type` column remains accepted for existing fixtures.
 - Organisation IDs resolve to `org:<issuer>:<external_id>`.
 - The assistant uses an explicit provider ID.
 - Roster import is idempotent and validates the entire CSV before the first write.
