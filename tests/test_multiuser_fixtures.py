@@ -117,9 +117,9 @@ class CSVParticipantFixtureTests(unittest.TestCase):
             for event in events
             if event.get("metadata_json")
         }
-        self.assertEqual(by_step[9]["actor_id"], requester["participant_id"])
-        self.assertEqual(by_step[9]["provenance"], "user")
-        self.assertEqual(by_step[9]["authority"], "user_direct")
+        self.assertEqual(by_step[3]["actor_id"], requester["participant_id"])
+        self.assertEqual(by_step[3]["provenance"], "user")
+        self.assertEqual(by_step[3]["authority"], "user_direct")
 
         # Agent messages are attributed to the registered agent, not flattened
         # into user statements or given human authority.
