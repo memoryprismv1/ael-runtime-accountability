@@ -1,5 +1,5 @@
 fixture_key,type,identity_source,issuer,external_id,participant_id,display_name
-lead,,organisation,synthetic-org,brief-owner,,Brief Owner
+requester,,organisation,synthetic-org,brief-owner,,Brief Owner
 approver,,organisation,synthetic-org,decision-owner,,Decision Owner
 researcher,agent,provider,,,agent:synthetic:evidence-research,Evidence Research Agent
 counterreviewer,agent,provider,,,agent:synthetic:counter-review,Counterevidence Agent
